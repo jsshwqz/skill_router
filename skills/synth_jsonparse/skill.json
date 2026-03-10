@@ -1,0 +1,18 @@
+{
+  "name": "synth_jsonparse",
+  "version": "0.1.0",
+  "capabilities": [
+    "json_parse"
+  ],
+  "source": "synth_generated",
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": true,
+    "process_exec": true
+  },
+  "usage": null,
+  "lifecycle": null,
+  "description": "Rust-preferred AI skill for: 分析 registry.json 并生成 Markdown 技能列表报告",
+  "entrypoint": "main.py"
+}

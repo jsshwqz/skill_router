@@ -1,0 +1,75 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+Cargo.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+logs/
+*.log
+
+# Registry and Config (optional - uncomment if you want to ignore local configs)
+# config.json
+# registry.json
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Build artifacts
+*.exe
+*.dll
+*.dylib
+
+# Skill Router specific
+bin/
+*.zip
+*.dxf
+*.stl
+
+# Archives
+SkillRouter_*.zip
+
+# Legacy directories
+SkillRouter_Final_Core_Pack/
+SkillRouter_Final_Package/
+SkillRouter_Intelligent_v2/
+SkillRouter_Shield_Edition_v3/
+Spec_Pack/
+
+# AI generated files
+image_aionui_*.png
+teacup*.py
+teacup*.dxf
+teacup*.stl
+
+# Bridge scripts
+bridge.py
+search_agent.py
+ai_gen.py
+
+# Batch files
+do.bat

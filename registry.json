@@ -1,0 +1,152 @@
+{
+  "skills": {
+    "google_search": {
+      "name": "google_search",
+      "version": "0.1.0",
+      "capabilities": [
+        "web_search"
+      ],
+      "source": "https://github.com/trusted-source/google_search",
+      "permissions": {
+        "network": true,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "Automated web search skill.",
+      "entrypoint": "main.py"
+    },
+    "synth_textsummarize": {
+      "name": "synth_textsummarize",
+      "version": "0.1.0",
+      "capabilities": [
+        "text_summarize"
+      ],
+      "source": "synth_generated",
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": true
+      },
+      "usage": {
+        "total_calls": 1,
+        "success_calls": 1,
+        "failed_calls": 0,
+        "avg_latency_ms": 61.0,
+        "last_used": "2026-03-08T12:32:56.172237800+00:00"
+      },
+      "lifecycle": null,
+      "description": "Rust-preferred AI skill for: summarize current files",
+      "entrypoint": "main.py"
+    },
+    "synth_skillsynthesize": {
+      "name": "synth_skillsynthesize",
+      "version": "0.1.0",
+      "capabilities": [
+        "skill_synthesize"
+      ],
+      "source": "synth_generated",
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": true
+      },
+      "usage": {
+        "total_calls": 2,
+        "success_calls": 2,
+        "failed_calls": 0,
+        "avg_latency_ms": 104.0,
+        "last_used": "2026-03-08T13:31:36.399333300+00:00"
+      },
+      "lifecycle": null,
+      "description": "Rust-preferred AI skill for: 设计直径50mm、高120mm的圆柱形茶杯，生成 CAD (.dxf) 和 3D 打印 (.stl) 文件。使用 python 的 ezdxf 和 numpy-stl 库（若无则合成代码）",
+      "entrypoint": "main.py"
+    },
+    "synth_jsonparse": {
+      "name": "synth_jsonparse",
+      "version": "0.1.0",
+      "capabilities": [
+        "json_parse"
+      ],
+      "source": "synth_generated",
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": true
+      },
+      "usage": {
+        "total_calls": 1,
+        "success_calls": 1,
+        "failed_calls": 0,
+        "avg_latency_ms": 65.0,
+        "last_used": "2026-03-08T12:41:36.489299600+00:00"
+      },
+      "lifecycle": null,
+      "description": "Rust-preferred AI skill for: 分析 registry.json 并生成 Markdown 技能列表报告",
+      "entrypoint": "main.py"
+    },
+    "autonomous_skill_router": {
+      "name": "autonomous_skill_router",
+      "version": "0.1.0",
+      "capabilities": [
+        "universal_automation",
+        "dynamic_code_generation",
+        "task_fulfillment"
+      ],
+      "source": null,
+      "permissions": {
+        "network": true,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "UNIVERSAL ADAPTER: Use this tool for ANY complex task, file processing, or automation that you cannot perform natively. It automatically infers capabilities, searches for skills, and synthesizes real-time code solutions to fulfill user requests.",
+      "entrypoint": "python bridge.py"
+    },
+    "yaml_parser": {
+      "name": "yaml_parser",
+      "version": "0.1.0",
+      "capabilities": [
+        "yaml_parse"
+      ],
+      "source": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "Parses YAML files.",
+      "entrypoint": "main.py"
+    },
+    "skill_router_autonomous_executor": {
+      "name": "skill_router_autonomous_executor",
+      "version": "0.1.0",
+      "capabilities": [
+        "complex_automation",
+        "auto_solution_generation",
+        "task_inference"
+      ],
+      "source": null,
+      "permissions": {
+        "network": true,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "AionUi Skill Router Bridge. Call this tool when you encounter a task that requires capabilities not currently in your toolset. It will infer, synthesize, and execute a solution automatically.",
+      "entrypoint": "python bridge.py"
+    }
+  }
+}

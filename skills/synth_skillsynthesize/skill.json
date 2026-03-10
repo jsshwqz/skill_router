@@ -1,0 +1,18 @@
+{
+  "name": "synth_skillsynthesize",
+  "version": "0.1.0",
+  "capabilities": [
+    "skill_synthesize"
+  ],
+  "source": "synth_generated",
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": true,
+    "process_exec": true
+  },
+  "usage": null,
+  "lifecycle": null,
+  "description": "Rust-preferred AI skill for: 设计直径50mm、高120mm的圆柱形茶杯，生成 CAD (.dxf) 和 3D 打印 (.stl) 文件。使用 python 的 ezdxf 和 numpy-stl 库（若无则合成代码）",
+  "entrypoint": "main.py"
+}
