@@ -13,6 +13,6 @@
   },
   "usage": null,
   "lifecycle": null,
-  "description": "Rust-preferred AI skill for: 分析 registry.json 并生成 Markdown 技能列表报告",
+  "description": "AI generated skill for JSON parsing and analysis",
   "entrypoint": "main.py"
 }

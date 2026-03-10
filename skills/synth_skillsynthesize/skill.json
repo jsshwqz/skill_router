@@ -13,6 +13,6 @@
   },
   "usage": null,
   "lifecycle": null,
-  "description": "Rust-preferred AI skill for: 设计直径50mm、高120mm的圆柱形茶杯，生成 CAD (.dxf) 和 3D 打印 (.stl) 文件。使用 python 的 ezdxf 和 numpy-stl 库（若无则合成代码）",
+  "description": "AI generated skill for synthesizing new skills dynamically",
   "entrypoint": "main.py"
 }
