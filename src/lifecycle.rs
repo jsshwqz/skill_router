@@ -17,7 +17,7 @@ impl Lifecycle {
 
         let now = Utc::now();
         let days_since_used = (now - last_used).num_days();
-        
+
         let success_rate = if usage.total_calls > 0 {
             (usage.success_calls as f64) / (usage.total_calls as f64)
         } else {

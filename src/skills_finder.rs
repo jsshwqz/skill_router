@@ -1,9 +1,9 @@
-use crate::models::{Registry, SkillMetadata, Config};
 use crate::executor::Executor;
+use crate::models::{Config, Registry, SkillMetadata};
 use anyhow::Result;
 
 /// SkillsFinder - 智能技能发现模块
-/// 
+///
 /// 职责：
 /// 1. 利用现有搜索技能（如 google_search）查找相关技能
 /// 2. 分析技能描述和元数据进行推荐
@@ -16,7 +16,7 @@ impl SkillsFinder {
         registry: &Registry,
         config: &Config,
         required_caps: &[String],
-        _task: &str
+        _task: &str,
     ) -> Option<Vec<SkillMetadata>> {
         println!("[FINDER] Starting intelligent skill discovery...");
         println!("[FINDER] Required capabilities: {:?}", required_caps);
@@ -24,15 +24,15 @@ impl SkillsFinder {
         // 策略1：检查是否有 google_search 技能可用于网络搜索
         if let Some(google_search_skill) = registry.skills.get("google_search") {
             println!("[FINDER] Found google_search skill, initiating network discovery...");
-            
-            if let Ok(found_skills) = Self::search_via_google_search(
-                config,
-                google_search_skill,
-                required_caps,
-                ""
-            ) {
+
+            if let Ok(found_skills) =
+                Self::search_via_google_search(config, google_search_skill, required_caps, "")
+            {
                 if !found_skills.is_empty() {
-                    println!("[FINDER] Network discovery successful, found {} potential skills", found_skills.len());
+                    println!(
+                        "[FINDER] Network discovery successful, found {} potential skills",
+                        found_skills.len()
+                    );
                     return Some(found_skills);
                 }
             }
@@ -41,7 +41,10 @@ impl SkillsFinder {
         // 策略2：检查 registry 中的其他技能是否能提供相关能力
         let related_skills = Self::find_related_skills(registry, required_caps);
         if !related_skills.is_empty() {
-            println!("[FINDER] Found {} related skills in registry", related_skills.len());
+            println!(
+                "[FINDER] Found {} related skills in registry",
+                related_skills.len()
+            );
             return Some(related_skills);
         }
 
@@ -54,7 +57,7 @@ impl SkillsFinder {
         config: &Config,
         google_skill: &SkillMetadata,
         required_caps: &[String],
-        _task: &str
+        _task: &str,
     ) -> Result<Vec<SkillMetadata>> {
         // 构造搜索查询
         let search_query = format!(
@@ -63,8 +66,11 @@ impl SkillsFinder {
         );
 
         // 调用 google_search 技能
-        println!("[FINDER] Executing google_search with query: {}", search_query);
-        
+        println!(
+            "[FINDER] Executing google_search with query: {}",
+            search_query
+        );
+
         // 这里我们直接调用 Executor 来执行 google_search
         // 注意：在真实场景中，我们可能需要传递搜索参数给技能
         let _result = Executor::execute(config, google_skill, true);
@@ -90,7 +96,9 @@ impl SkillsFinder {
         related.sort_by(|a, b| {
             let score_a = Self::calculate_relevance_score(a, required_caps);
             let score_b = Self::calculate_relevance_score(b, required_caps);
-            score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         related
@@ -102,10 +110,12 @@ impl SkillsFinder {
         let cap_count = required_caps.len() as f64;
 
         // 能力匹配度
-        let matched = skill.capabilities.iter()
+        let matched = skill
+            .capabilities
+            .iter()
             .filter(|cap| required_caps.contains(cap))
             .count() as f64;
-        
+
         score += matched / cap_count;
 
         // 描述关键词匹配（简化版）
@@ -131,7 +141,7 @@ impl SkillsFinder {
     /// 评分并排序技能候选项
     pub fn score_and_sort_candidates(
         candidates: &[SkillMetadata],
-        required_caps: &[String]
+        required_caps: &[String],
     ) -> Vec<(SkillMetadata, f64)> {
         let mut scored: Vec<(SkillMetadata, f64)> = candidates
             .iter()
@@ -150,7 +160,7 @@ impl SkillsFinder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Usage, Permissions, Lifecycle};
+    use crate::models::{Lifecycle, Permissions, Usage};
 
     #[test]
     fn test_relevance_score_calculation() {
@@ -168,7 +178,7 @@ mod tests {
 
         let caps = vec!["yaml_parse".to_string(), "web_search".to_string()];
         let score = SkillsFinder::calculate_relevance_score(&skill, &caps);
-        
+
         // 应该匹配一半能力 (yaml_parse)
         assert!(score > 0.3 && score < 0.6);
     }
@@ -195,7 +205,7 @@ mod tests {
 
         let caps = vec!["yaml_parse".to_string()];
         let related = SkillsFinder::find_related_skills(&registry, &caps);
-        
+
         assert_eq!(related.len(), 1);
         assert_eq!(related[0].name, "yaml_parser");
     }

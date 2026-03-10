@@ -1,16 +1,16 @@
-use clap::Parser;
 use anyhow::Result;
-use std::path::Path;
-use skill_router::models::Config;
-use skill_router::planner::Planner;
-use skill_router::loader::Loader;
-use skill_router::registry::RegistryManager;
-use skill_router::matcher::Matcher;
-use skill_router::skills_finder::SkillsFinder;
-use skill_router::online_search::OnlineSearch;
-use skill_router::executor::Executor;
-use skill_router::synth::Synth;
+use clap::Parser;
 use serde_json::json;
+use skill_router::executor::Executor;
+use skill_router::loader::Loader;
+use skill_router::matcher::Matcher;
+use skill_router::models::Config;
+use skill_router::online_search::OnlineSearch;
+use skill_router::planner::Planner;
+use skill_router::registry::RegistryManager;
+use skill_router::skills_finder::SkillsFinder;
+use skill_router::synth::Synth;
+use std::path::Path;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -43,65 +43,105 @@ fn init_default_config(path: &Path) -> Result<Config> {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     let config_path = Path::new(&cli.config);
-    
-    if !cli.json { println!("[DEBUG] Checking config path: {:?}", config_path); }
+
+    if !cli.json {
+        println!("[DEBUG] Checking config path: {:?}", config_path);
+    }
     let config = if config_path.exists() {
-        if !cli.json { println!("[DEBUG] Loading existing config..."); }
+        if !cli.json {
+            println!("[DEBUG] Loading existing config...");
+        }
         skill_router::load_config(config_path)?
     } else {
-        if !cli.json { println!("[DEBUG] Config file not found. Creating default..."); }
+        if !cli.json {
+            println!("[DEBUG] Config file not found. Creating default...");
+        }
         init_default_config(config_path)?
     };
 
-    if !cli.json { println!("[DEBUG] Loading registry from: {}", config.registry_file); }
+    if !cli.json {
+        println!("[DEBUG] Loading registry from: {}", config.registry_file);
+    }
     let mut registry = RegistryManager::load_registry(&config.registry_file)?;
-    if !cli.json { println!("[DEBUG] Registry loaded with {} skills.", registry.skills.len()); }
+    if !cli.json {
+        println!(
+            "[DEBUG] Registry loaded with {} skills.",
+            registry.skills.len()
+        );
+    }
 
-    if !cli.json { println!("[DEBUG] Loading local skills from: {}", config.skills_dir); }
+    if !cli.json {
+        println!("[DEBUG] Loading local skills from: {}", config.skills_dir);
+    }
     let local_skills = Loader::load_skills(&config.skills_dir)?;
     for skill in local_skills {
         RegistryManager::update_skill(&mut registry, skill);
     }
     RegistryManager::save_registry(&config.registry_file, &registry)?;
-    if !cli.json { println!("[DEBUG] Registry updated and saved."); }
+    if !cli.json {
+        println!("[DEBUG] Registry updated and saved.");
+    }
 
-    if !cli.json { println!("Task: {}", cli.task); }
+    if !cli.json {
+        println!("Task: {}", cli.task);
+    }
 
     let required_caps = Planner::infer_capabilities(&cli.task);
-    if !cli.json { println!("Required Capabilities: {:?}", required_caps); }
+    if !cli.json {
+        println!("Required Capabilities: {:?}", required_caps);
+    }
 
     if required_caps.is_empty() {
         if cli.json {
-            println!("{}", json!({"status": "error", "message": "No capabilities inferred"}));
+            println!(
+                "{}",
+                json!({"status": "error", "message": "No capabilities inferred"})
+            );
         } else {
             println!("No capabilities inferred for task.");
         }
         return Ok(());
     }
 
-    let skill_to_execute = if let Some(skill) = Matcher::find_best_match(&registry, &required_caps) {
-        if !cli.json { println!("✅ Matched Skill: {}", skill.name); }
+    let skill_to_execute = if let Some(skill) = Matcher::find_best_match(&registry, &required_caps)
+    {
+        if !cli.json {
+            println!("✅ Matched Skill: {}", skill.name);
+        }
         Some(skill)
     } else {
-        if !cli.json { 
-            println!("❌ No matching skill found for capabilities: {:?}", required_caps);
+        if !cli.json {
+            println!(
+                "❌ No matching skill found for capabilities: {:?}",
+                required_caps
+            );
             println!("🔍 Phase 2: Starting SkillsFinder...");
         }
-        
+
         // Phase 2: SkillsFinder - 使用现有技能进行智能发现
-        if let Some(found_skills) = SkillsFinder::discover_skills(&registry, &config, &required_caps, &cli.task) {
-            if !cli.json { 
-                println!("🔍 SkillsFinder found {} candidate skills", found_skills.len());
+        if let Some(found_skills) =
+            SkillsFinder::discover_skills(&registry, &config, &required_caps, &cli.task)
+        {
+            if !cli.json {
+                println!(
+                    "🔍 SkillsFinder found {} candidate skills",
+                    found_skills.len()
+                );
                 for skill in &found_skills {
                     println!("  - {} (caps: {:?})", skill.name, skill.capabilities);
                 }
             }
-            
+
             // 评分并选择最佳匹配
             let scored = SkillsFinder::score_and_sort_candidates(&found_skills, &required_caps);
             if let Some((best_skill, score)) = scored.first() {
-                if !cli.json { println!("🏆 Best candidate: {} (score: {:.2})", best_skill.name, score); }
-                
+                if !cli.json {
+                    println!(
+                        "🏆 Best candidate: {} (score: {:.2})",
+                        best_skill.name, score
+                    );
+                }
+
                 // 注册新发现的技能
                 RegistryManager::update_skill(&mut registry, best_skill.clone());
                 RegistryManager::save_registry(&config.registry_file, &registry)?;
@@ -110,35 +150,45 @@ fn main() -> Result<()> {
                 None
             }
         } else {
-            if !cli.json { 
+            if !cli.json {
                 println!("❌ SkillsFinder: No skills found");
                 println!("🌐 Phase 3: Starting OnlineSearch (GitHub)...");
             }
-            
+
             // Phase 3: OnlineSearch - GitHub API 搜索
             let rt = tokio::runtime::Runtime::new()?;
-            if let Ok(Some(found_skill)) = rt.block_on(OnlineSearch::search(&config, &required_caps[0], &cli.task)) {
-                if !cli.json { println!("✅ OnlineSearch found: {}", found_skill.name); }
-                
+            if let Ok(Some(found_skill)) =
+                rt.block_on(OnlineSearch::search(&config, &required_caps[0], &cli.task))
+            {
+                if !cli.json {
+                    println!("✅ OnlineSearch found: {}", found_skill.name);
+                }
+
                 // 注册发现的技能
                 RegistryManager::update_skill(&mut registry, found_skill.clone());
                 RegistryManager::save_registry(&config.registry_file, &registry)?;
                 Some(found_skill)
             } else {
-                if !cli.json { 
+                if !cli.json {
                     println!("❌ OnlineSearch: No skills found");
                     println!("🧬 Phase 4: Starting Synthesis...");
                 }
-                
+
                 // Phase 4: Synth - 代码合成
                 let mut new_skill = None;
                 if let Some(cap) = required_caps.first() {
                     match Synth::synthesize(&config, cap, &cli.task) {
                         Ok(synth_skill) => {
-                            if !cli.json { println!("✅ Synthesized skill: {}", synth_skill.name); }
+                            if !cli.json {
+                                println!("✅ Synthesized skill: {}", synth_skill.name);
+                            }
                             new_skill = Some(synth_skill);
                         }
-                        Err(e) => if !cli.json { eprintln!("❌ Failed to synthesize skill: {}", e) },
+                        Err(e) => {
+                            if !cli.json {
+                                eprintln!("❌ Failed to synthesize skill: {}", e)
+                            }
+                        }
                     }
                 }
 
@@ -157,50 +207,67 @@ fn main() -> Result<()> {
         let start_time = std::time::Instant::now();
         let result = Executor::execute(&config, &skill, cli.json);
         let duration = start_time.elapsed().as_millis() as f64;
-        
+
         let mut lifecycle_decision = None;
         {
             let skill_entry = registry.skills.get_mut(&skill.name).unwrap();
             let mut usage = skill_entry.usage.clone().unwrap_or_default();
             usage.total_calls += 1;
             usage.last_used = chrono::Utc::now().to_rfc3339();
-            
+
             let total_time = (usage.avg_latency_ms * (usage.total_calls as f64 - 1.0)) + duration;
             usage.avg_latency_ms = total_time / (usage.total_calls as f64);
 
             match &result {
                 Ok(_) => {
                     usage.success_calls += 1;
-                    if !cli.json { println!("Execution finished successfully."); }
+                    if !cli.json {
+                        println!("Execution finished successfully.");
+                    }
                 }
                 Err(e) => {
                     usage.failed_calls += 1;
-                    if !cli.json { eprintln!("Execution failed: {}", e); }
+                    if !cli.json {
+                        eprintln!("Execution failed: {}", e);
+                    }
                 }
             };
-            
+
             skill_entry.usage = Some(usage);
 
             if let Some(decision) = skill_router::lifecycle::Lifecycle::decide(skill_entry) {
-                if !cli.json { println!("Lifecycle Recommendation for '{}': {}", skill.name, decision); }
-                skill_entry.lifecycle = Some(skill_router::models::Lifecycle { decision: decision.clone() });
+                if !cli.json {
+                    println!(
+                        "Lifecycle Recommendation for '{}': {}",
+                        skill.name, decision
+                    );
+                }
+                skill_entry.lifecycle = Some(skill_router::models::Lifecycle {
+                    decision: decision.clone(),
+                });
                 lifecycle_decision = Some(decision);
             }
         }
-        
+
         let status = if result.is_ok() { "success" } else { "failed" };
         RegistryManager::save_registry(&config.registry_file, &registry)?;
 
         if cli.json {
-            println!("{}", json!({
-                "status": status,
-                "skill": skill.name,
-                "duration_ms": duration,
-                "lifecycle": lifecycle_decision
-            }));
+            println!(
+                "{}",
+                json!({
+                    "status": status,
+                    "skill": skill.name,
+                    "duration_ms": duration,
+                    "lifecycle": lifecycle_decision
+                })
+            );
         }
     } else if cli.json {
-        println!("{}", json!({"status": "error", "message": "No skill matched or synthesized"}));
+        println!(
+            "{}",
+            json!({"status": "error", "message": "No skill matched or synthesized"})
+        );
     } else {
         println!("Final: No skill could be matched or synthesized for task.");
     }

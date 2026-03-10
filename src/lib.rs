@@ -1,20 +1,20 @@
-pub mod models;
-pub mod planner;
-pub mod loader;
-pub mod registry;
-pub mod matcher;
 pub mod executor;
-pub mod security;
 pub mod lifecycle;
+pub mod loader;
+pub mod matcher;
+pub mod models;
 pub mod online_search;
-pub mod synth;
+pub mod planner;
+pub mod registry;
+pub mod security;
 pub mod security_analyzer;
 pub mod skills_finder;
+pub mod synth;
 
 use anyhow::Result;
 use models::Config;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 pub fn load_config<P: AsRef<Path>>(path: P) -> Result<Config> {
     let content = fs::read_to_string(path)?;

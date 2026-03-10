@@ -3,10 +3,16 @@ use crate::models::{Registry, SkillMetadata};
 pub struct Matcher;
 
 impl Matcher {
-    pub fn find_skills_for_caps(registry: &Registry, required_caps: &[String]) -> Vec<SkillMetadata> {
+    pub fn find_skills_for_caps(
+        registry: &Registry,
+        required_caps: &[String],
+    ) -> Vec<SkillMetadata> {
         let mut matched_skills = Vec::new();
         for skill in registry.skills.values() {
-            if required_caps.iter().any(|cap| skill.capabilities.contains(cap)) {
+            if required_caps
+                .iter()
+                .any(|cap| skill.capabilities.contains(cap))
+            {
                 matched_skills.push(skill.clone());
             }
         }
@@ -17,7 +23,10 @@ impl Matcher {
         let mut best_match: Option<(SkillMetadata, f64)> = None;
 
         for skill in registry.skills.values() {
-            let matches = required_caps.iter().filter(|cap| skill.capabilities.contains(cap)).count();
+            let matches = required_caps
+                .iter()
+                .filter(|cap| skill.capabilities.contains(cap))
+                .count();
             if matches == 0 {
                 continue;
             }

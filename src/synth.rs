@@ -1,9 +1,9 @@
-use crate::models::{SkillMetadata, Permissions, Config};
-use std::path::Path;
-use std::fs;
-use std::process::Command;
+use crate::models::{Config, Permissions, SkillMetadata};
 use anyhow::Result;
 use serde_json::Value;
+use std::fs;
+use std::path::Path;
+use std::process::Command;
 
 pub struct Synth;
 
@@ -32,12 +32,18 @@ impl Synth {
                             if json_res["language"] == "rust" {
                                 println!("[SYNTH] Generating RUST skill...");
                                 // Write Cargo.toml
-                                fs::write(skill_dir.join("Cargo.toml"), json_res["cargo_toml"].as_str().unwrap())?;
+                                fs::write(
+                                    skill_dir.join("Cargo.toml"),
+                                    json_res["cargo_toml"].as_str().unwrap(),
+                                )?;
                                 // Write src/main.rs
                                 let src_dir = skill_dir.join("src");
                                 fs::create_dir_all(&src_dir)?;
-                                fs::write(src_dir.join("main.rs"), json_res["main_rs"].as_str().unwrap())?;
-                                
+                                fs::write(
+                                    src_dir.join("main.rs"),
+                                    json_res["main_rs"].as_str().unwrap(),
+                                )?;
+
                                 // Attempt compilation
                                 println!("[BUILD] Compiling Rust skill with cargo...");
                                 let build_res = Command::new("cargo")
@@ -45,9 +51,12 @@ impl Synth {
                                     .arg("--release")
                                     .current_dir(&skill_dir)
                                     .output();
-                                    
+
                                 if build_res.is_ok() && build_res.unwrap().status.success() {
-                                    entrypoint = format!("target/release/synth_{}.exe", capability.replace("_", ""));
+                                    entrypoint = format!(
+                                        "target/release/synth_{}.exe",
+                                        capability.replace("_", "")
+                                    );
                                     println!("[BUILD] Rust compilation successful!");
                                 } else {
                                     println!("[BUILD] Rust compilation failed. Falling back to python skeleton.");
@@ -78,10 +87,13 @@ impl Synth {
             description: Some(format!("Rust-preferred AI skill for: {}", task)),
             entrypoint: Some(entrypoint.clone()),
         };
-        fs::write(skill_dir.join("skill.json"), serde_json::to_string_pretty(&skill_meta)?)?;
+        fs::write(
+            skill_dir.join("skill.json"),
+            serde_json::to_string_pretty(&skill_meta)?,
+        )?;
 
         if entrypoint.ends_with(".py") {
-             fs::write(skill_dir.join("main.py"), py_content)?;
+            fs::write(skill_dir.join("main.py"), py_content)?;
         }
 
         Ok(skill_meta)

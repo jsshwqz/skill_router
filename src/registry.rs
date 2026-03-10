@@ -1,21 +1,25 @@
-use std::path::Path;
-use std::fs;
-use std::collections::HashMap;
-use anyhow::Result;
 use crate::models::{Registry, SkillMetadata};
+use anyhow::Result;
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 pub struct RegistryManager;
 
 impl RegistryManager {
     pub fn load_registry<P: AsRef<Path>>(registry_path: P) -> Result<Registry> {
         if !registry_path.as_ref().exists() {
-            let registry = Registry { skills: HashMap::new() };
+            let registry = Registry {
+                skills: HashMap::new(),
+            };
             return Ok(registry);
         }
 
         let content = fs::read_to_string(registry_path)?;
         if content.trim().is_empty() {
-            let registry = Registry { skills: HashMap::new() };
+            let registry = Registry {
+                skills: HashMap::new(),
+            };
             return Ok(registry);
         }
 

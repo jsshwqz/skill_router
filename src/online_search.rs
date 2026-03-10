@@ -1,8 +1,8 @@
-use crate::models::{SkillMetadata, Config};
+use crate::models::{Config, SkillMetadata};
+use anyhow::{Context, Result};
 use serde_json::Value;
-use anyhow::{Result, Context};
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 use std::process::Command;
 
 /// OnlineSearch - 纯 Rust 实现的在线技能搜索模块
@@ -15,7 +15,7 @@ pub struct OnlineSearch;
 
 impl OnlineSearch {
     /// 在线搜索技能
-    /// 
+    ///
     /// 搜索策略：
     /// 1. 尝试通过 GitHub API 搜索相关仓库
     /// 2. 验证技能元数据
@@ -23,7 +23,7 @@ impl OnlineSearch {
     pub async fn search(
         config: &Config,
         capability: &str,
-        _task: &str
+        _task: &str,
     ) -> Result<Option<SkillMetadata>> {
         println!("[ONLINE] 🔍 Searching for capability '{}'...", capability);
 
@@ -40,7 +40,7 @@ impl OnlineSearch {
     async fn search_github(
         config: &Config,
         capability: &str,
-        _task: &str
+        _task: &str,
     ) -> Result<Option<SkillMetadata>> {
         // 构造 GitHub API 查询
         let query = format!(
@@ -96,8 +96,10 @@ impl OnlineSearch {
                         repo_name,
                         clone_url,
                         capability,
-                        repo["description"].as_str().unwrap_or("")
-                    ).await? {
+                        repo["description"].as_str().unwrap_or(""),
+                    )
+                    .await?
+                    {
                         return Ok(Some(skill));
                     }
                 }
@@ -113,7 +115,7 @@ impl OnlineSearch {
         repo_name: &str,
         clone_url: &str,
         capability: &str,
-        _description: &str
+        _description: &str,
     ) -> Result<Option<SkillMetadata>> {
         let skill_dir = Path::new(&config.skills_dir).join(repo_name);
 
@@ -130,7 +132,10 @@ impl OnlineSearch {
                 .context("Failed to execute git clone")?;
 
             if !output.status.success() {
-                println!("[ONLINE] Git clone failed: {}", String::from_utf8_lossy(&output.stderr));
+                println!(
+                    "[ONLINE] Git clone failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
                 return Ok(None);
             }
         }
@@ -143,15 +148,18 @@ impl OnlineSearch {
             return Ok(None);
         }
 
-        let skill_content = fs::read_to_string(&skill_json_path)
-            .context("Failed to read skill.json")?;
+        let skill_content =
+            fs::read_to_string(&skill_json_path).context("Failed to read skill.json")?;
 
-        let skill_meta: SkillMetadata = serde_json::from_str(&skill_content)
-            .context("Failed to parse skill.json")?;
+        let skill_meta: SkillMetadata =
+            serde_json::from_str(&skill_content).context("Failed to parse skill.json")?;
 
         // 验证技能是否提供所需能力
         if !skill_meta.capabilities.contains(&capability.to_string()) {
-            println!("[ONLINE] Skill '{}' does not provide capability '{}'", skill_meta.name, capability);
+            println!(
+                "[ONLINE] Skill '{}' does not provide capability '{}'",
+                skill_meta.name, capability
+            );
             let _ = fs::remove_dir_all(&skill_dir);
             return Ok(None);
         }
@@ -160,11 +168,17 @@ impl OnlineSearch {
         println!("[ONLINE] Running security audit on {:?}...", skill_dir);
         match crate::security_analyzer::SecurityAnalyzer::audit_skill_dir(&skill_dir) {
             Ok(_) => {
-                println!("[ONLINE] ✅ Security audit passed for '{}'", skill_meta.name);
+                println!(
+                    "[ONLINE] ✅ Security audit passed for '{}'",
+                    skill_meta.name
+                );
                 Ok(Some(skill_meta))
             }
             Err(e) => {
-                eprintln!("[ONLINE] ❌ Security audit failed for '{}': {}", skill_meta.name, e);
+                eprintln!(
+                    "[ONLINE] ❌ Security audit failed for '{}': {}",
+                    skill_meta.name, e
+                );
                 let _ = fs::remove_dir_all(&skill_dir);
                 Ok(None)
             }
@@ -175,5 +189,8 @@ impl OnlineSearch {
     /// 注意：这个方法内部会创建异步运行时，在实际使用中建议直接调用异步版本
     pub fn search_sync(config: &Config, capability: &str, task: &str) -> Option<SkillMetadata> {
         let rt = tokio::runtime::Runtime::new().ok()?;
-        rt.block_on(Self::search(config, capability, task)).ok().flatten()
-    }}
+        rt.block_on(Self::search(config, capability, task))
+            .ok()
+            .flatten()
+    }
+}
