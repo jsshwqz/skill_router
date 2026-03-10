@@ -16,23 +16,18 @@ jobs:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          # Linux
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
             archive: tar.gz
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            archive: tar.gz
-          # macOS
           - target: x86_64-apple-darwin
             os: macos-latest
             archive: tar.gz
           - target: aarch64-apple-darwin
             os: macos-latest
             archive: tar.gz
-          # Windows
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             archive: zip
@@ -44,36 +39,19 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       
-      - name: Install cross-compilation tools (Linux ARM64)
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-      
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-registry-
       
       - name: Cache target directory
         uses: actions/cache@v4
         with:
           path: target
           key: ${{ runner.os }}-${{ matrix.target }}-target-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-${{ matrix.target }}-target-
       
-      - name: Build (Unix)
-        if: runner.os != 'Windows'
-        run: cargo build --release --locked --target ${{ matrix.target }}
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-      
-      - name: Build (Windows)
-        if: runner.os == 'Windows'
+      - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
       
       - name: Package (Unix)
@@ -112,22 +90,13 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
       
-      - name: Extract changelog for this version
-        id: extract_changelog
-        run: |
-          # Extract changelog section for this version
-          CHANGELOG=$(awk '/^## \[${{ steps.get_version.outputs.VERSION }}\]/,/^## \[/' CHANGELOG.md | sed '1d;$d')
-          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           name: Release v${{ steps.get_version.outputs.VERSION }}
-          body: ${{ steps.extract_changelog.outputs.CHANGELOG }}
           draft: false
           prerelease: false
+          generate_release_notes: true
           files: |
             artifacts/skill-router-*.tar.gz
             artifacts/skill-router-*.zip
