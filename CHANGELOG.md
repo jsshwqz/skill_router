@@ -1,43 +1,43 @@
-# Changelog
+# 更新日志
 
-All notable changes to this project will be documented in this file.
+本文件记录项目的所有重要变更。
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [未发布]
 
 ## [0.1.0] - 2026-03-10
 
-### Added
+### 新增
 
-- **Planner**: Task intent parsing and capability inference
-- **Loader**: Dynamic skill metadata loading
-- **Registry**: Skill state persistence management
-- **Matcher**: Capability-based skill matching algorithm
-- **SkillsFinder**: Intelligent skill discovery with scoring
-- **OnlineSearch**: Pure Rust GitHub API search with security audit
-- **Synth**: Automatic skill code synthesis (Rust-first)
-- **Executor**: Secure process execution
-- **Security**: Strict permission validation model
-- **Lifecycle**: Automatic skill lifecycle management
-- yaml_parser skill
-- google_search skill
-- synth_jsonparse skill
-- synth_textsummarize skill
-- synth_skillsynthesize skill
-- autonomous_orchestrator skill
+- **Planner**: 任务意图解析与能力推断
+- **Loader**: 动态技能元数据加载
+- **Registry**: 技能状态持久化管理
+- **Matcher**: 基于能力的技能匹配算法
+- **SkillsFinder**: 智能技能发现与评分
+- **OnlineSearch**: 纯 Rust 实现 GitHub API 搜索，带安全审计
+- **Synth**: 自动技能代码合成（Rust 优先）
+- **Executor**: 安全进程执行
+- **Security**: 严格权限验证模型
+- **Lifecycle**: 自动技能生命周期管理
+- yaml_parser 技能
+- google_search 技能
+- synth_jsonparse 技能
+- synth_textsummarize 技能
+- synth_skillsynthesize 技能
+- autonomous_orchestrator 技能
 
-### Changed
+### 变更
 
-- Replaced Python-based online search with pure Rust reqwest implementation
-- Implemented four-phase pipeline: Local Match → SkillsFinder → GitHub Search → Synthesis
+- 将 Python 实现在线搜索替换为纯 Rust reqwest 实现
+- 实现四阶段流水线：本地匹配 → 技能发现 → GitHub 搜索 → 代码合成
 
-### Security
+### 安全
 
-- Integrated security audit and permission validation
-- Default deny permission model
-- Runtime validation before every execution
+- 集成安全审计与权限验证
+- 默认拒绝权限模型
+- 每次执行前进行运行时验证
 
-[Unreleased]: https://github.com/aionui/skill-router/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/aionui/skill-router/releases/tag/v0.1.0
+[未发布]: https://github.com/jsshwqz/skill_router/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/jsshwqz/skill_router/releases/tag/v0.1.0
