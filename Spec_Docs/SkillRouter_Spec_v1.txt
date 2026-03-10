@@ -1,0 +1,160 @@
+
+Skill Router Rust Core — Implementation Specification v1
+
+Purpose
+This document defines the functional specification for implementing a Skill Router core system.
+It is designed to be executed by an autonomous coding agent.
+
+Core Idea
+The system automatically manages skills according to this flow:
+
+Task
+↓
+Capability Inference
+↓
+Local Skill Match
+↓
+Trusted Source Search
+↓
+Skill Synthesis
+↓
+Execution
+↓
+Usage Tracking
+↓
+Lifecycle Decision
+
+The system must prioritize:
+1. Local skills
+2. Security
+3. Deterministic behavior
+4. Agent compatibility
+
+Modules
+The system must implement these logical modules:
+
+planner
+loader
+registry
+matcher
+executor
+lifecycle
+online_search
+synth
+security
+
+Each module must be independent and clearly separated.
+
+MVP Scope
+Capabilities required:
+
+yaml_parse
+json_parse
+web_search
+generic_parse
+skill_synthesize
+
+Non‑Goals for MVP:
+
+skill marketplace
+distributed execution
+GUI
+automatic public skill installation
+
+System Architecture
+
+Agent Layer
+↓
+Router Entry
+↓
+Rust Router Core
+↓
+Skill Execution Layer
+↓
+Registry & Lifecycle
+↓
+Trusted Source Layer
+
+Skill Structure
+
+skills/<skill_name>/
+    skill.json
+    entry file
+
+Skill Metadata must contain:
+
+name
+version
+capabilities
+permissions
+
+Permissions model:
+
+network
+filesystem_read
+filesystem_write
+process_exec
+
+Default rule: deny if unspecified.
+
+Lifecycle Rules
+
+keep
+≥ 3 uses (30 days)
+
+polish
+≥ 8 uses
+
+publish_candidate
+≥ 15 uses & success_rate ≥ 95%
+
+deprecate
+unused for 90 days
+
+purge_candidate
+unused for 180 days
+
+Security Requirements
+
+Skills cannot:
+modify system configuration
+modify proxy settings
+write outside working directory
+execute system commands without permission
+
+External Skill Sources
+
+trusted_local
+trusted_repo
+github_candidate
+synth_generated
+
+Installation policy:
+
+auto install disabled by default
+only trusted sources executable
+
+Acceptance Criteria
+
+The system passes if:
+
+1. A YAML task produces capability yaml_parse
+2. Local skill matching works
+3. Capability gaps are detected
+4. Candidate skills can be searched
+5. Missing capability triggers skill synthesis
+6. Skill execution updates usage stats
+7. Lifecycle recommendations are produced
+8. Security permissions are enforced
+
+Compatibility
+
+The system must be callable by any agent via CLI:
+
+skill-router "parse this yaml"
+
+Future expansions may include:
+
+HTTP API
+JSON I/O
+MCP integration

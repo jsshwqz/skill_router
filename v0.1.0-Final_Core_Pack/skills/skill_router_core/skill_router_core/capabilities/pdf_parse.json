@@ -1,0 +1,6 @@
+{
+  "name": "pdf_parse",
+  "description": "Extract text or data from PDF documents",
+  "inputs": ["file_path"],
+  "outputs": ["text", "structured_data"]
+}

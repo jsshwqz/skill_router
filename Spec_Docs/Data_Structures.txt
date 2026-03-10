@@ -1,0 +1,45 @@
+
+Skill Router — Data Structure Specification
+
+config.json
+
+Fields:
+
+enable_auto_install
+skills_dir
+registry_file
+logs_dir
+trusted_sources
+
+registry.json
+
+skills:
+  name
+  version
+  capabilities
+  source
+  permissions
+  usage
+  lifecycle
+
+usage fields:
+
+total_calls
+success_calls
+failed_calls
+avg_latency_ms
+last_used
+
+lifecycle:
+
+decision
+
+skill.json
+
+name
+version
+capabilities
+permissions
+description (optional)
+source (optional)
+entrypoint (optional)

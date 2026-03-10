@@ -1,0 +1,13 @@
+{
+  "name": "yaml_parser",
+  "version": "0.0.1",
+  "capabilities": ["yaml_parse"],
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "process_exec": true
+  },
+  "description": "Parses YAML files.",
+  "entrypoint": "main.py"
+}

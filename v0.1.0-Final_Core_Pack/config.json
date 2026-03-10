@@ -1,0 +1,11 @@
+{
+  "enable_auto_install": false,
+  "skills_dir": "skills",
+  "registry_file": "registry.json",
+  "logs_dir": "logs",
+  "trusted_sources": [
+    "https://github.com/trusted-source"
+  ],
+  "llm_enabled": true,
+  "llm_command": "python ai_gen.py"
+}

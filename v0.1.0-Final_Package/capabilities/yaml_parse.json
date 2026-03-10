@@ -1,0 +1,6 @@
+{
+  "name": "yaml_parse",
+  "description": "Parse YAML text into structured data",
+  "inputs": ["text"],
+  "outputs": ["structured_data"]
+}

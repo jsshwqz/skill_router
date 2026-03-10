@@ -1,0 +1,18 @@
+{
+  "name": "synth_textsummarize",
+  "version": "0.1.0",
+  "capabilities": [
+    "text_summarize"
+  ],
+  "source": "synth_generated",
+  "permissions": {
+    "network": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": true
+  },
+  "usage": null,
+  "lifecycle": null,
+  "description": "Auto-generated skill for text_summarize",
+  "entrypoint": "main.py"
+}

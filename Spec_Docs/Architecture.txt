@@ -1,0 +1,24 @@
+
+Skill Router Architecture
+
+Task
+↓
+Planner
+↓
+Loader
+↓
+Matcher
+↓
+Online Search
+↓
+Synth
+↓
+Executor
+↓
+Registry Update
+↓
+Lifecycle Decision
+
+Modules must remain independent.
+
+Security layer must validate permissions before execution.

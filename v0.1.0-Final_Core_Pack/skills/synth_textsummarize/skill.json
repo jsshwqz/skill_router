@@ -1,0 +1,18 @@
+{
+  "name": "synth_textsummarize",
+  "version": "0.1.0",
+  "capabilities": [
+    "text_summarize"
+  ],
+  "source": "synth_generated",
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "process_exec": true
+  },
+  "usage": null,
+  "lifecycle": null,
+  "description": "AI-synthesized skill for: summarize current files",
+  "entrypoint": "main.py"
+}

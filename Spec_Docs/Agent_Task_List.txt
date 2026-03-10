@@ -1,0 +1,37 @@
+
+Skill Router — Agent Task List
+
+Phase 1: Core Framework
+
+1. Create Rust project structure
+2. Implement planner module
+3. Implement loader module
+4. Implement registry module
+5. Implement matcher module
+
+Phase 2: Execution
+
+6. Implement executor module
+7. Implement permissions model
+8. Implement execution logging
+
+Phase 3: Capability Completion
+
+9. Implement trusted source search module
+10. Implement skill synthesis module
+
+Phase 4: Lifecycle
+
+11. Implement usage statistics
+12. Implement lifecycle decision rules
+
+Phase 5: Agent Integration
+
+13. Provide CLI entry
+14. Ensure output compatibility with agent tools
+
+Completion Criteria
+
+The router must successfully run the pipeline:
+
+task → capability → skill → execution → lifecycle update

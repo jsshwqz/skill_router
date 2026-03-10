@@ -1,0 +1,102 @@
+{
+  "skills": {
+    "yaml_parser": {
+      "name": "yaml_parser",
+      "version": "1.0.0",
+      "capabilities": [
+        "yaml_parse"
+      ],
+      "source": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": {
+        "total_calls": 7,
+        "success_calls": 7,
+        "failed_calls": 0,
+        "avg_latency_ms": 154.28571428571428,
+        "last_used": "2026-03-08T10:34:43.282793800+00:00"
+      },
+      "lifecycle": {
+        "decision": "keep"
+      },
+      "description": "Parses YAML files.",
+      "entrypoint": "main.py"
+    },
+    "synth_genericparse": {
+      "name": "synth_genericparse",
+      "version": "0.1.0",
+      "capabilities": [
+        "generic_parse"
+      ],
+      "source": "synth_generated",
+      "permissions": {
+        "network": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": {
+        "total_calls": 2,
+        "success_calls": 2,
+        "failed_calls": 0,
+        "avg_latency_ms": 59.0,
+        "last_used": "2026-03-08T10:36:31.531611500+00:00"
+      },
+      "lifecycle": null,
+      "description": "Auto-generated skill for generic_parse",
+      "entrypoint": "main.py"
+    },
+    "synth_textsummarize": {
+      "name": "synth_textsummarize",
+      "version": "0.1.0",
+      "capabilities": [
+        "text_summarize"
+      ],
+      "source": "synth_generated",
+      "permissions": {
+        "network": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": {
+        "total_calls": 1,
+        "success_calls": 1,
+        "failed_calls": 0,
+        "avg_latency_ms": 51.0,
+        "last_used": "2026-03-08T10:37:03.500447+00:00"
+      },
+      "lifecycle": null,
+      "description": "Auto-generated skill for text_summarize",
+      "entrypoint": "main.py"
+    },
+    "google_search": {
+      "name": "google_search",
+      "version": "0.1.0",
+      "capabilities": [
+        "web_search"
+      ],
+      "source": "https://github.com/trusted-source/google_search",
+      "permissions": {
+        "network": true,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": {
+        "total_calls": 1,
+        "success_calls": 1,
+        "failed_calls": 0,
+        "avg_latency_ms": 67.0,
+        "last_used": "2026-03-08T10:34:56.517232900+00:00"
+      },
+      "lifecycle": null,
+      "description": "Automated web search skill.",
+      "entrypoint": "main.py"
+    }
+  }
+}
