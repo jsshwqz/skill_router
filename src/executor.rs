@@ -22,7 +22,7 @@ impl Executor {
             .with_context(|| "Failed to resolve skills directory path")?
             .join(&skill.name);
 
-        let raw_entrypoint = skill.entrypoint.as_deref().unwrap_or("main.py");
+        let raw_entrypoint = skill.entrypoint.as_deref().unwrap_or("main.rs");
 
         // Safety check: Prevent directory traversal (e.g. entrypoint: "../../etc/passwd")
         let entry_path = skill_dir.join(raw_entrypoint);
@@ -47,14 +47,26 @@ impl Executor {
             let mut cmd = Command::new("python");
             cmd.arg(raw_entrypoint); // Entrypoint as relative path from CWD
             cmd
+        } else if raw_entrypoint.ends_with(".rs") {
+            // For Rust skills, use cargo run
+            let mut cmd = Command::new("cargo");
+            cmd.arg("run");
+            cmd.arg("--release");
+            cmd.current_dir(&skill_dir); // Execute inside skill directory context
+            cmd
         } else {
             Command::new(raw_entrypoint)
         };
 
-        let output = command
-            .current_dir(&skill_dir) // Execute inside skill directory context
-            .output()
-            .with_context(|| format!("Failed to execute skill '{}'", skill.name))?;
+        let output = if raw_entrypoint.ends_with(".rs") {
+            // cargo run handles its own directory context
+            command.output().with_context(|| format!("Failed to execute skill '{}'", skill.name))?
+        } else {
+            command
+                .current_dir(&skill_dir) // Execute inside skill directory context
+                .output()
+                .with_context(|| format!("Failed to execute skill '{}'", skill.name))?
+        };
 
         // Task 8: Execution logging
         let log_dir = Path::new(&config.logs_dir);

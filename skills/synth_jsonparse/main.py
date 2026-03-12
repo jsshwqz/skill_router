@@ -1,1 +1,0 @@
-print('Fallback for 分析 registry.json 并生成 Markdown 技能列表报告')

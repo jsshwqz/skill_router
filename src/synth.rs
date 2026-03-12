@@ -13,7 +13,7 @@ impl Synth {
         let skill_dir = Path::new(&config.skills_dir).join(&skill_name);
         fs::create_dir_all(&skill_dir)?;
 
-        let mut entrypoint = "main.py".to_string();
+        let mut entrypoint = "main.rs".to_string();
         let mut py_content = format!("print('Fallback for {}')", task);
 
         // Call AI Generator (Preferring Rust)

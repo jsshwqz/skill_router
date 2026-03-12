@@ -4,8 +4,9 @@
 
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg)](https://www.rust-lang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](https://github.com/aionui/skill-router)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](https://github.com/aionui/skill-router)
 [![Build Status](https://img.shields.io/badge/build-passing-green.svg)]()
+[![Rust](https://img.shields.io/badge/rustc-1.70+-blue.svg)](https://www.rust-lang.org)
 
 **Rust-native autonomous skill discovery and execution system**
 
@@ -39,7 +40,6 @@ Built with security, performance, and extensibility in mind, Skill Router provid
 ### Prerequisites
 
 - Rust 1.70 or higher
-- Python 3.8+ (for skill execution)
 - Git (for GitHub skill discovery)
 
 ### Installation
@@ -134,8 +134,47 @@ Create a new skill in the `skills/` directory:
     "filesystem_write": false,
     "process_exec": false
   },
-  "entrypoint": "main.py",
+  "entrypoint": "main.rs",
   "description": "Description of what this skill does"
+}
+```
+
+Create `main.rs` with your skill implementation:
+
+```rust
+use serde::{Deserialize, Serialize};
+use std::env;
+
+#[derive(Debug, Deserialize)]
+struct SkillInput {
+    #[serde(default)]
+    input: String,
+}
+
+#[derive(Debug, Serialize)]
+struct SkillOutput {
+    status: String,
+    skill: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    duration_ms: u64,
+}
+
+fn main() {
+    let start_time = std::time::Instant::now();
+    let args: Vec<String> = env::args().collect();
+
+    let output = SkillOutput {
+        status: "success".to_string(),
+        skill: "my_skill".to_string(),
+        data: Some(serde_json::json!({"result": "success"})),
+        error: None,
+        duration_ms: start_time.elapsed().as_millis() as u64,
+    };
+
+    println!("{}", serde_json::to_string_pretty(&output).unwrap());
 }
 ```
 
@@ -239,6 +278,78 @@ This project is licensed under the MIT License - see the [`LICENSE`](LICENSE) fi
 - 📖 [Documentation](https://github.com/aionui/skill-router/wiki)
 - 🐛 [Issue Tracker](https://github.com/aionui/skill-router/issues)
 - 💬 [Discussions](https://github.com/aionui/skill-router/discussions)
+
+## 🚨 故障排查 (Troubleshooting)
+
+### 常见问题 / Common Issues
+
+#### 问题 1: 命令无响应 / No Response
+
+**现象 / Symptom**:
+```powershell
+# PowerShell 中使用 && 会导致错误
+cd "C:\path" && cargo build
+# 错误: 在 PowerShell 中 && 不是有效的命令连接符
+```
+
+**解决 / Solution**:
+```powershell
+# 使用分号分隔命令
+cd "C:\path" ; cargo build
+
+# 或直接使用相对路径
+cargo build --release
+```
+
+#### 问题 2: 编译失败 / Build Failed
+
+**解决步骤 / Steps**:
+```powershell
+# 1. 清理构建缓存
+cargo clean
+
+# 2. 重新构建
+cargo build --release
+
+# 3. 检查 Rust 版本
+rustc --version
+```
+
+#### 问题 3: 技能无响应 / Skill Not Responding
+
+**验证 / Verify**:
+```powershell
+# 运行测试
+cargo run --release -- --json "yaml parse test"
+
+# 期望输出 / Expected output:
+# {"duration_ms":XXX,"lifecycle":null,"skill":"xxx","status":"success"}
+```
+
+### 调试技巧 / Debugging Tips
+
+```powershell
+# 查看帮助
+cargo run --release -- --help
+
+# 查看版本
+cargo run --release -- --version
+
+# 运行测试
+cargo test
+
+# 详细日志
+RUST_BACKTRACE=1 cargo run --release -- "task"
+```
+
+### 快速检查清单 / Quick Checklist
+
+- [ ] 确认在项目根目录 / Confirmed in project root directory
+- [ ] 确认 Rust 已安装 / Confirmed Rust installed: `rustc --version`
+- [ ] 确认命令格式正确 / Confirmed command format correct
+- [ ] 查看 ERROR_LOG.md 获取更多帮助 / Check ERROR_LOG.md for more help
+
+---
 
 ## 🗺️ Roadmap
 

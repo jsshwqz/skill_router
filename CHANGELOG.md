@@ -7,6 +7,57 @@
 
 ## [未发布]
 
+## [0.2.0] - 2026-03-12
+
+### 🚀 新增
+
+- **Rust 版本迁移**: 所有技能从 Python 迁移到 Rust
+- **synth_jsonparse**: JSON 解析合成技能 (Rust)
+- **synth_skillsynthesize**: 技能合成技能 (Rust)
+- **synth_textsummarize**: 文本摘要技能 (Rust)
+
+### 🔄 变更
+
+- **Breaking**: 所有技能改为 Rust 实现
+- **Breaking**: skill.json 中 entrypoint 改为 "main.rs"
+- **Breaking**: 移除所有 main.py 文件
+
+### 📦 技能列表
+
+| 技能 | 语言 | 状态 |
+|------|------|------|
+| yaml_parser | Rust | ✅ |
+| google_search | Rust | ✅ |
+| autonomous_orchestrator | Rust | ✅ |
+| synth_jsonparse | Rust | ✅ |
+| synth_skillsynthesize | Rust | ✅ |
+| synth_textsummarize | Rust | ✅ |
+
+### 📝 迁移说明
+
+#### 从 v0.1.0 迁移到 v0.2.0
+
+1. **备份旧版**: 如需保留 Python 版本，请备份后删除
+2. **更新配置**: 确保 skill.json 中 entrypoint 为 "main.rs"
+3. **重新编译**: 运行 `cargo build --release` 编译所有技能
+
+#### 删除 Python 版本
+
+```bash
+# 如果需要保留 Python 版本，请先备份
+# 然后删除所有 main.py
+Remove-Item -Path "skill-router/skills/*/main.py" -Force
+```
+
+### 🔒 安全
+
+- 所有权限验证已集成
+- 默认拒绝权限模型
+
+### 🐛 修复
+
+- 无
+
 ## [0.1.0] - 2026-03-10
 
 ### 新增
@@ -40,4 +91,5 @@
 - 每次执行前进行运行时验证
 
 [未发布]: https://github.com/jsshwqz/skill_router/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/jsshwqz/skill_router/releases/tag/v0.2.0
 [0.1.0]: https://github.com/jsshwqz/skill_router/releases/tag/v0.1.0

@@ -1,59 +1,18 @@
 {
   "skills": {
-    "google_search": {
-      "name": "google_search",
-      "version": "0.1.0",
-      "capabilities": [
-        "web_search"
-      ],
-      "source": "https://github.com/trusted-source/google_search",
-      "permissions": {
-        "network": true,
-        "filesystem_read": false,
-        "filesystem_write": false,
-        "process_exec": true
-      },
-      "usage": null,
-      "lifecycle": null,
-      "description": "Automated web search skill.",
-      "entrypoint": "main.py"
-    },
-    "synth_textsummarize": {
-      "name": "synth_textsummarize",
-      "version": "0.1.0",
-      "capabilities": [
-        "text_summarize"
-      ],
-      "source": "synth_generated",
-      "permissions": {
-        "network": false,
-        "filesystem_read": true,
-        "filesystem_write": true,
-        "process_exec": true
-      },
-      "usage": {
-        "total_calls": 1,
-        "success_calls": 1,
-        "failed_calls": 0,
-        "avg_latency_ms": 61.0,
-        "last_used": "2026-03-08T12:32:56.172237800+00:00"
-      },
-      "lifecycle": null,
-      "description": "Rust-preferred AI skill for: summarize current files",
-      "entrypoint": "main.py"
-    },
     "synth_skillsynthesize": {
       "name": "synth_skillsynthesize",
       "version": "0.1.0",
       "capabilities": [
-        "skill_synthesize"
+        "skill_generation",
+        "code_synthesis"
       ],
-      "source": "synth_generated",
+      "source": null,
       "permissions": {
         "network": false,
-        "filesystem_read": true,
+        "filesystem_read": false,
         "filesystem_write": true,
-        "process_exec": true
+        "process_exec": false
       },
       "usage": {
         "total_calls": 2,
@@ -63,32 +22,33 @@
         "last_used": "2026-03-08T13:31:36.399333300+00:00"
       },
       "lifecycle": null,
-      "description": "Rust-preferred AI skill for: 设计直径50mm、高120mm的圆柱形茶杯，生成 CAD (.dxf) 和 3D 打印 (.stl) 文件。使用 python 的 ezdxf 和 numpy-stl 库（若无则合成代码）",
-      "entrypoint": "main.py"
+      "description": "技能合成技能 - Rust 实现，用于动态生成新技能",
+      "entrypoint": "main.rs"
     },
-    "synth_jsonparse": {
-      "name": "synth_jsonparse",
+    "synth_textsummarize": {
+      "name": "synth_textsummarize",
       "version": "0.1.0",
       "capabilities": [
-        "json_parse"
+        "text_summarization",
+        "content_generation"
       ],
-      "source": "synth_generated",
+      "source": null,
       "permissions": {
         "network": false,
-        "filesystem_read": true,
-        "filesystem_write": true,
-        "process_exec": true
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": false
       },
       "usage": {
-        "total_calls": 1,
-        "success_calls": 1,
+        "total_calls": 2,
+        "success_calls": 2,
         "failed_calls": 0,
-        "avg_latency_ms": 65.0,
-        "last_used": "2026-03-08T12:41:36.489299600+00:00"
+        "avg_latency_ms": 86.5,
+        "last_used": "2026-03-10T16:41:07.650896300+00:00"
       },
       "lifecycle": null,
-      "description": "Rust-preferred AI skill for: 分析 registry.json 并生成 Markdown 技能列表报告",
-      "entrypoint": "main.py"
+      "description": "文本摘要技能 - Rust 实现，用于生成文本摘要",
+      "entrypoint": "main.rs"
     },
     "autonomous_skill_router": {
       "name": "autonomous_skill_router",
@@ -110,24 +70,6 @@
       "description": "UNIVERSAL ADAPTER: Use this tool for ANY complex task, file processing, or automation that you cannot perform natively. It automatically infers capabilities, searches for skills, and synthesizes real-time code solutions to fulfill user requests.",
       "entrypoint": "python bridge.py"
     },
-    "yaml_parser": {
-      "name": "yaml_parser",
-      "version": "0.1.0",
-      "capabilities": [
-        "yaml_parse"
-      ],
-      "source": null,
-      "permissions": {
-        "network": false,
-        "filesystem_read": true,
-        "filesystem_write": false,
-        "process_exec": true
-      },
-      "usage": null,
-      "lifecycle": null,
-      "description": "Parses YAML files.",
-      "entrypoint": "main.py"
-    },
     "skill_router_autonomous_executor": {
       "name": "skill_router_autonomous_executor",
       "version": "0.1.0",
@@ -147,6 +89,123 @@
       "lifecycle": null,
       "description": "AionUi Skill Router Bridge. Call this tool when you encounter a task that requires capabilities not currently in your toolset. It will infer, synthesize, and execute a solution automatically.",
       "entrypoint": "python bridge.py"
+    },
+    "error_logger": {
+      "name": "error_logger",
+      "version": "0.1.0",
+      "capabilities": [
+        "error_logging",
+        "incident_recording",
+        "docs_update"
+      ],
+      "source": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": false
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "错误日志自动记录技能 - Rust 实现，自动捕获、记录并通知错误事件",
+      "entrypoint": "main.rs"
+    },
+    "autonomous_orchestrator": {
+      "name": "autonomous_orchestrator",
+      "version": "0.1.0",
+      "capabilities": [
+        "task_decomposition",
+        "skill_orchestration",
+        "auto_execution"
+      ],
+      "source": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "任务拆解与协调器 - Rust 实现，用于复杂任务的拆解和执行",
+      "entrypoint": "main.rs"
+    },
+    "yaml_parser": {
+      "name": "yaml_parser",
+      "version": "0.1.0",
+      "capabilities": [
+        "yaml_parse",
+        "yaml_validation"
+      ],
+      "source": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": false,
+        "process_exec": false
+      },
+      "usage": {
+        "total_calls": 6,
+        "success_calls": 5,
+        "failed_calls": 1,
+        "avg_latency_ms": 118.8333333333333,
+        "last_used": "2026-03-12T06:47:59.612691800+00:00"
+      },
+      "lifecycle": {
+        "decision": "keep"
+      },
+      "description": "YAML 解析技能 - Rust 实现，用于解析和验证 YAML 格式",
+      "entrypoint": "main.rs"
+    },
+    "synth_jsonparse": {
+      "name": "synth_jsonparse",
+      "version": "0.1.0",
+      "capabilities": [
+        "json_parse",
+        "data_extraction"
+      ],
+      "source": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": false
+      },
+      "usage": {
+        "total_calls": 1,
+        "success_calls": 1,
+        "failed_calls": 0,
+        "avg_latency_ms": 65.0,
+        "last_used": "2026-03-08T12:41:36.489299600+00:00"
+      },
+      "lifecycle": null,
+      "description": "JSON 解析合成技能 - Rust 实现，用于解析和提取 JSON 数据",
+      "entrypoint": "main.rs"
+    },
+    "google_search": {
+      "name": "google_search",
+      "version": "0.1.0",
+      "capabilities": [
+        "web_search",
+        "information_retrieval"
+      ],
+      "source": null,
+      "permissions": {
+        "network": true,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": false
+      },
+      "usage": {
+        "total_calls": 1,
+        "success_calls": 1,
+        "failed_calls": 0,
+        "avg_latency_ms": 87.0,
+        "last_used": "2026-03-10T16:40:32.202778600+00:00"
+      },
+      "lifecycle": null,
+      "description": "Google 搜索技能 - Rust 实现，执行网络搜索并返回结果",
+      "entrypoint": "main.rs"
     }
   }
 }

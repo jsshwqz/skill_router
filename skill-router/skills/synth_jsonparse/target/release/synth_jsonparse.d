@@ -1,0 +1,1 @@
+C:\Users\Administrator\AppData\Roaming\AionUi\aionui\gemini-temp-1772957577810\skill-router\skills\synth_jsonparse\target\release\synth_jsonparse.exe: C:\Users\Administrator\AppData\Roaming\AionUi\aionui\gemini-temp-1772957577810\skill-router\skills\synth_jsonparse\main.rs

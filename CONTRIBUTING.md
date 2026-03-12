@@ -22,7 +22,6 @@ Be respectful, inclusive, and constructive. We expect all contributors to adhere
 ### Prerequisites
 
 - Rust 1.70 or higher
-- Python 3.8+ (for skill execution)
 - Git
 
 ### Setting Up Development Environment
@@ -169,34 +168,49 @@ mkdir -p skills/my_awesome_skill
     "filesystem_write": false,
     "process_exec": false
   },
-  "entrypoint": "main.py",
+  "entrypoint": "main.rs",
   "description": "An awesome skill that does amazing things"
 }
 ```
 
-3. Implement the skill logic (`main.py`):
+3. Implement the skill logic (`main.rs`):
 
-```python
-#!/usr/bin/env python3
-import sys
-import json
+```rust
+#!/usr/bin/env -S cargo run
+use serde::{Deserialize, Serialize};
+use std::env;
 
-def main():
-    """Main entry point for the skill."""
-    # Read input from stdin
-    input_data = json.load(sys.stdin)
-    
-    # Process the input
-    result = {
-        "status": "success",
-        "data": "Your processing result here"
-    }
-    
-    # Output result
-    print(json.dumps(result))
+#[derive(Debug, Deserialize)]
+struct SkillInput {
+    #[serde(default)]
+    input: String,
+}
 
-if __name__ == "__main__":
-    main()
+#[derive(Debug, Serialize)]
+struct SkillOutput {
+    status: String,
+    skill: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<String>,
+    duration_ms: u64,
+}
+
+fn main() {
+    let start_time = std::time::Instant::now();
+    let args: Vec<String> = env::args().collect();
+
+    let output = SkillOutput {
+        status: "success".to_string(),
+        skill: "my_awesome_skill".to_string(),
+        data: Some(serde_json::json!({"result": "success"})),
+        error: None,
+        duration_ms: start_time.elapsed().as_millis() as u64,
+    };
+
+    println!("{}", serde_json::to_string_pretty(&output).unwrap());
+}
 ```
 
 4. Test the skill:

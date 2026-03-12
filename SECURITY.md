@@ -127,7 +127,7 @@ pub struct SecurityAnalyzer {
     "filesystem_write": false,
     "process_exec": false
   },
-  "entrypoint": "main.py",
+  "entrypoint": "main.rs",
   "description": "Securely reads files from a specific directory"
 }
 ```

@@ -1,0 +1,1 @@
+C:\Users\Administrator\AppData\Roaming\AionUi\aionui\gemini-temp-1772957577810\skills\autonomous_orchestrator\target\release\autonomous_orchestrator.exe: C:\Users\Administrator\AppData\Roaming\AionUi\aionui\gemini-temp-1772957577810\skills\autonomous_orchestrator\main.rs

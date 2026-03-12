@@ -1,0 +1,15 @@
+[package]
+name = "error_logger"
+version = "0.1.0"
+edition = "2021"
+authors = ["Gemini CLI"]
+description = "Error Logger Skill - Automatic error logging and notification system"
+
+[[bin]]
+name = "error_logger"
+path = "main.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = { version = "0.4", default-features = false, features = ["std"] }

@@ -1,0 +1,37 @@
+{
+  "name": "error_logger",
+  "version": "0.1.0",
+  "description": "错误日志自动记录技能 - Rust 实现，自动捕获、记录并通知错误事件",
+  "capabilities": ["error_logging", "incident_recording", "docs_update"],
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": true,
+    "process_exec": false
+  },
+  "entrypoint": "main.rs",
+  "dependencies": ["serde", "serde_json", "chrono"],
+  "examples": [
+    {
+      "input": "记录 PowerShell 命令连接符错误",
+      "output": "{\"status\":\"success\",\"skill\":\"error_logger\",\"error_id\":\"ERR-202603121326\"}"
+    },
+    {
+      "input": "记录编译失败错误",
+      "output": "{\"status\":\"success\",\"skill\":\"error_logger\",\"error_id\":\"ERR-202603121327\"}"
+    }
+  ],
+  "config_schema": {
+    "log_file": "ERROR_LOG.md",
+    "checklist_file": "TROUBLESHOOTING_CHECKLIST.md",
+    "enabled": true,
+    "notify": true
+  },
+  "metadata": {
+    "author": "Gemini CLI",
+    "created_at": "2026-03-12",
+    "last_updated": "2026-03-12",
+    "type": "system",
+    "lang": "rust"
+  }
+}

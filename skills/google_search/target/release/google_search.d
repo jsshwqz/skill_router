@@ -1,0 +1,1 @@
+C:\Users\Administrator\AppData\Roaming\AionUi\aionui\gemini-temp-1772957577810\skills\google_search\target\release\google_search.exe: C:\Users\Administrator\AppData\Roaming\AionUi\aionui\gemini-temp-1772957577810\skills\google_search\main.rs

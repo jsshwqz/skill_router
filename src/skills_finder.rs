@@ -173,7 +173,7 @@ mod tests {
             usage: None,
             lifecycle: None,
             description: Some("A skill for parsing YAML and JSON files".to_string()),
-            entrypoint: Some("main.py".to_string()),
+            entrypoint: Some("main.rs".to_string()),
         };
 
         let caps = vec!["yaml_parse".to_string(), "web_search".to_string()];
@@ -198,7 +198,7 @@ mod tests {
             usage: None,
             lifecycle: None,
             description: Some("Parses YAML files".to_string()),
-            entrypoint: Some("main.py".to_string()),
+            entrypoint: Some("main.rs".to_string()),
         };
 
         registry.skills.insert("yaml_parser".to_string(), skill1);

@@ -1,0 +1,1 @@
+C:\Users\Administrator\AppData\Roaming\AionUi\aionui\gemini-temp-1772957577810\skill-router\skills\synth_skillsynthesize\target\release\synth_skillsynthesize.exe: C:\Users\Administrator\AppData\Roaming\AionUi\aionui\gemini-temp-1772957577810\skill-router\skills\synth_skillsynthesize\main.rs
