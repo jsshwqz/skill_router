@@ -60,7 +60,9 @@ impl Executor {
 
         let output = if raw_entrypoint.ends_with(".rs") {
             // cargo run handles its own directory context
-            command.output().with_context(|| format!("Failed to execute skill '{}'", skill.name))?
+            command
+                .output()
+                .with_context(|| format!("Failed to execute skill '{}'", skill.name))?
         } else {
             command
                 .current_dir(&skill_dir) // Execute inside skill directory context

@@ -1,6 +1,6 @@
 [package]
 name = "skill-router"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["AionUi Team"]
 description = "Skill Router - Rust-native autonomous skill discovery and execution system"

@@ -160,7 +160,7 @@ impl SkillsFinder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Lifecycle, Permissions, Usage};
+    use crate::models::Permissions;
 
     #[test]
     fn test_relevance_score_calculation() {
