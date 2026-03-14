@@ -44,6 +44,7 @@ pub struct SkillMetadata {
     pub version: String,
     pub capabilities: Vec<String>,
     pub source: Option<String>,
+    pub path: Option<String>, // 新增：技能的绝对路径
     pub permissions: Permissions,
     pub usage: Option<Usage>,
     pub lifecycle: Option<Lifecycle>,

@@ -1,0 +1,22 @@
+{
+  "name": "memory_manager",
+  "version": "0.1.0",
+  "capabilities": [
+    "memory_management",
+    "context_storage",
+    "knowledge_retention",
+    "project_history"
+  ],
+  "source": null,
+  "path": "C:\\Users\\Administrator\\AppData\\Roaming\\AionUi\\aionui\\gemini-temp-1772957577810\\skills\\memory_manager",
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": true,
+    "process_exec": true
+  },
+  "usage": null,
+  "lifecycle": null,
+  "description": "Memory manager skill - Manages project memory, saves and retrieves context, maintains project history",
+  "entrypoint": "target\\release\\memory_manager.exe"
+}

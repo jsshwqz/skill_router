@@ -1,0 +1,23 @@
+{
+  "name": "encoding_checker",
+  "version": "0.1.0",
+  "author": "AionUi Team",
+  "description": "Encoding checker skill - ensures all files use UTF-8 encoding and prevents GBK/ANSI issues",
+  "type": "rust",
+  "entrypoint": "main.rs",
+  "capabilities": [
+    "encoding_validation",
+    "code_quality_check",
+    "prevention"
+  ],
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "process_exec": false
+  },
+  "metadata": {
+    "tags": ["encoding", "quality", "prevention"],
+    "icon": "🔒"
+  }
+}

@@ -73,6 +73,17 @@ impl Planner {
             caps.push("skill_synthesize".to_string());
         }
 
+        // Memory management capabilities
+        if task_lower.contains("save") || task_lower.contains("保存") || task_lower.contains("存储") {
+            caps.push("memory_management".to_string());
+        }
+        if task_lower.contains("load") || task_lower.contains("加载") || task_lower.contains("读取") {
+            caps.push("memory_management".to_string());
+        }
+        if task_lower.contains("memory") || task_lower.contains("记忆") || task_lower.contains("context") {
+            caps.push("memory_management".to_string());
+        }
+
         caps
     }
 }

@@ -1,0 +1,25 @@
+save-cube" => {
+                            if args.len() < 4 {
+                                eprintln!("Error: cube_id and content are required");
+                                return Ok(());
+                            }
+                
+                            let cube_id = &args[2];
+                            let content = &args[3];
+                            
+                            let mut manager = MultiCubeManager::load_all().unwrap_or_else(|_| MultiCubeManager::new());
+                                                        `r`nlet (tags, _metadata) = if args.len() > 4 && args[4].starts_with('#') {
+                                // �?tags，从 args[4] 开�?
+                                let args_for_tags: Vec<String> = args[4..].to_vec();
+                                parse_args(&args_for_tags)
+                            } else {
+                                // 没有 tags
+                                (Vec::new(), HashMap::new())
+                            };
+                            
+                                          let entry = MemoryEntry::new(
+                                              &format!("mem_{}_{}", chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0), manager.cubes.len()),
+                                              &content,
+                                              tags
+                                          );            manager.save_memory(cube_id, entry)?;
+            manager.save_all()?;

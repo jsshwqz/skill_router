@@ -1,25 +1,114 @@
 use crate::models::{Config, SkillMetadata};
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+/// 搜索回退响应结构
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FallbackResponse {
+    pub status: String,
+    pub mode: String,
+    pub reason: String,
+    pub target_urls: Vec<String>,
+    pub instruction: String,
+}
+
+/// 关键词裂变工具
+pub struct QueryFission;
+
+impl QueryFission {
+    pub fn expand(query: &str) -> Vec<String> {
+        let mut expanded = HashSet::new();
+        expanded.insert(query.to_string());
+
+        if query.contains("专利") || query.contains("发明") || query.contains("patent") {
+            let base = query
+                .replace("专利", "")
+                .replace("发明", "")
+                .replace("patent", "")
+                .trim()
+                .to_string();
+            if !base.is_empty() {
+                expanded.insert(format!("{} 发明专利", base));
+                expanded.insert(format!("{} 知识产权", base));
+                expanded.insert(format!("{} 企查查 专利", base));
+            }
+        } else if query.chars().count() <= 4 {
+            expanded.insert(format!("{} 简介", query));
+            expanded.insert(format!("{} 简历", query));
+        }
+
+        expanded.into_iter().collect()
+    }
+}
+
+/// 智能搜索调度器 - 负责执行混合搜索并处理降级逻辑
+pub struct SmartSearch;
+
+impl SmartSearch {
+    pub fn execute(query: &str) -> Result<Value> {
+        let hybrid_exe = Path::new("skills/hybrid_search/target/release/hybrid_search.exe");
+        
+        // 如果二进制文件不存在，直接触发回退
+        if !hybrid_exe.exists() {
+            return Ok(serde_json::to_value(Self::trigger_browser_mode(query, "Hybrid search binary not found"))?);
+        }
+
+        // 尝试执行混合搜索
+        let output = Command::new(hybrid_exe)
+            .arg(query)
+            .output();
+
+        match output {
+            Ok(res) => {
+                let stdout = String::from_utf8_lossy(&res.stdout);
+                if let Ok(data) = serde_json::from_str::<Value>(&stdout) {
+                    // 检查是否成功且有结果
+                    let is_success = data["status"].as_str() == Some("success");
+                    let has_results = data["results"].as_array().map_or(false, |a| !a.is_empty());
+
+                    if is_success && has_results {
+                        return Ok(data);
+                    }
+
+                    // 检查错误信息
+                    let error_msg = data["error"].as_str().unwrap_or("");
+                    if error_msg.contains("handshake") || error_msg.contains("timeout") || error_msg.contains("Network error") {
+                        return Ok(serde_json::to_value(Self::trigger_browser_mode(query, &format!("API受阻: {}", error_msg)))?);
+                    }
+                }
+                Ok(serde_json::to_value(Self::trigger_browser_mode(query, "无有效结果"))?)
+            }
+            Err(e) => {
+                Ok(serde_json::to_value(Self::trigger_browser_mode(query, &format!("执行异常: {}", e)))?)
+            }
+        }
+    }
+
+    fn trigger_browser_mode(query: &str, reason: &str) -> FallbackResponse {
+        let encoded_q = urlencoding::encode(query);
+        FallbackResponse {
+            status: "fallback".to_string(),
+            mode: "BROWSER_DIRECT_CAPTURE".to_string(),
+            reason: reason.to_string(),
+            target_urls: vec![
+                format!("https://www.baidu.com/s?wd={}", encoded_q),
+                format!("https://www.bing.com/search?q={}", encoded_q),
+            ],
+            instruction: "常规API已失效。请使用 browser_automation 模块直接访问上述 URL，翻页至第3页，提取所有相关链接。".to_string(),
+        }
+    }
+}
+
 /// OnlineSearch - 纯 Rust 实现的在线技能搜索模块
-///
-/// v0.0.1 特性：
-/// - 使用 reqwest 进行 GitHub API 搜索
-/// - 集成 Rust 安全审计
-/// - 自动技能元数据验证
 pub struct OnlineSearch;
 
 impl OnlineSearch {
     /// 在线搜索技能
-    ///
-    /// 搜索策略：
-    /// 1. 尝试通过 GitHub API 搜索相关仓库
-    /// 2. 验证技能元数据
-    /// 3. 执行安全审计
     pub async fn search(
         config: &Config,
         capability: &str,
@@ -52,7 +141,7 @@ impl OnlineSearch {
 
         // 使用 reqwest 调用 GitHub API
         let client = reqwest::Client::builder()
-            .user_agent("Skill-Router/0.0.1")
+            .user_agent("Skill-Router/0.2.1")
             .build()
             .context("Failed to create HTTP client")?;
 
@@ -186,7 +275,6 @@ impl OnlineSearch {
     }
 
     /// 同步版本（用于向后兼容）
-    /// 注意：这个方法内部会创建异步运行时，在实际使用中建议直接调用异步版本
     pub fn search_sync(config: &Config, capability: &str, task: &str) -> Option<SkillMetadata> {
         let rt = tokio::runtime::Runtime::new().ok()?;
         rt.block_on(Self::search(config, capability, task))
@@ -194,3 +282,4 @@ impl OnlineSearch {
             .flatten()
     }
 }
+

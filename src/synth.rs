@@ -76,6 +76,7 @@ impl Synth {
             version: "0.0.1".to_string(),
             capabilities: vec![capability.to_string()],
             source: Some("synth_generated".to_string()),
+            path: None,
             permissions: Permissions {
                 network: false,
                 filesystem_read: true,

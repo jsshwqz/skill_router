@@ -1,115 +1,5 @@
 {
   "skills": {
-    "synth_skillsynthesize": {
-      "name": "synth_skillsynthesize",
-      "version": "0.1.0",
-      "capabilities": [
-        "skill_generation",
-        "code_synthesis"
-      ],
-      "source": null,
-      "permissions": {
-        "network": false,
-        "filesystem_read": false,
-        "filesystem_write": true,
-        "process_exec": false
-      },
-      "usage": {
-        "total_calls": 2,
-        "success_calls": 2,
-        "failed_calls": 0,
-        "avg_latency_ms": 104.0,
-        "last_used": "2026-03-08T13:31:36.399333300+00:00"
-      },
-      "lifecycle": null,
-      "description": "技能合成技能 - Rust 实现，用于动态生成新技能",
-      "entrypoint": "main.rs"
-    },
-    "synth_textsummarize": {
-      "name": "synth_textsummarize",
-      "version": "0.1.0",
-      "capabilities": [
-        "text_summarization",
-        "content_generation"
-      ],
-      "source": null,
-      "permissions": {
-        "network": false,
-        "filesystem_read": false,
-        "filesystem_write": false,
-        "process_exec": false
-      },
-      "usage": {
-        "total_calls": 2,
-        "success_calls": 2,
-        "failed_calls": 0,
-        "avg_latency_ms": 86.5,
-        "last_used": "2026-03-10T16:41:07.650896300+00:00"
-      },
-      "lifecycle": null,
-      "description": "文本摘要技能 - Rust 实现，用于生成文本摘要",
-      "entrypoint": "main.rs"
-    },
-    "autonomous_skill_router": {
-      "name": "autonomous_skill_router",
-      "version": "0.1.0",
-      "capabilities": [
-        "universal_automation",
-        "dynamic_code_generation",
-        "task_fulfillment"
-      ],
-      "source": null,
-      "permissions": {
-        "network": true,
-        "filesystem_read": true,
-        "filesystem_write": true,
-        "process_exec": true
-      },
-      "usage": null,
-      "lifecycle": null,
-      "description": "UNIVERSAL ADAPTER: Use this tool for ANY complex task, file processing, or automation that you cannot perform natively. It automatically infers capabilities, searches for skills, and synthesizes real-time code solutions to fulfill user requests.",
-      "entrypoint": "python bridge.py"
-    },
-    "skill_router_autonomous_executor": {
-      "name": "skill_router_autonomous_executor",
-      "version": "0.1.0",
-      "capabilities": [
-        "complex_automation",
-        "auto_solution_generation",
-        "task_inference"
-      ],
-      "source": null,
-      "permissions": {
-        "network": true,
-        "filesystem_read": true,
-        "filesystem_write": true,
-        "process_exec": true
-      },
-      "usage": null,
-      "lifecycle": null,
-      "description": "AionUi Skill Router Bridge. Call this tool when you encounter a task that requires capabilities not currently in your toolset. It will infer, synthesize, and execute a solution automatically.",
-      "entrypoint": "python bridge.py"
-    },
-    "error_logger": {
-      "name": "error_logger",
-      "version": "0.1.0",
-      "capabilities": [
-        "error_logging",
-        "incident_recording",
-        "docs_update"
-      ],
-      "source": null,
-      "permissions": {
-        "network": false,
-        "filesystem_read": true,
-        "filesystem_write": true,
-        "process_exec": false
-      },
-      "usage": null,
-      "lifecycle": null,
-      "description": "错误日志自动记录技能 - Rust 实现，自动捕获、记录并通知错误事件",
-      "entrypoint": "main.rs"
-    },
     "autonomous_orchestrator": {
       "name": "autonomous_orchestrator",
       "version": "0.1.0",
@@ -119,6 +9,7 @@
         "auto_execution"
       ],
       "source": null,
+      "path": null,
       "permissions": {
         "network": false,
         "filesystem_read": true,
@@ -130,6 +21,84 @@
       "description": "任务拆解与协调器 - Rust 实现，用于复杂任务的拆解和执行",
       "entrypoint": "main.rs"
     },
+    "context_manager": {
+      "name": "context_manager",
+      "version": "0.1.0",
+      "capabilities": [
+        "context_management",
+        "file_scanning",
+        "summary_generation",
+        "context_update"
+      ],
+      "source": null,
+      "path": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": false
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "上下文管理技能 - 管理项目上下文、生成摘要、更新 CONTEXT.md",
+      "entrypoint": "main.rs"
+    },
+    "memory_manager": {
+      "name": "memory_manager",
+      "version": "0.1.0",
+      "capabilities": [
+        "memory_management",
+        "context_storage",
+        "knowledge_retention",
+        "project_history"
+      ],
+      "source": null,
+      "path": "C:\\Users\\Administrator\\AppData\\Roaming\\AionUi\\aionui\\gemini-temp-1772957577810\\skills\\memory_manager",
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": true
+      },
+      "usage": {
+        "total_calls": 5,
+        "success_calls": 1,
+        "failed_calls": 4,
+        "avg_latency_ms": 4.2,
+        "last_used": "2026-03-13T05:18:29.112860800+00:00"
+      },
+      "lifecycle": {
+        "decision": "keep"
+      },
+      "description": "Memory manager skill - Manages project memory, saves and retrieves context, maintains project history",
+      "entrypoint": "target\\release\\memory_manager.exe"
+    },
+    "synth_jsonparse": {
+      "name": "synth_jsonparse",
+      "version": "0.1.0",
+      "capabilities": [
+        "json_parse",
+        "data_extraction"
+      ],
+      "source": null,
+      "path": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": false
+      },
+      "usage": {
+        "total_calls": 1,
+        "success_calls": 1,
+        "failed_calls": 0,
+        "avg_latency_ms": 65.0,
+        "last_used": "2026-03-08T12:41:36.489299600+00:00"
+      },
+      "lifecycle": null,
+      "description": "JSON 解析合成技能 - Rust 实现，用于解析和提取 JSON 数据",
+      "entrypoint": "main.rs"
+    },
     "yaml_parser": {
       "name": "yaml_parser",
       "version": "0.1.0",
@@ -138,6 +107,7 @@
         "yaml_validation"
       ],
       "source": null,
+      "path": null,
       "permissions": {
         "network": false,
         "filesystem_read": true,
@@ -157,30 +127,89 @@
       "description": "YAML 解析技能 - Rust 实现，用于解析和验证 YAML 格式",
       "entrypoint": "main.rs"
     },
-    "synth_jsonparse": {
-      "name": "synth_jsonparse",
+    "autonomous_skill_router": {
+      "name": "autonomous_skill_router",
       "version": "0.1.0",
       "capabilities": [
-        "json_parse",
-        "data_extraction"
+        "universal_automation",
+        "dynamic_code_generation",
+        "task_fulfillment"
       ],
       "source": null,
+      "path": null,
+      "permissions": {
+        "network": true,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "UNIVERSAL ADAPTER: Use this tool for ANY complex task, file processing, or automation that you cannot perform natively. It automatically infers capabilities, searches for skills, and synthesizes real-time code solutions to fulfill user requests.",
+      "entrypoint": "python bridge.py"
+    },
+    "encoding_checker": {
+      "name": "encoding_checker",
+      "version": "0.1.0",
+      "capabilities": [
+        "encoding_validation",
+        "code_quality_check",
+        "prevention"
+      ],
+      "source": null,
+      "path": null,
       "permissions": {
         "network": false,
-        "filesystem_read": false,
+        "filesystem_read": true,
         "filesystem_write": false,
         "process_exec": false
       },
-      "usage": {
-        "total_calls": 1,
-        "success_calls": 1,
-        "failed_calls": 0,
-        "avg_latency_ms": 65.0,
-        "last_used": "2026-03-08T12:41:36.489299600+00:00"
-      },
+      "usage": null,
       "lifecycle": null,
-      "description": "JSON 解析合成技能 - Rust 实现，用于解析和提取 JSON 数据",
+      "description": "Encoding checker skill - Ensures all files use UTF-8 encoding and prevents GBK/ANSI issues",
       "entrypoint": "main.rs"
+    },
+    "error_logger": {
+      "name": "error_logger",
+      "version": "0.1.0",
+      "capabilities": [
+        "error_logging",
+        "incident_recording",
+        "docs_update"
+      ],
+      "source": null,
+      "path": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": false
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "错误日志自动记录技能 - Rust 实现，自动捕获、记录并通知错误事件",
+      "entrypoint": "main.rs"
+    },
+    "skill_router_autonomous_executor": {
+      "name": "skill_router_autonomous_executor",
+      "version": "0.1.0",
+      "capabilities": [
+        "complex_automation",
+        "auto_solution_generation",
+        "task_inference"
+      ],
+      "source": null,
+      "path": null,
+      "permissions": {
+        "network": true,
+        "filesystem_read": true,
+        "filesystem_write": true,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "AionUi Skill Router Bridge. Call this tool when you encounter a task that requires capabilities not currently in your toolset. It will infer, synthesize, and execute a solution automatically.",
+      "entrypoint": "python bridge.py"
     },
     "google_search": {
       "name": "google_search",
@@ -190,6 +219,7 @@
         "information_retrieval"
       ],
       "source": null,
+      "path": null,
       "permissions": {
         "network": true,
         "filesystem_read": false,
@@ -206,6 +236,143 @@
       "lifecycle": null,
       "description": "Google 搜索技能 - Rust 实现，执行网络搜索并返回结果",
       "entrypoint": "main.rs"
+    },
+    "jina_reader": {
+      "name": "jina_reader",
+      "version": "0.1.0",
+      "capabilities": [
+        "web_reader",
+        "content_extraction",
+        "markdown_conversion"
+      ],
+      "source": null,
+      "path": "C:\\\\Users\\\\Administrator\\\\AppData\\\\Roaming\\\\AionUi\\\\aionui\\\\gemini-temp-1772957577810\\\\skills\\\\jina_reader",
+      "permissions": {
+        "network": true,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": false
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "Jina Reader 技能 - 免费网页内容提取，将任意网页转换为干净的Markdown格式",
+      "entrypoint": "target\\\\release\\\\jina_reader.exe"
+    },
+    "exa_search": {
+      "name": "exa_search",
+      "version": "0.1.0",
+      "capabilities": [
+        "ai_search",
+        "semantic_search",
+        "information_retrieval"
+      ],
+      "source": null,
+      "path": "C:\\\\Users\\\\Administrator\\\\AppData\\\\Roaming\\\\AionUi\\\\aionui\\\\gemini-temp-1772957577810\\\\skills\\\\exa_search",
+      "permissions": {
+        "network": true,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": false
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "Exa Search 技能 - 免费AI语义搜索，专为LLM优化的搜索结果",
+      "entrypoint": "target\\\\release\\\\exa_search.exe"
+    },
+    "hybrid_search": {
+      "name": "hybrid_search",
+      "version": "0.1.0",
+      "capabilities": [
+        "hybrid_search",
+        "web_reader",
+        "ai_search",
+        "intelligent_routing"
+      ],
+      "source": null,
+      "path": "C:\\\\Users\\\\Administrator\\\\AppData\\\\Roaming\\\\AionUi\\\\aionui\\\\gemini-temp-1772957577810\\\\skills\\\\hybrid_search",
+      "permissions": {
+        "network": true,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "Hybrid Search 技能 - 智能路由的混合搜索，URL使用Jina Reader，查询使用Exa Search",
+      "entrypoint": "target\\\\release\\\\hybrid_search.exe"
+    },
+    "synth_textsummarize": {
+      "name": "synth_textsummarize",
+      "version": "0.1.0",
+      "capabilities": [
+        "text_summarization",
+        "content_generation"
+      ],
+      "source": null,
+      "path": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": false
+      },
+      "usage": {
+        "total_calls": 2,
+        "success_calls": 2,
+        "failed_calls": 0,
+        "avg_latency_ms": 86.5,
+        "last_used": "2026-03-10T16:41:07.650896300+00:00"
+      },
+      "lifecycle": null,
+      "description": "文本摘要技能 - Rust 实现，用于生成文本摘要",
+      "entrypoint": "main.rs"
+    },
+    "synth_skillsynthesize": {
+      "name": "synth_skillsynthesize",
+      "version": "0.1.0",
+      "capabilities": [
+        "skill_generation",
+        "code_synthesis"
+      ],
+      "source": null,
+      "path": null,
+      "permissions": {
+        "network": false,
+        "filesystem_read": false,
+        "filesystem_write": true,
+        "process_exec": false
+      },
+      "usage": {
+        "total_calls": 2,
+        "success_calls": 2,
+        "failed_calls": 0,
+        "avg_latency_ms": 104.0,
+        "last_used": "2026-03-08T13:31:36.399333300+00:00"
+      },
+      "lifecycle": null,
+      "description": "技能合成技能 - Rust 实现，用于动态生成新技能",
+      "entrypoint": "main.rs"
+    },
+    "browser_automation": {
+      "name": "browser_automation",
+      "version": "0.1.0",
+      "capabilities": [
+        "browser_automation",
+        "web_interaction",
+        "dynamic_content_extraction"
+      ],
+      "source": null,
+      "path": "C:\\\\Users\\\\Administrator\\\\AppData\\\\Roaming\\\\AionUi\\\\aionui\\\\gemini-temp-1772957577810\\\\skills\\\\browser_automation",
+      "permissions": {
+        "network": true,
+        "filesystem_read": false,
+        "filesystem_write": false,
+        "process_exec": true
+      },
+      "usage": null,
+      "lifecycle": null,
+      "description": "Browser Automation 技能 - 轻量级浏览器自动化，用于处理需要 JavaScript 渲染的动态网页内容",
+      "entrypoint": "target\\\\release\\\\browser_automation.exe"
     }
   }
 }

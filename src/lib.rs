@@ -10,6 +10,8 @@ pub mod security;
 pub mod security_analyzer;
 pub mod skills_finder;
 pub mod synth;
+pub mod async_executor;
+pub mod search;
 
 use anyhow::Result;
 use models::Config;

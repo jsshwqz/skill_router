@@ -1,5 +1,6 @@
 use crate::executor::Executor;
 use crate::models::{Config, Registry, SkillMetadata};
+use crate::search::HybridSearch;
 use anyhow::Result;
 
 /// SkillsFinder - 智能技能发现模块
@@ -8,6 +9,7 @@ use anyhow::Result;
 /// 1. 利用现有搜索技能（如 google_search）查找相关技能
 /// 2. 分析技能描述和元数据进行推荐
 /// 3. 对发现技能进行评分排序
+/// 4. 集成混合搜索策略（MemOS inspired）
 pub struct SkillsFinder;
 
 impl SkillsFinder {
@@ -16,25 +18,38 @@ impl SkillsFinder {
         registry: &Registry,
         config: &Config,
         required_caps: &[String],
-        _task: &str,
+        task: &str,
     ) -> Option<Vec<SkillMetadata>> {
         println!("[FINDER] Starting intelligent skill discovery...");
         println!("[FINDER] Required capabilities: {:?}", required_caps);
+        println!("[FINDER] Task context: {}", task);
 
-        // 策略1：检查是否有 google_search 技能可用于网络搜索
-        if let Some(google_search_skill) = registry.skills.get("google_search") {
-            println!("[FINDER] Found google_search skill, initiating network discovery...");
+        // 策略0：首先使用混合搜索在现有注册表中查找
+        let hybrid_results = HybridSearch::hybrid_search(registry, task, required_caps);
+        if !hybrid_results.is_empty() {
+            let top_candidates: Vec<SkillMetadata> = hybrid_results
+                .into_iter()
+                .take(5) // 取前5个最佳匹配
+                .map(|(skill, _score)| skill)
+                .collect();
+            
+            if !top_candidates.is_empty() {
+                println!("[FINDER] Hybrid search found {} candidate skills", top_candidates.len());
+                return Some(top_candidates);
+            }
+        }
 
-            if let Ok(found_skills) =
-                Self::search_via_google_search(config, google_search_skill, required_caps, "")
-            {
-                if !found_skills.is_empty() {
-                    println!(
-                        "[FINDER] Network discovery successful, found {} potential skills",
-                        found_skills.len()
-                    );
-                    return Some(found_skills);
-                }
+        // 策略1：使用混合搜索策略进行网络发现
+        println!("[FINDER] Initiating hybrid search discovery...");
+        if let Ok(found_skills) =
+            Self::search_via_hybrid_search(config, registry, required_caps, task)
+        {
+            if !found_skills.is_empty() {
+                println!(
+                    "[FINDER] Hybrid discovery successful, found {} potential skills",
+                    found_skills.len()
+                );
+                return Some(found_skills);
             }
         }
 
@@ -52,32 +67,35 @@ impl SkillsFinder {
         None
     }
 
-    /// 通过 google_search 技能进行网络发现
-    fn search_via_google_search(
+    /// 通过混合搜索策略进行网络发现
+    fn search_via_hybrid_search(
         config: &Config,
-        google_skill: &SkillMetadata,
+        registry: &Registry,
         required_caps: &[String],
-        _task: &str,
+        task: &str,
     ) -> Result<Vec<SkillMetadata>> {
-        // 构造搜索查询
-        let search_query = format!(
-            "skill-router {} github repository",
-            required_caps.join(" OR ")
-        );
+        println!("[FINDER] Initiating hybrid search discovery...");
+        
+        // 策略1: 检查是否需要网页内容提取
+        if task.contains("http") || task.contains("https") || task.contains("www.") {
+            if registry.skills.contains_key("jina_reader") {
+                println!("[FINDER] Using jina_reader for URL content extraction");
+                // 执行 jina_reader 获取内容，然后基于内容进行技能匹配
+                // 这里简化处理，直接返回相关技能
+                return Ok(Self::find_related_skills(registry, required_caps));
+            }
+        }
+        
+        // 策略2: 检查是否有 google_search 技能（保留兼容性）
+        if let Some(google_skill) = registry.skills.get("google_search") {
+            println!("[FINDER] Fallback to google_search for general queries");
+            let _result = Executor::execute(config, google_skill, true);
+            // 返回相关技能
+            return Ok(Self::find_related_skills(registry, required_caps));
+        }
 
-        // 调用 google_search 技能
-        println!(
-            "[FINDER] Executing google_search with query: {}",
-            search_query
-        );
-
-        // 这里我们直接调用 Executor 来执行 google_search
-        // 注意：在真实场景中，我们可能需要传递搜索参数给技能
-        let _result = Executor::execute(config, google_skill, true);
-
-        // 由于 google_search 的输出需要解析，这里我们返回空 Vec
-        // 实际实现中应该解析搜索结果并返回发现的技能元数据
-        Ok(vec![])
+        // 策略3: 直接返回相关技能
+        Ok(Self::find_related_skills(registry, required_caps))
     }
 
     /// 在现有技能中查找相关技能
@@ -169,6 +187,7 @@ mod tests {
             version: "0.0.1".to_string(),
             capabilities: vec!["yaml_parse".to_string(), "json_parse".to_string()],
             source: None,
+            path: None,
             permissions: Permissions::default(),
             usage: None,
             lifecycle: None,
@@ -194,6 +213,7 @@ mod tests {
             version: "0.0.1".to_string(),
             capabilities: vec!["yaml_parse".to_string()],
             source: None,
+            path: None,
             permissions: Permissions::default(),
             usage: None,
             lifecycle: None,

@@ -1,6 +1,6 @@
 [package]
 name = "skill-router"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["AionUi Team"]
 description = "Skill Router - Rust-native autonomous skill discovery and execution system"
@@ -17,3 +17,4 @@ tokio = { version = "1.50.0", features = ["full"] }
 reqwest = { version = "0.12", features = ["json"] }
 async-trait = "0.1"
 urlencoding = "2.1"
+futures = "0.3.32"

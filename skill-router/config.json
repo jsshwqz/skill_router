@@ -7,5 +7,12 @@
     "https://github.com/trusted-source"
   ],
   "llm_enabled": false,
-  "llm_command": null
+  "llm_command": null,
+  "routing_strategy": "capability_based",
+  "fallback_skill": "hybrid_search",
+  "default_skills": {
+    "search": "hybrid_search",
+    "web_reader": "jina_reader",
+    "memory": "memory_manager"
+  }
 }

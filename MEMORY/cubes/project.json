@@ -1,0 +1,32 @@
+{
+  "cube_id": "project",
+  "cube_name": "Project Context",
+  "config": {
+    "embedding_model": "text-embedding-ada-002",
+    "vector_db": "sqlite",
+    "max_memories": 10000,
+    "enable_search": true
+  },
+  "metadata": {
+    "created_at": "2026-03-13T09:19:29.725848500+00:00",
+    "updated_at": "2026-03-13T09:19:29.755252700+00:00",
+    "tags": [],
+    "description": "",
+    "is_shared": false
+  },
+  "memories": [
+    {
+      "id": "mem_1773393569755230400_1",
+      "timestamp": "2026-03-13T09:19:29.755245100+00:00",
+      "content": "测试内容",
+      "tags": [
+        "tag1",
+        "tag2"
+      ],
+      "metadata": {}
+    }
+  ],
+  "search_index": {
+    "测试内容": 0
+  }
+}

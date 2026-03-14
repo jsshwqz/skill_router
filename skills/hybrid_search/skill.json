@@ -1,0 +1,35 @@
+{
+  "name": "hybrid_search",
+  "version": "0.1.0",
+  "description": "混合搜索技能 - 智能选择最佳搜索策略：URL内容提取、AI优化搜索、平台特定搜索",
+  "capabilities": ["hybrid_search", "web_reader", "ai_search", "platform_search"],
+  "permissions": {
+    "network": true,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": true
+  },
+  "entrypoint": "main.rs",
+  "dependencies": ["serde", "serde_json", "tokio"],
+  "examples": [
+    {
+      "input": "https://example.com",
+      "output": "{"status":"success","skill":"hybrid_search","strategy":"web_reader","content":"..."}"
+    },
+    {
+      "input": "Rust programming best practices",
+      "output": "{"status":"success","skill":"hybrid_search","strategy":"ai_search","results":[...]}"
+    }
+  ],
+  "config_schema": {
+    "fallback_to_web_reader": true,
+    "timeout_seconds": 30
+  },
+  "metadata": {
+    "author": "Gemini CLI",
+    "created_at": "2026-03-13",
+    "last_updated": "2026-03-13",
+    "type": "network",
+    "lang": "rust"
+  }
+}

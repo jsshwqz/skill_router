@@ -5,10 +5,12 @@
 //! 1. 分析复杂任务
 //! 2. 拆解为子任务
 //! 3. 调用其他技能执行
+//! 4. 记录技能使用历史 (MemOS inspired)
 
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::process::Command;
+use std::time::Instant;
 
 #[derive(Debug, Deserialize)]
 struct TaskInput {
@@ -49,6 +51,27 @@ fn main() {
             },
         }
     };
+
+    // 记录技能使用历史
+    if output.status == "success" {
+        record_skill_usage(
+            "autonomous_orchestrator",
+            &args.get(1).unwrap_or(&"".to_string()),
+            &serde_json::to_string_pretty(&output).unwrap_or_default(),
+            true,
+            output.duration_ms,
+            vec!["task_orchestration".to_string(), "autonomous_execution".to_string()],
+        );
+    } else {
+        record_skill_usage(
+            "autonomous_orchestrator",
+            &args.get(1).unwrap_or(&"".to_string()),
+            &serde_json::to_string_pretty(&output).unwrap_or_default(),
+            false,
+            output.duration_ms,
+            vec!["task_orchestration".to_string(), "execution_failed".to_string()],
+        );
+    }
 
     println!("{}", serde_json::to_string_pretty(&output).unwrap());
 }
@@ -109,4 +132,34 @@ fn execute_steps(steps: &[String]) -> serde_json::Value {
     }
     
     serde_json::Value::Object(results)
+}
+
+// ===== 技能记忆记录函数 =====
+fn record_skill_usage(
+    skill_id: &str,
+    input: &str,
+    output: &str,
+    success: bool,
+    execution_time_ms: u64,
+    tags: Vec<String>,
+) {
+    // 构建 memory_manager 命令参数
+    let mut args = vec![
+        "record-skill-usage".to_string(),
+        skill_id.to_string(),
+        input.to_string(),
+        output.to_string(),
+        success.to_string(),
+        execution_time_ms.to_string(),
+    ];
+    
+    // 添加标签
+    for tag in tags {
+        args.push(format!("#{}", tag));
+    }
+
+    // 调用 memory_manager 记录技能使用
+    let _ = Command::new("./skills/memory_manager/target/release/memory_manager.exe")
+        .args(&args)
+        .output();
 }

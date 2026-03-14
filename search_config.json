@@ -1,0 +1,18 @@
+{
+  "routing_strategy": "auto",
+  "skill_preferences": {
+    "static_urls": ["jina_reader", "browser_automation"],
+    "dynamic_urls": ["browser_automation", "jina_reader"],
+    "queries": ["exa_search"]
+  },
+  "browser_automation": {
+    "enabled": true,
+    "force_for_domains": [],
+    "timeout_seconds": 30
+  },
+  "transparency": {
+    "show_decision_log": true,
+    "include_raw_responses": false,
+    "trace_execution_path": true
+  }
+}

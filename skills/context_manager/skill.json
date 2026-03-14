@@ -1,0 +1,24 @@
+{
+  "name": "context_manager",
+  "version": "0.1.0",
+  "author": "AionUi Team",
+  "description": "上下文管理技能 - 管理项目上下文、生成摘要、更新 CONTEXT.md",
+  "type": "rust",
+  "entrypoint": "main.rs",
+  "capabilities": [
+    "context_management",
+    "file_scanning",
+    "summary_generation",
+    "context_update"
+  ],
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": true,
+    "process_exec": false
+  },
+  "metadata": {
+    "tags": ["context", "summary", "management"],
+    "icon": "📁"
+  }
+}

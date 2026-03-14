@@ -1,0 +1,68 @@
+{
+  "records": [
+    {
+      "skill_id": "test_skill",
+      "timestamp": "2026-03-13T09:56:07.882611200+00:00",
+      "input": "test input",
+      "output": "test output",
+      "success": true,
+      "execution_time_ms": 100,
+      "tags": [
+        "test_tag"
+      ],
+      "metadata": {}
+    },
+    {
+      "skill_id": "autonomous_orchestrator",
+      "timestamp": "2026-03-13T10:05:10.475036200+00:00",
+      "input": "{task:测试任务}",
+      "output": "{\n  \"status\": \"error\",\n  \"skill\": \"autonomous_orchestrator\",\n  \"error\": \"JSON parse error: key must be a string at line 1 column 2\",\n  \"duration_ms\": 0\n}",
+      "success": false,
+      "execution_time_ms": 0,
+      "tags": [
+        "task_orchestration",
+        "execution_failed"
+      ],
+      "metadata": {}
+    },
+    {
+      "skill_id": "autonomous_orchestrator",
+      "timestamp": "2026-03-13T10:05:20.583280100+00:00",
+      "input": "{\\",
+      "output": "{\n  \"status\": \"error\",\n  \"skill\": \"autonomous_orchestrator\",\n  \"error\": \"JSON parse error: key must be a string at line 1 column 2\",\n  \"duration_ms\": 0\n}",
+      "success": false,
+      "execution_time_ms": 0,
+      "tags": [
+        "task_orchestration",
+        "execution_failed"
+      ],
+      "metadata": {}
+    },
+    {
+      "skill_id": "autonomous_orchestrator",
+      "timestamp": "2026-03-13T10:05:29.793661400+00:00",
+      "input": "{\"task\":\"测试任务\"}",
+      "output": "{\n  \"status\": \"success\",\n  \"skill\": \"autonomous_orchestrator\",\n  \"steps\": [\n    \"执行任务: 测试任务\",\n    \"完成任务\"\n  ],\n  \"results\": {\n    \"step_1\": {\n      \"result\": \"完成\",\n      \"status\": \"success\",\n      \"task\": \"执行任务: 测试任务\"\n    },\n    \"step_2\": {\n      \"result\": \"完成\",\n      \"status\": \"success\",\n      \"task\": \"完成任务\"\n    }\n  },\n  \"duration_ms\": 0\n}",
+      "success": true,
+      "execution_time_ms": 0,
+      "tags": [
+        "task_orchestration",
+        "autonomous_execution"
+      ],
+      "metadata": {}
+    }
+  ],
+  "skill_stats": {
+    "test_skill": {
+      "total_calls": 1,
+      "success_calls": 1,
+      "avg_latency_ms": 100.0
+    },
+    "autonomous_orchestrator": {
+      "total_calls": 3,
+      "success_calls": 1,
+      "avg_latency_ms": 0.0
+    }
+  },
+  "last_updated": "2026-03-13T10:05:29.793701200+00:00"
+}

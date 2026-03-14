@@ -1,0 +1,17 @@
+{
+  "name": "browser_automation",
+  "version": "0.1.0",
+  "capabilities": [
+    "browser_automation",
+    "web_interaction",
+    "dynamic_content_extraction"
+  ],
+  "description": "Browser Automation 技能 - 轻量级浏览器自动化，用于处理需要 JavaScript 渲染的动态网页内容",
+  "entrypoint": "target\\release\\browser_automation.exe",
+  "permissions": {
+    "network": true,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": true
+  }
+}

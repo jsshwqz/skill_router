@@ -1,0 +1,13 @@
+{
+  "name": "smart-search-cli",
+  "version": "1.0.0",
+  "description": "智能混合搜索引擎CLI工具",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1"
+  }
+}
