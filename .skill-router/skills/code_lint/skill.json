@@ -1,0 +1,13 @@
+{
+  "name": "code_lint",
+  "version": "0.1.0",
+  "capabilities": ["code_lint"],
+  "entrypoint": "builtin:ai_task",
+  "instruction": "Review the following Rust code for bugs, style issues, and potential improvements. Return a structured list of issues found and suggested fixes.",
+  "permissions": {
+    "network": true,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

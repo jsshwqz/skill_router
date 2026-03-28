@@ -1,0 +1,15 @@
+{
+  "capabilities": [
+    "echo"
+  ],
+  "entrypoint": "builtin:echo",
+  "name": "echo_placeholder",
+  "permissions": {
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "network": false,
+    "process_exec": false,
+    "sandboxed_exec": false
+  },
+  "version": "0.1.0"
+}

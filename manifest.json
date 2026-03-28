@@ -1,0 +1,543 @@
+[
+  {
+    "name": "code_generate",
+    "description": "Generate Rust code for a given requirement using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "code_lint",
+    "description": "Review Rust code for issues and suggest fixes using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "code_test",
+    "description": "Write Rust unit tests for given code using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "csv_parse",
+    "description": "Parse CSV or spreadsheet text into rows and columns",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "rows",
+      "headers"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "discovery_search",
+    "description": "Cascade search across Google, HTTP fallback, and local trusted sources",
+    "inputs": [
+      "query"
+    ],
+    "outputs": [
+      "hits",
+      "sources_succeeded"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "echo",
+    "description": "Simply echo back the input task for testing",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "http_fetch",
+    "description": "Fetch the body of an HTTPS URL",
+    "inputs": [
+      "url"
+    ],
+    "outputs": [
+      "body",
+      "status"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "image_describe",
+    "description": "Describe an image at a given path or URL using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "json_parse",
+    "description": "Parse and validate JSON text into structured data",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "parsed"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "markdown_render",
+    "description": "Parse Markdown text into structured sections",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "sections"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "memory_distill",
+    "description": "Distill and compact the memory store by removing duplicates and decaying old entries",
+    "inputs": [],
+    "outputs": [
+      "removed",
+      "merged"
+    ],
+    "parameters_schema": {
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "memory_recall",
+    "description": "Recall relevant memories by keyword search from long-term store",
+    "inputs": [
+      "query"
+    ],
+    "outputs": [
+      "results"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "memory_remember",
+    "description": "Persist a memory entry (decision, lesson, error, preference, etc.) to long-term store",
+    "inputs": [
+      "content",
+      "category"
+    ],
+    "outputs": [
+      "memory_id"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "pdf_parse",
+    "description": "Extract and structure text content from a PDF file path",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "structured_data"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "space_navigation",
+    "description": "Navigate to interstellar destinations (experimental)",
+    "inputs": [
+      "destination"
+    ],
+    "outputs": [
+      "status"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "destination": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "destination"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_classify",
+    "description": "Classify or categorize text into a label using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_diff",
+    "description": "Compute a line-level diff between two text inputs",
+    "inputs": [
+      "a",
+      "b"
+    ],
+    "outputs": [
+      "diff",
+      "added",
+      "removed"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "a": {
+          "type": "string"
+        },
+        "b": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_embed",
+    "description": "Compute a term-frequency bag-of-words vector for text",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "vector"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_extract",
+    "description": "Extract key entities and information from text using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_summarize",
+    "description": "Summarize text using AI into a concise output",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_translate",
+    "description": "Translate text from one language to another using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "toml_parse",
+    "description": "Parse TOML configuration text into structured data",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "parsed"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "web_search",
+    "description": "Search the web via SerpAPI and return organic results",
+    "inputs": [
+      "query"
+    ],
+    "outputs": [
+      "results"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "yaml_parse",
+    "description": "Parse YAML text into structured JSON data",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "parsed"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "description": "The YAML content to parse",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": [
+      {
+        "intent": "yaml_parse",
+        "parameters": {
+          "text": "foo: bar\nlist:\n  - 1\n  - 2"
+        }
+      }
+    ]
+  }
+]

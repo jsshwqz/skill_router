@@ -1,0 +1,13 @@
+{
+  "name": "text_translate",
+  "version": "0.1.0",
+  "capabilities": ["text_translate"],
+  "entrypoint": "builtin:ai_task",
+  "instruction": "Translate the following text. Detect source language automatically and translate to the target language specified in the task. If no target language is specified, translate to English.",
+  "permissions": {
+    "network": true,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

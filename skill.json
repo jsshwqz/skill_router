@@ -1,0 +1,418 @@
+{
+  "name": "aion-router-universal",
+  "version": "0.4.0",
+  "capabilities": [
+    "complex_automation",
+    "auto_solution_generation",
+    "parallel_execution",
+    "code_generate",
+    "code_lint",
+    "code_test",
+    "yaml_parse",
+    "json_parse",
+    "toml_parse",
+    "csv_parse",
+    "pdf_parse",
+    "text_summarize",
+    "text_translate",
+    "text_classify",
+    "text_extract",
+    "text_diff",
+    "discovery_search",
+    "web_search",
+    "http_fetch",
+    "memory_remember",
+    "memory_recall",
+    "memory_distill"
+  ],
+  "description": "Unified AI Agent Framework - Skill Router Workspace. Support for memory management, planning, and parallel task execution.",
+  "entrypoint": "aion-cli",
+  "entrypoint_dev": "cargo run -p aion-cli --",
+  "safety_manifest": "safety-manifest.json",
+  "permissions": {
+    "network": true,
+    "filesystem_read": true,
+    "filesystem_write": true,
+    "process_exec": false
+  },
+  "api_schema": {
+    "tools": [
+      {
+        "name": "code_generate",
+        "description": "Generate new code files or snippets based on precise requirements. Provide detailed text descriptions of what needs to be implemented.",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "code_lint",
+        "description": "Review Rust code for issues and suggest fixes using AI",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "code_test",
+        "description": "Write Rust unit tests for given code using AI",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "csv_parse",
+        "description": "Parse CSV or spreadsheet text into rows and columns",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "discovery_search",
+        "description": "Cascade search across Google, HTTP fallback, and local trusted sources",
+        "parameters": {
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "echo",
+        "description": "Simply echo back the input task for testing",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "http_fetch",
+        "description": "Fetch the body of an HTTPS URL",
+        "parameters": {
+          "properties": {
+            "url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "image_describe",
+        "description": "Describe an image at a given path or URL using AI",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "json_parse",
+        "description": "Parse and validate JSON text into structured data",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "markdown_render",
+        "description": "Parse Markdown text into structured sections",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "memory_distill",
+        "description": "Distill and compact the memory store by removing duplicates and decaying old entries",
+        "parameters": {
+          "type": "object"
+        }
+      },
+      {
+        "name": "memory_recall",
+        "description": "Recall relevant memories by keyword search from long-term store",
+        "parameters": {
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "memory_remember",
+        "description": "Persist a memory entry (decision, lesson, error, preference, etc.) to long-term store",
+        "parameters": {
+          "properties": {
+            "category": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "content"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "pdf_parse",
+        "description": "Extract and structure text content from a PDF file path",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "space_navigation",
+        "description": "Navigate to interstellar destinations (experimental)",
+        "parameters": {
+          "properties": {
+            "destination": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "destination"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "text_classify",
+        "description": "Classify or categorize text into a label using AI",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "text_diff",
+        "description": "Compute a line-level diff between two text inputs",
+        "parameters": {
+          "properties": {
+            "a": {
+              "type": "string"
+            },
+            "b": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "a",
+            "b"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "text_embed",
+        "description": "Compute a term-frequency bag-of-words vector for text",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "text_extract",
+        "description": "Extract key entities and information from text using AI",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "text_summarize",
+        "description": "Summarize text using AI into a concise output",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "text_translate",
+        "description": "Translate text from one language to another using AI",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "toml_parse",
+        "description": "Parse TOML configuration text into structured data",
+        "parameters": {
+          "properties": {
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "web_search",
+        "description": "Search the web via SerpAPI and return organic results",
+        "parameters": {
+          "properties": {
+            "query": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "yaml_parse",
+        "description": "Parse YAML text into structured JSON data",
+        "parameters": {
+          "properties": {
+            "text": {
+              "description": "The YAML content to parse",
+              "type": "string"
+            }
+          },
+          "required": [
+            "text"
+          ],
+          "type": "object"
+        }
+      },
+      {
+        "name": "complex_automation",
+        "description": "Perform a multi-step complex automation task autonomously. Useful for open-ended requests that require planning, searching, file reading/writing, and reasoning.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "task": {
+              "type": "string",
+              "description": "The complex task description or objective."
+            }
+          },
+          "required": [
+            "task"
+          ]
+        }
+      }
+    ]
+  }
+}

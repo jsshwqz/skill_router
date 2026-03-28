@@ -1,0 +1,52 @@
+{
+  "session_id": "session_101",
+  "status": "Completed",
+  "plan_version": 2,
+  "attempt_count": 1,
+  "max_attempts": 10,
+  "dirty_state": false,
+  "verification_reports": [],
+  "current_step_index": 2,
+  "steps": [
+    {
+      "id": "step_01",
+      "title": "Generate Fix",
+      "status": "Completed",
+      "capability": "code_generate",
+      "dependencies": [],
+      "skill_id": null,
+      "inputs": {
+        "file": "main.rs"
+      },
+      "expected_outputs": [],
+      "side_effect_class": "LocalWriteReversible",
+      "rollback_contract": null,
+      "verifier": "cargo_check",
+      "attempt_count": 0,
+      "error": null
+    },
+    {
+      "id": "step_01_patch_v2",
+      "title": "Auto-fix for: Generate Fix",
+      "status": "Completed",
+      "capability": "code_generate",
+      "dependencies": [
+        "step_01"
+      ],
+      "skill_id": null,
+      "inputs": {
+        "file": "main.rs"
+      },
+      "expected_outputs": [],
+      "side_effect_class": "LocalWriteReversible",
+      "rollback_contract": null,
+      "verifier": "cargo_check",
+      "attempt_count": 0,
+      "error": null
+    }
+  ],
+  "global_context": {
+    "goal": "Fix a bug"
+  },
+  "error_history": []
+}

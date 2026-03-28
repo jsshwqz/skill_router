@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "aion-forge": {
+      "command": "D:/test/aionui/config/skills/aion-forge/bin/aion-cli.exe",
+      "args": ["mcp-server"],
+      "env": {
+        "AI_PASSTHROUGH": "false",
+        "CLAUDE_CLI": "C:/Users/Administrator/AppData/Roaming/npm/claude.cmd",
+        "CODEX_CLI": "C:/Users/Administrator/AppData/Roaming/npm/codex.cmd",
+        "GEMINI_CLI": "C:/Users/Administrator/AppData/Roaming/npm/gemini.cmd",
+        "OPENAI_MODEL": "gpt-5.4",
+        "REQUEST_TIMEOUT": "120",
+        "AI_PROVIDERS_DISABLED": "ollama-local",
+        "AI_BASE_URL": "https://open.bigmodel.cn/api/paas/v4",
+        "AI_API_KEY": "ecdf37c7e3b34a769f949238f52f3b0a.BQ07jsSjKi0HO8E5",
+        "AI_MODEL": "glm-4.7-flash",
+        "SERPAPI_KEY": "d985603a14b24ae49ed8d2b0bffff7cd.t9QGzr5iUw1azPDj"
+      }
+    }
+  }
+}

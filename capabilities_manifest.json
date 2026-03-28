@@ -1,0 +1,1242 @@
+[
+  {
+    "name": "agent_broadcast",
+    "description": "Broadcast a message to all registered Agents on the message bus",
+    "inputs": [
+      "message"
+    ],
+    "outputs": [
+      "delivered_count"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "message": {
+          "description": "Message content to broadcast",
+          "type": "string"
+        }
+      },
+      "required": [
+        "message"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "agent_delegate",
+    "description": "Delegate a task to a specific Agent by ID via the message bus",
+    "inputs": [
+      "task",
+      "target_agent_id"
+    ],
+    "outputs": [
+      "result",
+      "delegation_chain"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "capability": {
+          "description": "Capability to invoke on target",
+          "type": "string"
+        },
+        "target_agent_id": {
+          "description": "Target Agent ID",
+          "type": "string"
+        },
+        "task": {
+          "description": "The task to delegate",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task",
+        "target_agent_id"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "agent_gather",
+    "description": "Send a query to multiple Agents and aggregate all responses",
+    "inputs": [
+      "query",
+      "agent_ids"
+    ],
+    "outputs": [
+      "responses",
+      "success_rate"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "agent_ids": {
+          "description": "Target Agent IDs",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "query": {
+          "description": "Query to send to Agents",
+          "type": "string"
+        },
+        "timeout_secs": {
+          "default": 10,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "agent_status",
+    "description": "Query the status of all registered Agents or a specific Agent",
+    "inputs": [],
+    "outputs": [
+      "agents",
+      "total"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "agent_id": {
+          "description": "Optional specific Agent ID to query",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_code_generate",
+    "description": "Generate code with one AI engine and review with another using AI",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "original_code",
+      "review"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "language": {
+          "description": "Programming language (default: python)",
+          "type": "string"
+        },
+        "primary": {
+          "description": "Primary generator",
+          "enum": [
+            "claude",
+            "openai",
+            "gemini"
+          ],
+          "type": "string"
+        },
+        "reviewer": {
+          "description": "Code reviewer",
+          "enum": [
+            "claude",
+            "openai",
+            "gemini"
+          ],
+          "type": "string"
+        },
+        "task": {
+          "description": "Code requirement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_cross_review",
+    "description": "Two AI engines cross-review code, merge opinions using AI",
+    "inputs": [
+      "code"
+    ],
+    "outputs": [
+      "merged_review"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "code": {
+          "description": "Code to review",
+          "type": "string"
+        },
+        "engines": {
+          "description": "Two engines (default: [claude, openai])",
+          "items": {
+            "enum": [
+              "claude",
+              "openai",
+              "gemini"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_long_context",
+    "description": "Process long content with Gemini's ultra-long context, optionally verify with other AI",
+    "inputs": [
+      "content",
+      "task"
+    ],
+    "outputs": [
+      "gemini_analysis"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "content": {
+          "description": "Long text content",
+          "type": "string"
+        },
+        "task": {
+          "description": "Processing task",
+          "type": "string"
+        },
+        "verify_with": {
+          "description": "Verification engines (optional)",
+          "items": {
+            "enum": [
+              "claude",
+              "openai"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "content",
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_parallel_solve",
+    "description": "Multiple AI engines solve a problem in parallel, compare and pick best using AI",
+    "inputs": [
+      "problem"
+    ],
+    "outputs": [
+      "solutions",
+      "comparison"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "engines": {
+          "description": "Engines to use (default: all)",
+          "items": {
+            "enum": [
+              "claude",
+              "openai",
+              "gemini"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "problem": {
+          "description": "Problem description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_research",
+    "description": "Three-engine multi-perspective research: Claude theory, OpenAI practice, Gemini trends using AI",
+    "inputs": [
+      "topic"
+    ],
+    "outputs": [
+      "synthesis"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "depth": {
+          "description": "Research depth",
+          "enum": [
+            "quick",
+            "comprehensive",
+            "deep"
+          ],
+          "type": "string"
+        },
+        "topic": {
+          "description": "Research topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_serial_optimize",
+    "description": "Configurable AI pipeline to optimize code: analyze, optimize, verify using AI",
+    "inputs": [
+      "code"
+    ],
+    "outputs": [
+      "optimized_code",
+      "verification"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "code": {
+          "description": "Code to optimize",
+          "type": "string"
+        },
+        "goals": {
+          "description": "Optimization goals",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "pipeline": {
+          "description": "AI execution order [analyzer, optimizer, verifier]",
+          "items": {
+            "enum": [
+              "claude",
+              "openai",
+              "gemini"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_smart_collaborate",
+    "description": "Let OpenAI, Claude, Gemini collaborate on a task: discuss, detect consensus, merge or pick best using AI",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "proposals",
+      "final_solution"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "execute_on_disagreement": {
+          "description": "Execute when disagreement (default: true)",
+          "type": "boolean"
+        },
+        "task": {
+          "description": "Task description, as detailed as possible",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_triangle_review",
+    "description": "Three AI engines review code simultaneously, merge opinions with confidence using AI",
+    "inputs": [
+      "code"
+    ],
+    "outputs": [
+      "merged_review"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "code": {
+          "description": "Code to review",
+          "type": "string"
+        },
+        "context": {
+          "description": "Optional code background",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "ai_triple_vote",
+    "description": "Three AI engines independently vote on a problem, pick the best using AI",
+    "inputs": [
+      "problem"
+    ],
+    "outputs": [
+      "votes",
+      "tally"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "options": {
+          "description": "Predefined options (optional)",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "problem": {
+          "description": "Problem description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "problem"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "code_generate",
+    "description": "Generate Rust code for a given requirement using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "code_lint",
+    "description": "Review Rust code for issues and suggest fixes using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "code_test",
+    "description": "Write Rust unit tests for given code using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "csv_parse",
+    "description": "Parse CSV or spreadsheet text into rows and columns",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "rows",
+      "headers"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "discovery_search",
+    "description": "Cascade search across Google, HTTP fallback, and local trusted sources",
+    "inputs": [
+      "query"
+    ],
+    "outputs": [
+      "hits",
+      "sources_succeeded"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "echo",
+    "description": "Simply echo back the input task for testing",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "http_fetch",
+    "description": "Fetch the body of an HTTPS URL",
+    "inputs": [
+      "url"
+    ],
+    "outputs": [
+      "body",
+      "status"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "image_describe",
+    "description": "Describe an image at a given path or URL using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "json_parse",
+    "description": "Parse and validate JSON text into structured data",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "parsed"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "json_query",
+    "description": "Query JSON data using JSONPath-like expressions ($.key.subkey[0])",
+    "inputs": [
+      "data",
+      "path"
+    ],
+    "outputs": [
+      "matches",
+      "count"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "data": {
+          "description": "JSON string to query",
+          "type": "string"
+        },
+        "path": {
+          "description": "JSONPath expression (e.g. $.store.book[0].title)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "data",
+        "path"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "markdown_render",
+    "description": "Parse Markdown text into structured sections",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "sections"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "mcp_call",
+    "description": "Call an external tool via MCP (Model Context Protocol) server",
+    "inputs": [
+      "server",
+      "tool",
+      "arguments"
+    ],
+    "outputs": [
+      "result"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "arguments": {
+          "description": "Arguments for the tool",
+          "type": "object"
+        },
+        "server": {
+          "description": "MCP server name",
+          "type": "string"
+        },
+        "tool": {
+          "description": "Tool name on the MCP server",
+          "type": "string"
+        }
+      },
+      "required": [
+        "server",
+        "tool"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "memory_distill",
+    "description": "Distill and compact the memory store by removing duplicates and decaying old entries",
+    "inputs": [],
+    "outputs": [
+      "removed",
+      "merged"
+    ],
+    "parameters_schema": {
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "memory_recall",
+    "description": "Recall relevant memories by keyword search from long-term store",
+    "inputs": [
+      "query"
+    ],
+    "outputs": [
+      "results"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "memory_remember",
+    "description": "Persist a memory entry (decision, lesson, error, preference, etc.) to long-term store",
+    "inputs": [
+      "content",
+      "category"
+    ],
+    "outputs": [
+      "memory_id"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "content": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "memory_team_share",
+    "description": "Promote a private memory entry to team-shared namespace for cross-Agent access",
+    "inputs": [
+      "memory_id"
+    ],
+    "outputs": [
+      "shared_id",
+      "namespace"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "memory_id": {
+          "description": "Private memory ID to share",
+          "type": "string"
+        },
+        "team_session_id": {
+          "description": "Target team session",
+          "type": "string"
+        }
+      },
+      "required": [
+        "memory_id"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "pdf_parse",
+    "description": "Extract and structure text content from a PDF file path",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "structured_data"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "rag_ingest",
+    "description": "Ingest a document into the RAG knowledge base for later retrieval",
+    "inputs": [
+      "source"
+    ],
+    "outputs": [
+      "chunks_added"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "content": {
+          "description": "Optional: document content (if not reading from file)",
+          "type": "string"
+        },
+        "source": {
+          "description": "File path or URL to ingest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "rag_query",
+    "description": "Query the RAG knowledge base and generate an AI-enhanced answer from retrieved documents",
+    "inputs": [
+      "query"
+    ],
+    "outputs": [
+      "answer",
+      "sources"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "query": {
+          "description": "Question to ask the knowledge base",
+          "type": "string"
+        },
+        "top_k": {
+          "description": "Number of relevant chunks to retrieve (default: 3)",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "rag_status",
+    "description": "Show the current status of the RAG knowledge base (document count, chunk count, sources)",
+    "inputs": [],
+    "outputs": [
+      "document_count",
+      "chunk_count",
+      "sources"
+    ],
+    "parameters_schema": {
+      "properties": {},
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "regex_match",
+    "description": "Match text against a regular expression pattern with find_all, is_match, or captures mode",
+    "inputs": [
+      "text",
+      "pattern"
+    ],
+    "outputs": [
+      "matches",
+      "count"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "mode": {
+          "default": "find_all",
+          "enum": [
+            "find_all",
+            "is_match",
+            "captures"
+          ],
+          "type": "string"
+        },
+        "pattern": {
+          "description": "Regular expression pattern",
+          "type": "string"
+        },
+        "text": {
+          "description": "Text to search",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "pattern"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "space_navigation",
+    "description": "Navigate to interstellar destinations (experimental)",
+    "inputs": [
+      "destination"
+    ],
+    "outputs": [
+      "status"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "destination": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "destination"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "task_pipeline",
+    "description": "Execute a serial pipeline of capabilities, passing each result to the next step",
+    "inputs": [
+      "steps",
+      "initial_input"
+    ],
+    "outputs": [
+      "final_result",
+      "step_results"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "initial_input": {
+          "description": "Input for the first step",
+          "type": "string"
+        },
+        "steps": {
+          "description": "Ordered list of capability names",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "steps",
+        "initial_input"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "task_race",
+    "description": "Race multiple Agents on the same task, return the first successful result",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "winner_agent",
+      "result"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "agent_ids": {
+          "description": "Competing Agent IDs",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "capability": {
+          "description": "Capability to invoke",
+          "type": "string"
+        },
+        "task": {
+          "description": "Task to race",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_classify",
+    "description": "Classify or categorize text into a label using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_diff",
+    "description": "Compute a line-level diff between two text inputs",
+    "inputs": [
+      "a",
+      "b"
+    ],
+    "outputs": [
+      "diff",
+      "added",
+      "removed"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "a": {
+          "type": "string"
+        },
+        "b": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_embed",
+    "description": "Compute a term-frequency bag-of-words vector for text",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "vector"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_extract",
+    "description": "Extract key entities and information from text using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_summarize",
+    "description": "Summarize text using AI into a concise output",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "text_translate",
+    "description": "Translate text from one language to another using AI",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "toml_parse",
+    "description": "Parse TOML configuration text into structured data",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "parsed"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "web_search",
+    "description": "Search the web via SerpAPI and return organic results",
+    "inputs": [
+      "query"
+    ],
+    "outputs": [
+      "results"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "yaml_parse",
+    "description": "Parse YAML text into structured JSON data",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "parsed"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "description": "The YAML content to parse",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": [
+      {
+        "intent": "yaml_parse",
+        "parameters": {
+          "text": "foo: bar\nlist:\n  - 1\n  - 2"
+        }
+      }
+    ]
+  }
+]

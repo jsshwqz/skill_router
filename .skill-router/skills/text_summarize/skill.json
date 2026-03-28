@@ -1,0 +1,13 @@
+{
+  "name": "text_summarize",
+  "version": "0.1.0",
+  "capabilities": ["text_summarize"],
+  "entrypoint": "builtin:ai_task",
+  "instruction": "Summarize the following text concisely. Return only the summary, no preamble.",
+  "permissions": {
+    "network": true,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

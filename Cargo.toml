@@ -1,0 +1,38 @@
+[workspace]
+members = [
+    "aion-types",
+    "aion-memory",
+    "aion-intel",
+    "aion-router",
+    "aion-cli",
+    "aion-server",
+    "aion-sandbox",
+    "aion-cli-gen",
+]
+resolver = "2"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+chrono = { version = "0.4", features = ["serde"] }
+rayon = "1"
+uuid = { version = "1", features = ["v4"] }
+dotenvy = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+async-nats = "0.38"
+futures-util = "0.3"
+axum = "0.7"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+async-trait = "0.1"
+regex = "1"
+metrics = "0.24"
+flate2 = "1"
+metrics-exporter-prometheus = "0.16"
+indicatif = "0.17"
+
+[workspace.lints.clippy]
+all = "warn"

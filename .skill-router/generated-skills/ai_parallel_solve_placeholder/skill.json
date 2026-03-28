@@ -1,0 +1,15 @@
+{
+  "capabilities": [
+    "ai_parallel_solve"
+  ],
+  "entrypoint": "builtin:ai_parallel_solve",
+  "name": "ai_parallel_solve_placeholder",
+  "permissions": {
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "network": true,
+    "process_exec": false,
+    "sandboxed_exec": false
+  },
+  "version": "0.1.0"
+}

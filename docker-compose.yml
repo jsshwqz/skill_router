@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  # ── Ollama — 本地 LLM 推理引擎 ────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    # 自动拉取默认模型（首次启动后）
+    # command: serve
+
+  # ── NATS — 分布式消息总线（D1 阶段启用）──────────────────────────────────
+  nats:
+    image: nats:2.10-alpine
+    ports:
+      - "4222:4222"   # client
+      - "8222:8222"   # monitoring
+    command: ["--jetstream", "--store_dir", "/data/nats"]
+    volumes:
+      - nats-data:/data/nats
+
+  # ── Aion Server — HTTP REST API ────────────────────────────────────────────
+  aion-server:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - RUST_LOG=aion_server=info,aion_router=info
+      - AI_BASE_URL=http://ollama:11434/v1
+      - AI_API_KEY=ollama
+      - AI_MODEL=qwen2.5:7b
+      - AI_SECURITY_FAIL_POLICY=closed
+      - NATS_URL=nats://nats:4222
+      - AION_HOST=0.0.0.0
+      - AION_PORT=3000
+    depends_on:
+      - ollama
+      - nats
+    volumes:
+      - aion-workspace:/workspace
+
+volumes:
+  ollama-data:
+  nats-data:
+  aion-workspace:

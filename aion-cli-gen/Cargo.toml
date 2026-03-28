@@ -1,0 +1,14 @@
+[package]
+name = "aion-cli-gen"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+aion-types = { path = "../aion-types" }
+aion-sandbox = { path = "../aion-sandbox" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+regex = { workspace = true }

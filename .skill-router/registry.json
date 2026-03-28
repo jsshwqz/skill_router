@@ -1,0 +1,60 @@
+{
+  "skills": {
+    "ai_parallel_solve_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1774506554549,
+          "success": true
+        },
+        {
+          "epoch_ms": 1774506706582,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1774506706582
+    },
+    "echo_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1774287387624,
+          "success": true
+        },
+        {
+          "epoch_ms": 1774287818887,
+          "success": true
+        },
+        {
+          "epoch_ms": 1774402587178,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1774402587178
+    },
+    "spec_driven_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1774518012723,
+          "success": true
+        },
+        {
+          "epoch_ms": 1774518018409,
+          "success": true
+        },
+        {
+          "epoch_ms": 1774526658308,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1774526658308
+    },
+    "yaml_parse_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1774286278545,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1774286278545
+    }
+  }
+}

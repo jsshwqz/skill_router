@@ -1,0 +1,52 @@
+{
+  "project_id": "spec_69c520bf",
+  "goal": "分析 aion-forge 的完成度和改进方向",
+  "workspace_path": "D:\\test\\aionui\\skill\\新建文件夹\\aion_forge_handoff_v2.1",
+  "created_at": 1774526655,
+  "updated_at": 1774526655,
+  "phases": [
+    {
+      "kind": "analyze",
+      "status": "in_progress",
+      "started_at": 1774526655,
+      "completed_at": null,
+      "output": null,
+      "error": null
+    },
+    {
+      "kind": "decompose",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "output": null,
+      "error": null
+    },
+    {
+      "kind": "plan",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "output": null,
+      "error": null
+    },
+    {
+      "kind": "execute",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "output": null,
+      "error": null
+    },
+    {
+      "kind": "learn",
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "output": null,
+      "error": null
+    }
+  ],
+  "tasks": [],
+  "risks": [],
+  "lessons": []
+}

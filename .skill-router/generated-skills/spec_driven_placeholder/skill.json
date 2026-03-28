@@ -1,0 +1,15 @@
+{
+  "capabilities": [
+    "spec_driven"
+  ],
+  "entrypoint": "builtin:spec_driven",
+  "name": "spec_driven_placeholder",
+  "permissions": {
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "network": false,
+    "process_exec": false,
+    "sandboxed_exec": false
+  },
+  "version": "0.1.0"
+}

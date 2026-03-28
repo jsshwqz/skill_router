@@ -1,0 +1,13 @@
+{
+  "name": "code_generate",
+  "version": "0.1.0",
+  "capabilities": ["code_generate"],
+  "entrypoint": "builtin:ai_task",
+  "instruction": "Generate Rust code for the following requirement. Return only the code block, no explanation.",
+  "permissions": {
+    "network": true,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

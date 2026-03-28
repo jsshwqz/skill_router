@@ -1,0 +1,34 @@
+[package]
+name = "aion-router"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["local"]
+local = []
+distributed = ["async-nats", "axum", "tower-http", "futures-util"]
+
+[dependencies]
+aion-types = { path = "../aion-types" }
+aion-memory = { path = "../aion-memory" }
+aion-intel = { path = "../aion-intel" }
+aion-sandbox = { path = "../aion-sandbox" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+rayon = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+regex = { workspace = true }
+metrics = { workspace = true }
+flate2 = { workspace = true }
+
+# D1: distributed mode dependencies (feature-gated)
+async-nats = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }

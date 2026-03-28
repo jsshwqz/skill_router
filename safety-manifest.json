@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0",
+  "package": {
+    "name": "aion-forge",
+    "version": "0.4.0",
+    "author": "AionCore Team",
+    "license": "MIT",
+    "repository": "https://github.com/aioncore/aion-forge",
+    "description": "Universal AI Agent Capability Router — 29+ built-in skills for code generation, text processing, web search, memory management, and multi-agent collaboration",
+    "description_zh": "AI 万能技能路由器 — 29+ 内置能力：代码生成、文本处理、网页搜索、记忆管理、多 Agent 协作"
+  },
+  "security": {
+    "trust_level": "community",
+    "safety_rating": 4,
+    "safety_rating_reason": "Open source, built-in dual-layer security review (heuristic + AI), audit logging, configurable fail-closed policy, SSRF protection, secret leak detection",
+    "safety_rating_reason_zh": "开源项目，内置双层安全审查（启发式 + AI），审计日志，可配置 fail-closed 策略，SSRF 防护，密钥泄露检测",
+    "code_signing": false,
+    "reproducible_build": true,
+    "last_audit_date": null
+  },
+  "permissions": {
+    "network_access": {
+      "required": true,
+      "reason": "Calls configured LLM backend (Ollama/OpenAI/Google AI) for AI inference, SerpAPI for web search",
+      "reason_zh": "调用已配置的 AI 模型后端（Ollama/OpenAI/Google AI）进行推理，调用 SerpAPI 进行网页搜索",
+      "outbound_domains": [
+        "User-configured LLM endpoint (default: localhost:11434)",
+        "serpapi.com (only when web_search is used)"
+      ],
+      "inbound_listen": {
+        "enabled": true,
+        "default_port": 3000,
+        "configurable": true,
+        "reason": "aion-server HTTP REST API for cross-agent integration",
+        "reason_zh": "aion-server HTTP REST API，用于跨 Agent 集成"
+      }
+    },
+    "filesystem_read": {
+      "required": true,
+      "reason": "Read workspace files for parsing (YAML/JSON/CSV/code), skill definitions, and memory store",
+      "reason_zh": "读取工作区文件用于解析（YAML/JSON/CSV/代码）、技能定义和记忆存储",
+      "scope": "Workspace directory and ~/.aion/ config directory only"
+    },
+    "filesystem_write": {
+      "required": true,
+      "reason": "Persist memory store, audit logs, generated skill definitions, and execution logs",
+      "reason_zh": "持久化记忆存储、审计日志、生成的技能定义和执行日志",
+      "scope": "Workspace/.skill-router/ directory only",
+      "files_written": [
+        ".skill-router/memory_store.json",
+        ".skill-router/security_audit.log",
+        ".skill-router/executions.log",
+        ".skill-router/registry.json"
+      ]
+    },
+    "process_exec": {
+      "required": false,
+      "reason": "Disabled by default. Only used if user explicitly enables process_exec permission in skill definitions",
+      "reason_zh": "默认禁用。仅在用户明确启用 process_exec 权限时使用",
+      "blocked_by_default": true
+    },
+    "environment_variables": {
+      "required": true,
+      "variables": [
+        { "name": "AI_BASE_URL", "purpose": "LLM API endpoint", "default": "http://localhost:11434/v1", "sensitive": false },
+        { "name": "AI_API_KEY", "purpose": "LLM API authentication", "default": "", "sensitive": true },
+        { "name": "AI_MODEL", "purpose": "LLM model name", "default": "qwen2.5:7b", "sensitive": false },
+        { "name": "SERPAPI_KEY", "purpose": "Web search API key (optional)", "default": "", "sensitive": true },
+        { "name": "AION_HOST", "purpose": "Server listen address", "default": "0.0.0.0", "sensitive": false },
+        { "name": "AION_PORT", "purpose": "Server listen port", "default": "3000", "sensitive": false },
+        { "name": "AI_SECURITY_FAIL_POLICY", "purpose": "Security policy when AI review unavailable", "default": "closed", "sensitive": false }
+      ]
+    }
+  },
+  "data_handling": {
+    "stores_user_data": true,
+    "data_location": ".skill-router/",
+    "data_types": [
+      "Task memories (user-created knowledge entries)",
+      "Execution audit logs (skill name, verdict, timestamp)",
+      "Capability registry cache"
+    ],
+    "sends_data_externally": true,
+    "external_recipients": [
+      "User-configured LLM API endpoint — task content sent for AI inference",
+      "SerpAPI — search queries only (when web_search capability is used)"
+    ],
+    "data_retention": "Local files persist until user deletes them",
+    "encryption_at_rest": false,
+    "encryption_in_transit": "HTTPS recommended for LLM endpoints"
+  },
+  "runtime_security": {
+    "pre_execution_review": {
+      "enabled": true,
+      "methods": ["heuristic", "ai"],
+      "checks": [
+        "Block private network URLs (SSRF protection, including IPv6)",
+        "Block sensitive field names in parameters (api_key, password, etc.)",
+        "Block shell/exec entrypoints",
+        "Block filesystem_write permission",
+        "AI semantic review of task intent"
+      ]
+    },
+    "post_execution_review": {
+      "enabled": true,
+      "methods": ["heuristic", "ai"],
+      "checks": [
+        "Detect API key patterns in output (sk-, AKIA, ghp_, glpat-)",
+        "Detect PEM private keys",
+        "Detect .env file content leaks",
+        "AI semantic scan for credential/infrastructure exposure"
+      ]
+    },
+    "audit_logging": true,
+    "audit_log_format": "JSON lines",
+    "fail_policy": "Configurable: 'closed' (default, deny on error) or 'open' (allow on error)",
+    "max_delegation_depth": 10
+  },
+  "capabilities_summary": {
+    "total": 29,
+    "categories": {
+      "data_parsing": ["yaml_parse", "json_parse", "toml_parse", "csv_parse", "pdf_parse", "markdown_render"],
+      "text_processing": ["text_summarize", "text_translate", "text_classify", "text_extract", "text_diff", "text_embed"],
+      "code_engineering": ["code_generate", "code_test", "code_lint"],
+      "web_search": ["web_search", "http_fetch", "discovery_search"],
+      "memory": ["memory_remember", "memory_recall", "memory_distill", "memory_team_share"],
+      "multi_agent": ["agent_delegate", "agent_broadcast", "agent_gather", "agent_status", "task_pipeline", "task_race"],
+      "utility": ["json_query", "regex_match", "echo", "image_describe"]
+    }
+  },
+  "binaries": {
+    "aion-cli": {
+      "description": "Command-line interface for direct skill execution",
+      "platforms": {
+        "x86_64-unknown-linux-musl": { "filename": "aion-cli-linux-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
+        "x86_64-pc-windows-msvc": { "filename": "aion-cli-windows-x86_64.exe", "sha256": "TO_BE_FILLED_BY_CI" },
+        "x86_64-apple-darwin": { "filename": "aion-cli-macos-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
+        "aarch64-apple-darwin": { "filename": "aion-cli-macos-aarch64", "sha256": "TO_BE_FILLED_BY_CI" }
+      }
+    },
+    "aion-server": {
+      "description": "HTTP REST API server for cross-agent integration",
+      "platforms": {
+        "x86_64-unknown-linux-musl": { "filename": "aion-server-linux-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
+        "x86_64-pc-windows-msvc": { "filename": "aion-server-windows-x86_64.exe", "sha256": "TO_BE_FILLED_BY_CI" },
+        "x86_64-apple-darwin": { "filename": "aion-server-macos-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
+        "aarch64-apple-darwin": { "filename": "aion-server-macos-aarch64", "sha256": "TO_BE_FILLED_BY_CI" }
+      }
+    }
+  },
+  "install_checks": {
+    "pre_install": [
+      "Verify SHA256 checksum of downloaded binary matches this manifest",
+      "Review and confirm network + filesystem permissions listed above",
+      "Check no conflicting service on port 3000 (or configure AION_PORT)"
+    ],
+    "post_install": [
+      "Run 'aion-cli echo test' — should return {\"output\": \"test\"}",
+      "Run 'aion-server' then curl http://localhost:3000/v1/health — should return {\"status\": \"ok\"}"
+    ]
+  }
+}

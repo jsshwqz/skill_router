@@ -1,0 +1,13 @@
+{
+  "name": "image_describe",
+  "version": "0.1.0",
+  "capabilities": ["image_describe"],
+  "entrypoint": "builtin:ai_task",
+  "instruction": "Describe the image at the given path or URL. Include details about objects, colors, composition, and any text visible in the image.",
+  "permissions": {
+    "network": true,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "pdf_parse",
+  "version": "0.1.0",
+  "capabilities": ["pdf_parse"],
+  "entrypoint": "builtin:ai_task",
+  "instruction": "Extract and structure the text content from the PDF at the given path. Return the content organized by sections with headings preserved.",
+  "permissions": {
+    "network": true,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

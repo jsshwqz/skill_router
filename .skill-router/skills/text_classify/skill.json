@@ -1,0 +1,13 @@
+{
+  "name": "text_classify",
+  "version": "0.1.0",
+  "capabilities": ["text_classify"],
+  "entrypoint": "builtin:ai_task",
+  "instruction": "Classify the following text into the most appropriate category. Return only the category name, nothing else.",
+  "permissions": {
+    "network": true,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}
