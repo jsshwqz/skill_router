@@ -153,16 +153,9 @@ impl OrchestratorConfig {
 /// 调用单个引擎 CLI，返回 stdout 或错误描述
 /// 用临时文件传递 prompt，避免 Windows cmd 编码和长度限制
 async fn call_engine(engine: Engine, prompt: &str, cfg: &OrchestratorConfig) -> String {
-    // 写 prompt 到临时文件（UTF-8）
-    let tmp_dir = std::env::temp_dir().join("aion-forge");
-    let _ = std::fs::create_dir_all(&tmp_dir);
-    let tmp_file = tmp_dir.join(format!("prompt_{}_{}.txt", engine.label(), std::process::id()));
-    if let Err(e) = std::fs::write(&tmp_file, prompt) {
-        return format!("[{} Error] 写临时文件失败: {}", engine.label(), e);
-    }
-    let file_path = tmp_file.to_string_lossy().to_string();
+    // 安全策略：prompt 始终通过 stdin 管道传递，绝不拼入命令行参数或 shell 字符串，
+    // 从根本上消除命令注入风险（&|^% 等 shell 元字符不会被解释）。
 
-    // 直接传 prompt 文本作为参数（短 prompt）或 shell 重定向（长 prompt）
     let cli_path = |base: &str| -> String {
         let p = base.replace('/', "\\");
         // Windows 需要 .cmd 后缀才能通过 cmd /c 调用 npm 全局命令
@@ -173,53 +166,32 @@ async fn call_engine(engine: Engine, prompt: &str, cfg: &OrchestratorConfig) -> 
         }
     };
 
-    // 短 prompt 直传参数，长 prompt 用临时文件 + stdin 重定向
-    let is_short = prompt.len() < 2000;
     let result = match engine {
         Engine::Claude => {
-            if is_short {
-                run_shell(&format!(
-                    "\"{}\" -p \"{}\" --output-format text",
-                    cli_path(&cfg.claude_cli), prompt.replace('"', "\\\"")
-                ), cfg.timeout).await
-            } else {
-                run_shell(&format!(
-                    "cmd /c \"type \\\"{}\\\" | \\\"{}\\\" -p - --output-format text\"",
-                    file_path.replace('/', "\\"), cli_path(&cfg.claude_cli)
-                ), cfg.timeout).await
-            }
+            run_cli_with_stdin(
+                &cli_path(&cfg.claude_cli),
+                &["-p", "-", "--output-format", "text"],
+                prompt,
+                cfg.timeout,
+            ).await
         }
         Engine::OpenAi => {
-            // Codex: prompt 是位置参数，不是 -p
-            if is_short {
-                run_shell(&format!(
-                    "\"{}\" exec \"{}\" --skip-git-repo-check",
-                    cli_path(&cfg.codex_cli), prompt.replace('"', "\\\"")
-                ), cfg.timeout).await
-            } else {
-                run_shell(&format!(
-                    "cmd /c \"type \\\"{}\\\" | \\\"{}\\\" exec - --skip-git-repo-check\"",
-                    file_path.replace('/', "\\"), cli_path(&cfg.codex_cli)
-                ), cfg.timeout).await
-            }
+            run_cli_with_stdin(
+                &cli_path(&cfg.codex_cli),
+                &["exec", "-", "--skip-git-repo-check"],
+                prompt,
+                cfg.timeout,
+            ).await
         }
         Engine::Gemini => {
-            if is_short {
-                run_shell(&format!(
-                    "\"{}\" -p \"{}\"",
-                    cli_path(&cfg.gemini_cli), prompt.replace('"', "\\\"")
-                ), cfg.timeout).await
-            } else {
-                run_shell(&format!(
-                    "cmd /c \"type \\\"{}\\\" | \\\"{}\\\" -p -\"",
-                    file_path.replace('/', "\\"), cli_path(&cfg.gemini_cli)
-                ), cfg.timeout).await
-            }
+            run_cli_with_stdin(
+                &cli_path(&cfg.gemini_cli),
+                &["-p", "-"],
+                prompt,
+                cfg.timeout,
+            ).await
         }
     };
-
-    // 清理临时文件
-    let _ = std::fs::remove_file(&tmp_file);
 
     match result {
         Ok(output) => output,
@@ -227,17 +199,48 @@ async fn call_engine(engine: Engine, prompt: &str, cfg: &OrchestratorConfig) -> 
     }
 }
 
-/// 通过 shell 执行命令（支持管道重定向）
-async fn run_shell(shell_cmd: &str, timeout: Duration) -> Result<String> {
-    let mut child = Command::new("cmd")
-        .args(["/c", shell_cmd])
+/// 安全执行 CLI 命令，prompt 通过 stdin 管道传入（无 shell 注入面）
+///
+/// 对于 .cmd 文件使用 `cmd /c cli_path args...`，对于 .exe 直接执行。
+/// prompt 不出现在命令行参数中，仅通过 stdin 写入。
+async fn run_cli_with_stdin(
+    cli: &str,
+    args: &[&str],
+    stdin_data: &str,
+    timeout: Duration,
+) -> Result<String> {
+    use tokio::io::AsyncWriteExt;
+
+    // Windows .cmd 需要通过 cmd /c 启动
+    let mut cmd = if cfg!(windows) && cli.ends_with(".cmd") {
+        let mut c = Command::new("cmd");
+        c.arg("/c").arg(cli);
+        for a in args { c.arg(a); }
+        c
+    } else {
+        let mut c = Command::new(cli);
+        for a in args { c.arg(a); }
+        c
+    };
+
+    let mut child = cmd
+        .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .spawn()
-        .map_err(|e| anyhow::anyhow!("shell 执行失败: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("CLI 启动失败 '{}': {}", cli, e))?;
 
     // 先取 child id 用于超时时 kill
     let child_id = child.id();
+
+    // 通过 stdin 管道写入 prompt（安全，不经过 shell 解析）
+    if let Some(mut stdin) = child.stdin.take() {
+        let data = stdin_data.to_string();
+        tokio::spawn(async move {
+            let _ = stdin.write_all(data.as_bytes()).await;
+            let _ = stdin.shutdown().await;
+        });
+    }
 
     match tokio::time::timeout(timeout, child.wait_with_output()).await {
         Ok(Ok(output)) => {
@@ -256,7 +259,7 @@ async fn run_shell(shell_cmd: &str, timeout: Duration) -> Result<String> {
                     .args(["/F", "/T", "/PID", &pid.to_string()])
                     .output().await;
             }
-            warn!("shell 命令超时 ({}s)，已终止子进程", timeout.as_secs());
+            warn!("CLI 命令超时 ({}s)，已终止子进程: {}", timeout.as_secs(), cli);
             Err(anyhow::anyhow!("请求超时 ({}s)", timeout.as_secs()))
         }
     }
@@ -311,16 +314,41 @@ fn format_multi_results(results: &HashMap<String, String>) -> String {
     out
 }
 
-/// 通用异步后台任务启动器
-/// 非 passthrough 模式下，所有编排任务都通过此函数在后台执行
-fn spawn_async_orchestration(
+/// 动态等待时长：根据 workflow 类型和环境变量决定
+fn default_wait_secs(workflow: &str) -> u64 {
+    // 环境变量覆盖：AION_ORCH_WAIT_SECS=20
+    if let Ok(val) = std::env::var("AION_ORCH_WAIT_SECS") {
+        if let Ok(secs) = val.parse::<u64>() {
+            return secs;
+        }
+    }
+    match workflow {
+        // 单引擎任务，通常较快
+        "code_generate" | "long_context" => 15,
+        // 双引擎
+        "cross_review" | "serial_optimize" => 20,
+        // 三引擎并行
+        "parallel_solve" | "triple_vote" | "triangle_review"
+        | "smart_collaborate" | "research" => 30,
+        _ => 20,
+    }
+}
+
+/// 通用编排任务启动器（带动态等待）
+///
+/// 启动后台任务，等待指定时间。
+/// - 在等待窗口内完成 → 直接返回完整结果
+/// - 超时 → 返回 task_id，客户端可用 async_task_query 轮询
+async fn spawn_orchestration_with_wait(
     workflow: &str,
     input: Value,
+    wait_secs: Option<u64>,
     task_fn: impl FnOnce(Value) -> std::pin::Pin<Box<dyn std::future::Future<Output = Value> + Send>> + Send + 'static,
 ) -> Value {
     let task_id = short_id();
     let workflow_name = workflow.to_string();
     let tid = task_id.clone();
+    let wait = wait_secs.unwrap_or_else(|| default_wait_secs(workflow));
 
     // 注册任务
     {
@@ -335,7 +363,70 @@ fn spawn_async_orchestration(
         });
     }
 
-    // 后台执行
+    // 启动后台任务
+    let handle = tokio::spawn(async move {
+        let result = task_fn(input).await;
+        let tid_inner = tid.clone();
+        let wf = workflow_name.clone();
+        let mut store = task_store().lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(task) = store.get_mut(&tid_inner) {
+            task.status = "done".to_string();
+            task.finished_at = Some(now_secs());
+            task.result = Some(result.clone());
+        }
+        info!("async orchestration [{}] {} completed", tid, wf);
+        result
+    });
+
+    // 动态等待：在窗口内完成则直接返回结果
+    match tokio::time::timeout(Duration::from_secs(wait), handle).await {
+        Ok(Ok(result)) => {
+            info!("orchestration [{}] {} returned within {}s", task_id, workflow, wait);
+            json!({
+                "type": "completed",
+                "task_id": task_id,
+                "workflow": workflow,
+                "status": "done",
+                "result": result
+            })
+        }
+        _ => {
+            // 超时或出错，任务仍在后台跑
+            info!("orchestration [{}] {} still running after {}s, returning task_id", task_id, workflow, wait);
+            json!({
+                "type": "async",
+                "task_id": task_id,
+                "workflow": workflow,
+                "status": "running",
+                "waited_secs": wait,
+                "hint": "使用 async_task_query 工具查询结果，传入 task_id",
+            })
+        }
+    }
+}
+
+/// 旧接口兼容：立即返回 task_id（不等待）
+fn spawn_async_orchestration(
+    workflow: &str,
+    input: Value,
+    task_fn: impl FnOnce(Value) -> std::pin::Pin<Box<dyn std::future::Future<Output = Value> + Send>> + Send + 'static,
+) -> Value {
+    let task_id = short_id();
+    let workflow_name = workflow.to_string();
+    let tid = task_id.clone();
+
+    {
+        let mut store = task_store().lock().unwrap_or_else(|e| e.into_inner());
+        store.insert(task_id.clone(), AsyncTaskResult {
+            task_id: task_id.clone(),
+            workflow: workflow_name.clone(),
+            status: "running".to_string(),
+            started_at: now_secs(),
+            finished_at: None,
+            result: None,
+        });
+    }
+
     tokio::spawn(async move {
         let result = task_fn(input).await;
         let mut store = task_store().lock().unwrap_or_else(|e| e.into_inner());
@@ -382,7 +473,7 @@ impl BuiltinSkill for AiParallelSolve {
         // 异步后台执行
         let engines: Vec<String> = parse_engines(ctx).iter().map(|e| e.label().to_string()).collect();
         let input = json!({"problem": problem, "engines": engines});
-        Ok(spawn_async_orchestration("parallel_solve", input, |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("parallel_solve", input, None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let problem = input["problem"].as_str().unwrap_or("");
             let prompt = format!("请详细解决以下问题，给出完整方案：\n\n{}", problem);
@@ -393,7 +484,7 @@ impl BuiltinSkill for AiParallelSolve {
             let tasks: Vec<_> = engines.iter().map(|e| (*e, prompt.clone())).collect();
             let solutions = call_engines_parallel(&tasks, &cfg).await;
             json!({"problem": problem, "solutions": solutions, "engines_used": engines.iter().map(|e| e.label()).collect::<Vec<_>>()})
-        })))
+        })).await)
     }
 }
 
@@ -419,14 +510,14 @@ impl BuiltinSkill for AiTripleVote {
             }));
         }
 
-        Ok(spawn_async_orchestration("triple_vote", json!({"problem": problem, "options": ctx.context.get("options")}), |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("triple_vote", json!({"problem": problem, "options": ctx.context.get("options")}), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let problem = input["problem"].as_str().unwrap_or("");
             let prompt = format!("问题：{}\n请给出方案并评分。", problem);
             let tasks = vec![(Engine::Claude, prompt.clone()), (Engine::OpenAi, prompt.clone()), (Engine::Gemini, prompt.clone())];
             let votes = call_engines_parallel(&tasks, &cfg).await;
             json!({"problem": problem, "votes": votes})
-        })))
+        })).await)
     }
 }
 
@@ -447,14 +538,14 @@ impl BuiltinSkill for AiTriangleReview {
             return Ok(json!({"type": "passthrough", "instruction": "从5个角度审查代码：正确性、性能、安全、风格、可维护性。", "input": code, "context": context_info, "workflow": "triangle_review"}));
         }
 
-        Ok(spawn_async_orchestration("triangle_review", json!({"code": code, "context": context_info}), |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("triangle_review", json!({"code": code, "context": context_info}), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let code = input["code"].as_str().unwrap_or("");
             let prompt = format!("审查以下代码（正确性、性能、安全、风格、可维护性）：\n```\n{}\n```", code);
             let tasks = vec![(Engine::Claude, prompt.clone()), (Engine::OpenAi, prompt.clone()), (Engine::Gemini, prompt.clone())];
             let reviews = call_engines_parallel(&tasks, &cfg).await;
             json!({"reviews": reviews})
-        })))
+        })).await)
     }
 }
 
@@ -475,14 +566,14 @@ impl BuiltinSkill for AiCodeGenerate {
             return Ok(json!({"type": "passthrough", "instruction": format!("请用 {} 实现以下功能。", language), "input": task, "language": language, "workflow": "code_generate"}));
         }
 
-        Ok(spawn_async_orchestration("code_generate", json!({"task": task, "language": language}), |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("code_generate", json!({"task": task, "language": language}), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let task = input["task"].as_str().unwrap_or("");
             let lang = input["language"].as_str().unwrap_or("python");
             let code = call_engine(Engine::Claude, &format!("用 {} 实现：\n{}", lang, task), &cfg).await;
             let review = call_engine(Engine::OpenAi, &format!("审查代码：\n```\n{}\n```", code), &cfg).await;
             json!({"code": code, "review": review})
-        })))
+        })).await)
     }
 }
 
@@ -502,14 +593,14 @@ impl BuiltinSkill for AiSmartCollaborate {
             return Ok(json!({"type": "passthrough", "instruction": "请提出完整解决方案，多角度分析。", "input": task, "workflow": "smart_collaborate"}));
         }
 
-        Ok(spawn_async_orchestration("smart_collaborate", json!({"task": task}), |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("smart_collaborate", json!({"task": task}), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let task = input["task"].as_str().unwrap_or("");
             let prompt = format!("请提出完整解决方案：\n\n{}", task);
             let tasks = vec![(Engine::Claude, prompt.clone()), (Engine::OpenAi, prompt.clone()), (Engine::Gemini, prompt.clone())];
             let proposals = call_engines_parallel(&tasks, &cfg).await;
             json!({"proposals": proposals})
-        })))
+        })).await)
     }
 }
 
@@ -530,7 +621,7 @@ impl BuiltinSkill for AiResearch {
             return Ok(json!({"type": "passthrough", "instruction": "从理论、实践、趋势三维度研究。", "input": topic, "depth": depth, "workflow": "research"}));
         }
 
-        Ok(spawn_async_orchestration("research", json!({"topic": topic, "depth": depth}), |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("research", json!({"topic": topic, "depth": depth}), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let topic = input["topic"].as_str().unwrap_or("");
             let tasks = vec![
@@ -540,7 +631,7 @@ impl BuiltinSkill for AiResearch {
             ];
             let research = call_engines_parallel(&tasks, &cfg).await;
             json!({"research": research})
-        })))
+        })).await)
     }
 }
 
@@ -560,14 +651,14 @@ impl BuiltinSkill for AiSerialOptimize {
             return Ok(json!({"type": "passthrough", "instruction": "分析代码问题，优化并验证。", "input": code, "workflow": "serial_optimize"}));
         }
 
-        Ok(spawn_async_orchestration("serial_optimize", json!({"code": code}), |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("serial_optimize", json!({"code": code}), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let code = input["code"].as_str().unwrap_or("");
             let analysis = call_engine(Engine::Claude, &format!("分析代码：\n```\n{}\n```", code), &cfg).await;
             let optimized = call_engine(Engine::Gemini, &format!("优化：\n{}\n```\n{}\n```", analysis, code), &cfg).await;
             let verify = call_engine(Engine::OpenAi, &format!("验证：\n{}", optimized), &cfg).await;
             json!({"analysis": analysis, "optimized": optimized, "verification": verify})
-        })))
+        })).await)
     }
 }
 
@@ -588,13 +679,13 @@ impl BuiltinSkill for AiLongContext {
             return Ok(json!({"type": "passthrough", "instruction": format!("任务：{}", task), "input": content, "workflow": "long_context"}));
         }
 
-        Ok(spawn_async_orchestration("long_context", json!({"content": content, "task": task}), |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("long_context", json!({"content": content, "task": task}), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let content = input["content"].as_str().unwrap_or("");
             let task = input["task"].as_str().unwrap_or("");
             let result = call_engine(Engine::Gemini, &format!("{}：\n{}", task, content), &cfg).await;
             json!({"analysis": result})
-        })))
+        })).await)
     }
 }
 
@@ -615,13 +706,13 @@ impl BuiltinSkill for AiCrossReview {
             return Ok(json!({"type": "passthrough", "instruction": "审查代码，指出问题和建议。", "input": code, "context": context_info, "workflow": "cross_review"}));
         }
 
-        Ok(spawn_async_orchestration("cross_review", json!({"code": code, "context": context_info}), |input| Box::pin(async move {
+        Ok(spawn_orchestration_with_wait("cross_review", json!({"code": code, "context": context_info}), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
             let code = input["code"].as_str().unwrap_or("");
             let prompt = format!("审查代码：\n```\n{}\n```", code);
             let tasks: Vec<_> = vec![Engine::Claude, Engine::OpenAi].iter().map(|e| (*e, prompt.clone())).collect();
             let reviews = call_engines_parallel(&tasks, &cfg).await;
             json!({"reviews": reviews})
-        })))
+        })).await)
     }
 }

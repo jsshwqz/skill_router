@@ -1,0 +1,312 @@
+{
+  "config": {
+    "access_restricted": true,
+    "restricted_services": {
+      "google_external": true,
+      "openai_realtime": false
+    }
+  },
+  "rules": [
+    {
+      "id": "code-agent-complex",
+      "category": "CODE",
+      "keywords": ["重构", "多文件", "codebase", "大型代码库", "refactor", "跨文件", "架构改造"],
+      "weight": 90,
+      "engine": "anthropic",
+      "model": "claude-opus-4-5",
+      "aion_tool": "ai_code_generate",
+      "aion_params_template": {
+        "primary": "claude",
+        "reviewer": "openai",
+        "language": "auto"
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["openai", "gemini"],
+      "model_verified_date": "2026-03",
+      "note": "SWE-bench 80.9%，跨文件重构首选"
+    },
+    {
+      "id": "code-math",
+      "category": "CODE",
+      "keywords": ["算法题", "数学", "竞赛", "AIME", "组合", "证明", "math", "algorithm", "leetcode"],
+      "weight": 95,
+      "engine": "openai",
+      "model": "o3",
+      "aion_tool": "ai_parallel_solve",
+      "aion_params_template": {
+        "engines": ["openai"]
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["anthropic", "gemini"],
+      "model_verified_date": "2026-03",
+      "note": "AIME 2025 96.7%，数学推理首选"
+    },
+    {
+      "id": "code-daily",
+      "category": "CODE",
+      "keywords": ["代码补全", "单函数", "debug", "fix", "bug修复", "小改动", "快速修复"],
+      "weight": 60,
+      "engine": "anthropic",
+      "model": "claude-sonnet-4-5",
+      "aion_tool": "ai_code_generate",
+      "aion_params_template": {
+        "primary": "claude",
+        "reviewer": "openai",
+        "language": "auto"
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["openai"],
+      "model_verified_date": "2026-03",
+      "note": "日常编码任务，速度优先"
+    },
+    {
+      "id": "code-data",
+      "category": "CODE",
+      "keywords": ["数据分析", "pandas", "csv", "sql", "可视化", "数据处理", "dataframe", "matplotlib"],
+      "weight": 65,
+      "engine": "openai",
+      "model": "gpt-4.1",
+      "aion_tool": "ai_parallel_solve",
+      "aion_params_template": {
+        "engines": ["openai"]
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["anthropic"],
+      "model_verified_date": "2026-03",
+      "note": "数据分析与可视化"
+    },
+    {
+      "id": "code-optimize",
+      "category": "CODE",
+      "keywords": ["优化", "性能", "重构优化", "提速", "performance", "benchmark", "profiling"],
+      "weight": 70,
+      "engine": "anthropic",
+      "model": "claude-opus-4-5",
+      "aion_tool": "ai_serial_optimize",
+      "aion_params_template": {
+        "pipeline": ["claude", "openai", "gemini"]
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["openai"],
+      "model_verified_date": "2026-03",
+      "note": "三引擎串行优化流水线"
+    },
+    {
+      "id": "code-review",
+      "category": "CODE",
+      "keywords": ["代码审查", "review", "code review", "PR review", "安全审计", "代码检查"],
+      "weight": 70,
+      "engine": "anthropic",
+      "model": "claude-opus-4-5",
+      "aion_tool": "ai_triangle_review",
+      "aion_params_template": {},
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["openai"],
+      "model_verified_date": "2026-03",
+      "note": "三引擎三角审查"
+    },
+    {
+      "id": "creative-image-text",
+      "category": "CREATIVE",
+      "keywords": ["图像生成", "生成图片", "图片", "海报", "logo", "含文字", "image generation", "插画", "画图"],
+      "weight": 85,
+      "engine": "openai",
+      "model": "gpt-image-1.5",
+      "aion_tool": null,
+      "aion_params_template": null,
+      "requires_external": true,
+      "external_hint": {
+        "api": "GPT Image 1.5",
+        "description": "文字嵌入图像生成，支持精确文字渲染",
+        "access_note": null
+      },
+      "fallback_chain": ["gemini"],
+      "model_verified_date": "2026-03",
+      "note": "文字嵌入图像，OpenAI 领先"
+    },
+    {
+      "id": "creative-video-audio",
+      "category": "CREATIVE",
+      "keywords": ["视频生成", "视频创作", "视频", "配音", "短片", "video", "动画制作", "片段"],
+      "weight": 90,
+      "engine": "google",
+      "model": "veo-3.1",
+      "aion_tool": null,
+      "aion_params_template": null,
+      "requires_external": true,
+      "external_hint": {
+        "api": "Google Flow / Veo API",
+        "description": "视频+同步音频生成，需 Google AI Ultra 订阅",
+        "access_note": "中国大陆访问受限，需代理"
+      },
+      "fallback_chain": ["openai/sora-2"],
+      "model_verified_date": "2026-03",
+      "note": "视频生成首选 Veo 3.1"
+    },
+    {
+      "id": "creative-music",
+      "category": "CREATIVE",
+      "keywords": ["音乐生成", "配乐", "背景音乐", "作曲", "music", "编曲", "音乐"],
+      "weight": 95,
+      "engine": "google",
+      "model": "lyria-3",
+      "aion_tool": null,
+      "aion_params_template": null,
+      "requires_external": true,
+      "external_hint": {
+        "api": "Lyria 3",
+        "description": "AI 音乐生成，支持多风格",
+        "access_note": "中国大陆访问受限"
+      },
+      "fallback_chain": ["openai"],
+      "model_verified_date": "2026-03",
+      "note": "音乐生成首选 Google Lyria"
+    },
+    {
+      "id": "creative-long-text",
+      "category": "CREATIVE",
+      "keywords": ["长文章", "深度报告", "5000字", "完整文档", "长篇写作", "万字"],
+      "weight": 70,
+      "engine": "anthropic",
+      "model": "claude-opus-4-5",
+      "aion_tool": "ai_parallel_solve",
+      "aion_params_template": {
+        "engines": ["claude"]
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["openai"],
+      "model_verified_date": "2026-03",
+      "note": "长文写作 Claude 质量最佳"
+    },
+    {
+      "id": "analysis-giant-doc",
+      "category": "ANALYSIS",
+      "keywords": ["大文档", "合同分析", "合同审查", "合同", "100页", "整本书", "giant document", "长文档"],
+      "weight": 85,
+      "engine": "google",
+      "model": "gemini-2.5-pro",
+      "aion_tool": "ai_research",
+      "aion_params_template": {
+        "depth": "comprehensive"
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["anthropic"],
+      "model_verified_date": "2026-03",
+      "note": "Gemini 超长上下文，大文档分析首选"
+    },
+    {
+      "id": "analysis-multi-doc",
+      "category": "ANALYSIS",
+      "keywords": ["多文档", "知识库", "研究综述", "文献综合", "literature review", "多源"],
+      "weight": 80,
+      "engine": "google",
+      "model": "gemini-2.5-pro",
+      "aion_tool": "ai_research",
+      "aion_params_template": {
+        "depth": "deep"
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["anthropic"],
+      "model_verified_date": "2026-03",
+      "note": "多文档综合分析"
+    },
+    {
+      "id": "analysis-logic",
+      "category": "ANALYSIS",
+      "keywords": ["复杂推理", "逻辑分析", "学术分析", "合规风险", "complex reasoning", "论证"],
+      "weight": 75,
+      "engine": "anthropic",
+      "model": "claude-opus-4-5",
+      "aion_tool": "ai_smart_collaborate",
+      "aion_params_template": {
+        "execute_on_disagreement": true
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["openai"],
+      "model_verified_date": "2026-03",
+      "note": "三引擎协作推理，处理分歧"
+    },
+    {
+      "id": "analysis-workspace",
+      "category": "ANALYSIS",
+      "keywords": ["Google Docs", "Gmail", "Google Sheets", "workspace", "谷歌文档"],
+      "weight": 90,
+      "engine": "google",
+      "model": "gemini-2.5-pro",
+      "aion_tool": null,
+      "aion_params_template": null,
+      "requires_external": true,
+      "external_hint": {
+        "api": "Gemini Workspace",
+        "description": "Google 生态内文档处理，需 Google Workspace 订阅",
+        "access_note": "中国大陆访问受限"
+      },
+      "fallback_chain": ["anthropic"],
+      "model_verified_date": "2026-03",
+      "note": "Google 生态专属"
+    },
+    {
+      "id": "search-realtime",
+      "category": "SEARCH",
+      "keywords": ["最新", "今天", "实时", "当前", "latest", "breaking", "新闻", "刚刚"],
+      "weight": 85,
+      "engine": "google",
+      "model": "gemini-2.5-flash",
+      "aion_tool": "ai_research",
+      "aion_params_template": {
+        "depth": "quick"
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["openai"],
+      "model_verified_date": "2026-03",
+      "note": "实时搜索，access_ok 受中国大陆限制"
+    },
+    {
+      "id": "search-internal",
+      "category": "SEARCH",
+      "keywords": ["内部文档", "notion", "slack", "企业内部", "internal docs", "内网"],
+      "weight": 80,
+      "engine": "anthropic",
+      "model": "claude-sonnet-4-5",
+      "aion_tool": "ai_parallel_solve",
+      "aion_params_template": {
+        "engines": ["claude"]
+      },
+      "requires_external": false,
+      "external_hint": null,
+      "fallback_chain": ["openai"],
+      "model_verified_date": "2026-03",
+      "note": "企业内部文档搜索"
+    },
+    {
+      "id": "voice-realtime",
+      "category": "VOICE",
+      "keywords": ["语音对话", "实时语音", "voice", "对话机器人", "voice chat", "语音助手", "语音"],
+      "weight": 90,
+      "engine": "openai",
+      "model": "gpt-4o-realtime",
+      "aion_tool": null,
+      "aion_params_template": null,
+      "requires_external": true,
+      "external_hint": {
+        "api": "OpenAI Realtime API",
+        "description": "实时语音对话，低延迟双工通信",
+        "access_note": null
+      },
+      "fallback_chain": ["anthropic"],
+      "model_verified_date": "2026-03",
+      "note": "实时语音对话首选"
+    }
+  ]
+}

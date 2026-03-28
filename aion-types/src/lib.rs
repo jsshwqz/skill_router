@@ -8,6 +8,7 @@ pub mod skill_manifest;
 pub mod session;
 pub mod agent_template;
 pub mod spec_types;
+pub mod route_types;
 
 #[cfg(test)]
 mod tests;

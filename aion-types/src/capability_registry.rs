@@ -726,6 +726,37 @@ impl CapabilityRegistry {
                 }),
                 examples: vec![],
             },
+            // ── AI 任务路由器 ─────────────────────────────────────────────
+            CapabilityDefinition {
+                name: "route_task".to_string(),
+                description: "分析原子任务，路由到最合适的 AI 引擎，返回可直接执行的 aion-forge 工具调用参数".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["rule_id".to_string(), "aion_tool".to_string(), "aion_params".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "task": { "type": "string", "description": "原子任务自然语言描述" },
+                        "hints": {
+                            "type": "object",
+                            "properties": {
+                                "doc_size_pages": { "type": "integer", "description": "文档页数，超过 80 页触发大文档规则" },
+                                "has_code": { "type": "boolean", "description": "是否含代码上下文" }
+                            }
+                        }
+                    },
+                    "required": ["task"]
+                }),
+                examples: vec![
+                    serde_json::json!({
+                        "intent": "route_task",
+                        "parameters": { "task": "重构这个大型代码库的认证模块" }
+                    }),
+                    serde_json::json!({
+                        "intent": "route_task",
+                        "parameters": { "task": "分析这份150页的合同", "hints": { "doc_size_pages": 150 } }
+                    }),
+                ],
+            },
             CapabilityDefinition {
                 name: "skill_report".to_string(),
                 description: "Generate a report of skill usage statistics from the learning engine".to_string(),

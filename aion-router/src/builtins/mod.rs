@@ -15,6 +15,7 @@ pub mod mcp;
 pub mod rag;
 pub mod orchestrator;
 pub mod spec_driven;
+pub mod task_router;
 
 use std::collections::HashMap;
 
@@ -101,6 +102,7 @@ impl BuiltinRegistry {
         reg.register(Box::new(pipeline::TaskRace));
 
         // 新技能
+        reg.register(Box::new(new_skills::Echo));
         reg.register(Box::new(new_skills::JsonQuery));
         reg.register(Box::new(new_skills::RegexMatch));
         reg.register(Box::new(new_skills::CodeLint));
@@ -129,6 +131,9 @@ impl BuiltinRegistry {
 
         // Spec-Driven 规格驱动开发
         reg.register(Box::new(spec_driven::SpecDriven));
+
+        // AI 任务路由器
+        reg.register(Box::new(task_router::RouteTaskBuiltin));
 
         reg
     }

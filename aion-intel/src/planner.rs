@@ -171,6 +171,7 @@ impl Planner {
             (&["rag query","knowledge query","知识检索","ask knowledge"],"rag_query"),
             (&["rag status","knowledge status","知识库状态"],"rag_status"),
             (&["mcp","mcp call","mcp tool"],"mcp_call"),
+            (&["路由","route_task","任务路由","选引擎","route task","选择引擎"],"route_task"),
         ];
         for (kws,cap) in rules {
             if kws.iter().any(|kw| n.contains(kw)) && registry.contains(cap) {
