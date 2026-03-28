@@ -103,6 +103,7 @@ impl BuiltinRegistry {
 
         // 新技能
         reg.register(Box::new(new_skills::Echo));
+        reg.register(Box::new(new_skills::SpaceNavigation));
         reg.register(Box::new(new_skills::JsonQuery));
         reg.register(Box::new(new_skills::RegexMatch));
         reg.register(Box::new(new_skills::CodeLint));

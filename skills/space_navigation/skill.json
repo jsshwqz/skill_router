@@ -1,0 +1,12 @@
+{
+  "name": "space_navigation",
+  "version": "0.1.0",
+  "capabilities": ["space_navigation"],
+  "entrypoint": "builtin:placeholder",
+  "permissions": {
+    "network": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

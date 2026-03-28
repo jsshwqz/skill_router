@@ -1,4 +1,4 @@
-//! 新增 builtin 技能：json_query, regex_match, skill_report
+//! 新增 builtin 技能：echo, json_query, regex_match, skill_report
 
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
@@ -6,6 +6,56 @@ use serde_json::{json, Value};
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::{extract_text, BuiltinSkill};
+
+// ── echo ────────────────────────────────────────────────────────────────────
+
+/// Echo：原样返回输入文本，用于连通性测试和管道调试
+///
+/// context 字段：
+/// - `text` 或 `input`：要返回的内容（必填）
+pub struct Echo;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for Echo {
+    fn name(&self) -> &'static str { "echo" }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let text = extract_text(context);
+        Ok(json!({
+            "echo": text,
+            "capability": "echo",
+            "length": text.len(),
+        }))
+    }
+}
+
+// ── space_navigation ────────────────────────────────────────────────────────
+
+/// SpaceNavigation：实验性星际导航占位 builtin
+///
+/// 当前实现只返回结构化占位结果，确保 capability/builtin 链路闭环。
+/// 真正的导航逻辑可在后续版本替换为 AI 或外部工具实现。
+pub struct SpaceNavigation;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for SpaceNavigation {
+    fn name(&self) -> &'static str { "space_navigation" }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let destination = context.context["destination"]
+            .as_str()
+            .or_else(|| context.context["text"].as_str())
+            .unwrap_or(&context.task)
+            .to_string();
+
+        Ok(json!({
+            "capability": "space_navigation",
+            "destination": destination,
+            "status": "placeholder",
+            "notice": "experimental capability placeholder — builtin chain is now connected",
+        }))
+    }
+}
 
 // ── json_query ──────────────────────────────────────────────────────────────
 

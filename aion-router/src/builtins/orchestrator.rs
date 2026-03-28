@@ -125,6 +125,7 @@ struct OrchestratorConfig {
     claude_cli: String,
     codex_cli: String,
     gemini_cli: String,
+    claude_model: String,
     openai_model: String,
     timeout: Duration,
     passthrough: bool,
@@ -136,6 +137,7 @@ impl OrchestratorConfig {
             claude_cli: std::env::var("CLAUDE_CLI").unwrap_or_else(|_| "claude".into()),
             codex_cli: std::env::var("CODEX_CLI").unwrap_or_else(|_| "codex".into()),
             gemini_cli: std::env::var("GEMINI_CLI").unwrap_or_else(|_| "gemini".into()),
+            claude_model: std::env::var("CLAUDE_MODEL").unwrap_or_else(|_| "sonnet".into()),
             openai_model: std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5.4".into()),
             timeout: Duration::from_secs(
                 std::env::var("REQUEST_TIMEOUT")
@@ -168,9 +170,19 @@ async fn call_engine(engine: Engine, prompt: &str, cfg: &OrchestratorConfig) -> 
 
     let result = match engine {
         Engine::Claude => {
+            let claude_args = [
+                "-p",
+                "-",
+                "--output-format",
+                "text",
+                "--model",
+                cfg.claude_model.as_str(),
+                "--no-session-persistence",
+                "--disable-slash-commands",
+            ];
             run_cli_with_stdin(
                 &cli_path(&cfg.claude_cli),
-                &["-p", "-", "--output-format", "text"],
+                &claude_args,
                 prompt,
                 cfg.timeout,
             ).await
@@ -314,23 +326,37 @@ fn format_multi_results(results: &HashMap<String, String>) -> String {
     out
 }
 
+/// MCP 协议超时上限（留 5 秒余量给序列化和网络传输）
+const MCP_WAIT_CAP: u64 = 55;
+
 /// 动态等待时长：根据 workflow 类型和环境变量决定
+///
+/// MCP 模式下自动限制不超过 55 秒（MCP 协议默认 60 秒超时）。
+/// CLI 直连模式下可用更长等待（通过 AION_ORCH_WAIT_SECS 设置）。
 fn default_wait_secs(workflow: &str) -> u64 {
-    // 环境变量覆盖：AION_ORCH_WAIT_SECS=20
-    if let Ok(val) = std::env::var("AION_ORCH_WAIT_SECS") {
-        if let Ok(secs) = val.parse::<u64>() {
-            return secs;
+    let is_mcp = std::env::var("AION_MCP_MODE")
+        .map(|v| v == "1" || v == "true")
+        .unwrap_or(false);
+
+    // 环境变量覆盖
+    let raw = if let Ok(val) = std::env::var("AION_ORCH_WAIT_SECS") {
+        val.parse::<u64>().unwrap_or(55)
+    } else {
+        match workflow {
+            "code_generate" | "long_context" => 50,
+            "cross_review" | "serial_optimize" => 55,
+            "parallel_solve" | "triple_vote" | "triangle_review"
+            | "smart_collaborate" | "research" => 55,
+            _ => 50,
         }
-    }
-    match workflow {
-        // 单引擎任务，通常较快
-        "code_generate" | "long_context" => 15,
-        // 双引擎
-        "cross_review" | "serial_optimize" => 20,
-        // 三引擎并行
-        "parallel_solve" | "triple_vote" | "triangle_review"
-        | "smart_collaborate" | "research" => 30,
-        _ => 20,
+    };
+
+    // MCP 模式下限制上限，避免触发 MCP 协议超时
+    if is_mcp && raw > MCP_WAIT_CAP {
+        info!("MCP mode: capping wait from {}s to {}s", raw, MCP_WAIT_CAP);
+        MCP_WAIT_CAP
+    } else {
+        raw
     }
 }
 
@@ -458,7 +484,11 @@ impl BuiltinSkill for AiParallelSolve {
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
         let cfg = OrchestratorConfig::from_env();
-        let problem = ctx.context["problem"].as_str().unwrap_or(&ctx.task).to_string();
+        let problem = ctx.context["problem"]
+            .as_str()
+            .or_else(|| ctx.context["task"].as_str())
+            .unwrap_or(&ctx.task)
+            .to_string();
         info!("ai_parallel_solve: '{}'", safe_truncate(&problem, 50));
 
         if cfg.passthrough {
@@ -497,7 +527,10 @@ impl BuiltinSkill for AiTripleVote {
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
         let cfg = OrchestratorConfig::from_env();
-        let problem = ctx.context["problem"].as_str().unwrap_or(&ctx.task);
+        let problem = ctx.context["problem"]
+            .as_str()
+            .or_else(|| ctx.context["task"].as_str())
+            .unwrap_or(&ctx.task);
         info!("ai_triple_vote: '{}'", safe_truncate(&problem, 50));
 
         if cfg.passthrough {
