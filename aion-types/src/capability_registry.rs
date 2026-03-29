@@ -596,7 +596,9 @@ impl CapabilityRegistry {
                     "type": "object",
                     "properties": {
                         "task": { "type": "string", "description": "Task description, as detailed as possible" },
-                        "execute_on_disagreement": { "type": "boolean", "description": "Execute when disagreement (default: true)" }
+                        "execute_on_disagreement": { "type": "boolean", "description": "Execute when disagreement (default: true)" },
+                        "risk_level": { "type": "string", "enum": ["low", "medium", "high"], "description": "Risk level for execution strategy (default: medium)" },
+                        "force_triple_execute": { "type": "boolean", "description": "Force all three engines to execute after discussion" }
                     },
                     "required": ["task"]
                 }),
@@ -643,7 +645,10 @@ impl CapabilityRegistry {
                     "type": "object",
                     "properties": {
                         "problem": { "type": "string", "description": "Problem description" },
-                        "options": { "type": "array", "items": { "type": "string" }, "description": "Predefined options (optional)" }
+                        "task": { "type": "string", "description": "Alias of problem for natural language callers" },
+                        "options": { "type": "array", "items": { "type": "string" }, "description": "Predefined options (optional)" },
+                        "risk_level": { "type": "string", "enum": ["low", "medium", "high"], "description": "Risk level for arbitration strategy (default: medium)" },
+                        "force_triple_execute": { "type": "boolean", "description": "Force all three engines to execute after discussion" }
                     },
                     "required": ["problem"]
                 }),
@@ -658,7 +663,10 @@ impl CapabilityRegistry {
                     "type": "object",
                     "properties": {
                         "problem": { "type": "string", "description": "Problem description" },
-                        "engines": { "type": "array", "items": { "type": "string", "enum": ["claude", "openai", "gemini"] }, "description": "Engines to use (default: all)" }
+                        "task": { "type": "string", "description": "Alias of problem for natural language callers" },
+                        "engines": { "type": "array", "items": { "type": "string", "enum": ["claude", "openai", "gemini"] }, "description": "Engines to use (default: all)" },
+                        "risk_level": { "type": "string", "enum": ["low", "medium", "high"], "description": "Risk level for execution strategy (default: medium)" },
+                        "force_triple_execute": { "type": "boolean", "description": "Force all three engines to execute after discussion" }
                     },
                     "required": ["problem"]
                 }),
@@ -785,15 +793,11 @@ impl CapabilityRegistry {
 
         for entry in fs::read_dir(&paths.capabilities_dir)? {
             let entry = entry?;
-            if entry.file_type()?.is_file()
-                && entry.path().extension().and_then(|value| value.to_str()) == Some("json")
+            if entry.file_type()?.is_file() && entry.path().extension().and_then(|value| value.to_str()) == Some("json")
             {
-                let definition: CapabilityDefinition =
-                    serde_json::from_slice(&fs::read(entry.path())?)?;
+                let definition: CapabilityDefinition = serde_json::from_slice(&fs::read(entry.path())?)?;
                 registry.validate_name(&definition.name)?;
-                registry
-                    .definitions
-                    .insert(definition.name.clone(), definition);
+                registry.definitions.insert(definition.name.clone(), definition);
             }
         }
 
@@ -858,11 +862,16 @@ impl CapabilityRegistry {
 
     /// Check if a capability requires network access.
     pub fn capability_requires_network(&self, name: &str) -> bool {
-        self.definitions.get(name).map(|d| d.requires_network()).unwrap_or(false)
+        self.definitions
+            .get(name)
+            .map(|d| d.requires_network())
+            .unwrap_or(false)
     }
 
     pub fn persist_to_dir(&mut self, name: &str, task: &str, capabilities_dir: &std::path::Path) -> anyhow::Result<()> {
-        if self.contains(name) { return Ok(()); }
+        if self.contains(name) {
+            return Ok(());
+        }
         std::fs::create_dir_all(capabilities_dir)?;
         let def = CapabilityDefinition {
             name: name.to_string(),
