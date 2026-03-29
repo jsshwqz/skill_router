@@ -172,6 +172,35 @@ impl Planner {
             (&["rag status","knowledge status","知识库状态"],"rag_status"),
             (&["mcp","mcp call","mcp tool"],"mcp_call"),
             (&["路由","route_task","任务路由","选引擎","route task","选择引擎"],"route_task"),
+            // 多模型编排
+            (&["parallel","并行求解","多引擎"],"ai_parallel_solve"),
+            (&["vote","投票","三方投票"],"ai_triple_vote"),
+            (&["collaborate","协作","共识","讨论"],"ai_smart_collaborate"),
+            (&["research","研究","调研","综述"],"ai_research"),
+            (&["code generate","生成代码","写代码"],"ai_code_generate"),
+            (&["triangle review","三角审查"],"ai_triangle_review"),
+            (&["cross review","交叉审查"],"ai_cross_review"),
+            (&["serial optimize","串行优化"],"ai_serial_optimize"),
+            (&["long context","超长文本","长上下文"],"ai_long_context"),
+            // Agent
+            (&["delegate","委派","分配任务"],"agent_delegate"),
+            (&["broadcast","广播","通知全部"],"agent_broadcast"),
+            (&["gather","收集","汇总回复"],"agent_gather"),
+            (&["agent status","agent 状态"],"agent_status"),
+            // 记忆
+            (&["remember","记住","保存记忆"],"memory_remember"),
+            (&["recall","回忆","查记忆"],"memory_recall"),
+            (&["distill","记忆整理","压缩记忆"],"memory_distill"),
+            (&["team share","团队共享","共享记忆"],"memory_team_share"),
+            // Pipeline
+            (&["pipeline","流水线","串行执行"],"task_pipeline"),
+            (&["race","竞赛","最快返回"],"task_race"),
+            // 其他
+            (&["json query","jsonpath","json 查询"],"json_query"),
+            (&["regex","正则","pattern match"],"regex_match"),
+            (&["skill report","技能报告","使用统计"],"skill_report"),
+            (&["spec driven","规格驱动","分阶段","迁移计划"],"spec_driven"),
+            (&["discovery","级联搜索","多源搜索"],"discovery_search"),
         ];
         for (kws,cap) in rules {
             if kws.iter().any(|kw| n.contains(kw)) && registry.contains(cap) {

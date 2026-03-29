@@ -7,8 +7,10 @@
 //! - CLI 健康状态持久化与降级
 //! - 统一错误分类与审计轨迹
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::hash_map::DefaultHasher;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::{self, OpenOptions};
+use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
@@ -19,7 +21,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::process::Command;
-use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::{mpsc, Mutex as AsyncMutex};
 use tracing::{info, warn};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
@@ -74,6 +76,10 @@ fn cli_health_path() -> PathBuf {
 
 fn orchestration_trace_path() -> PathBuf {
     ensure_state_dir().join("orchestration_trace.jsonl")
+}
+
+fn engine_cache_path() -> PathBuf {
+    ensure_state_dir().join("engine_result_cache.json")
 }
 
 fn file_lock() -> &'static Mutex<()> {
@@ -266,6 +272,21 @@ struct CliHealthStore {
     engines: BTreeMap<String, EngineHealthState>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct EngineResultCacheStore {
+    entries: BTreeMap<String, CachedEngineResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CachedEngineResult {
+    engine: String,
+    phase: String,
+    cache_key: String,
+    output: String,
+    duration_ms: u64,
+    stored_at: u64,
+}
+
 fn load_cli_health() -> CliHealthStore {
     let _guard = file_lock().lock().unwrap_or_else(|e| e.into_inner());
     let path = cli_health_path();
@@ -281,6 +302,109 @@ fn save_cli_health(store: &CliHealthStore) {
     if let Ok(bytes) = serde_json::to_vec_pretty(store) {
         let _ = fs::write(path, bytes);
     }
+}
+
+fn load_engine_cache() -> EngineResultCacheStore {
+    let _guard = file_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let path = engine_cache_path();
+    match fs::read(&path) {
+        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
+        Err(_) => EngineResultCacheStore::default(),
+    }
+}
+
+fn save_engine_cache(store: &EngineResultCacheStore) {
+    let _guard = file_lock().lock().unwrap_or_else(|e| e.into_inner());
+    let path = engine_cache_path();
+    if let Ok(bytes) = serde_json::to_vec_pretty(store) {
+        let _ = fs::write(path, bytes);
+    }
+}
+
+fn cache_ttl_secs() -> u64 {
+    std::env::var("AION_ENGINE_CACHE_TTL_SECS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(6 * 60 * 60)
+}
+
+fn phase_grace_window_secs() -> u64 {
+    std::env::var("AION_PHASE_GRACE_SECS")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(3)
+}
+
+fn cache_key(engine: Engine, phase: &str, prompt: &str, cfg: &OrchestratorConfig) -> String {
+    let mut hasher = DefaultHasher::new();
+    engine.hash(&mut hasher);
+    phase.hash(&mut hasher);
+    prompt.hash(&mut hasher);
+    cfg.claude_model.hash(&mut hasher);
+    cfg.openai_model.hash(&mut hasher);
+    format!("{}:{}:{:016x}", engine.label(), phase, hasher.finish())
+}
+
+fn cached_success_report(
+    engine: Engine,
+    phase: &str,
+    prompt: &str,
+    cfg: &OrchestratorConfig,
+    status_before: &str,
+) -> Option<EngineCallReport> {
+    let key = cache_key(engine, phase, prompt, cfg);
+    let now = now_secs();
+    let mut store = load_engine_cache();
+    store
+        .entries
+        .retain(|_, entry| now.saturating_sub(entry.stored_at) <= cache_ttl_secs());
+    save_engine_cache(&store);
+    let entry = store.entries.get(&key)?.clone();
+    Some(EngineCallReport {
+        engine: entry.engine,
+        phase: entry.phase,
+        success: true,
+        status_before: status_before.to_string(),
+        status_after: "healthy".to_string(),
+        duration_ms: 0,
+        output: Some(entry.output.clone()),
+        output_excerpt: Some(excerpt(&entry.output, 320)),
+        error_kind: None,
+        error_message: None,
+        exit_code: None,
+        stdout_excerpt: Some("cache hit".to_string()),
+        stderr_excerpt: None,
+        skipped: false,
+        cache_hit: true,
+    })
+}
+
+fn persist_success_cache(
+    engine: Engine,
+    phase: &str,
+    prompt: &str,
+    cfg: &OrchestratorConfig,
+    output: &str,
+    duration_ms: u64,
+) {
+    let key = cache_key(engine, phase, prompt, cfg);
+    let now = now_secs();
+    let mut store = load_engine_cache();
+    store
+        .entries
+        .retain(|_, entry| now.saturating_sub(entry.stored_at) <= cache_ttl_secs());
+    store.entries.insert(
+        key.clone(),
+        CachedEngineResult {
+            engine: engine.label().to_string(),
+            phase: phase.to_string(),
+            cache_key: key,
+            output: output.to_string(),
+            duration_ms,
+            stored_at: now,
+        },
+    );
+    save_engine_cache(&store);
 }
 
 fn engine_state(engine: Engine) -> EngineHealthState {
@@ -310,6 +434,7 @@ struct OrchestratorConfig {
     claude_model: String,
     openai_model: String,
     timeout: Duration,
+    phase_window: Duration,
     passthrough: bool,
 }
 
@@ -326,6 +451,12 @@ impl OrchestratorConfig {
                     .ok()
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(180),
+            ),
+            phase_window: Duration::from_secs(
+                std::env::var("AION_PHASE_WINDOW_SECS")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(40),
             ),
             passthrough: std::env::var("AI_PASSTHROUGH")
                 .map(|v| v == "true" || v == "1")
@@ -375,6 +506,8 @@ struct EngineCallReport {
     stdout_excerpt: Option<String>,
     stderr_excerpt: Option<String>,
     skipped: bool,
+    #[serde(default)]
+    cache_hit: bool,
 }
 
 #[derive(Debug)]
@@ -534,6 +667,10 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
     }
     .to_string();
 
+    if let Some(report) = cached_success_report(engine, phase, prompt, cfg, &status_before) {
+        return report;
+    }
+
     if let Some(reason) = engine_in_cooldown(engine) {
         let report = EngineCallReport {
             engine: engine.label().to_string(),
@@ -550,6 +687,7 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
             stdout_excerpt: None,
             stderr_excerpt: None,
             skipped: true,
+            cache_hit: false,
         };
         update_engine_health(&report);
         return report;
@@ -603,6 +741,7 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
         }) => {
             let normalized_stdout = normalize_output(engine, &stdout);
             if status_success && !normalized_stdout.is_empty() {
+                persist_success_cache(engine, phase, prompt, cfg, &normalized_stdout, duration_ms);
                 EngineCallReport {
                     engine: engine.label().to_string(),
                     phase: phase.to_string(),
@@ -622,6 +761,7 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
                         Some(excerpt(&stderr, 240))
                     },
                     skipped: false,
+                    cache_hit: false,
                 }
             } else {
                 let failure_kind = if status_success {
@@ -665,6 +805,7 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
                         Some(excerpt(stderr_trimmed, 240))
                     },
                     skipped: false,
+                    cache_hit: false,
                 }
             }
         }
@@ -683,6 +824,7 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
             stdout_excerpt: None,
             stderr_excerpt: None,
             skipped: false,
+            cache_hit: false,
         },
         Err(e) => EngineCallReport {
             engine: engine.label().to_string(),
@@ -699,6 +841,7 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
             stdout_excerpt: None,
             stderr_excerpt: None,
             skipped: false,
+            cache_hit: false,
         },
     };
 
@@ -725,6 +868,121 @@ async fn call_engines_parallel(
         results.push(report);
     }
     results
+}
+
+#[derive(Debug, Default)]
+struct PhaseBatch {
+    reports: Vec<EngineCallReport>,
+    pending_engines: Vec<String>,
+}
+
+fn phase_quorum_target(phase: &str, total: usize) -> usize {
+    match total {
+        0 => 0,
+        1 => 1,
+        2 => {
+            if matches!(phase, "proposal" | "dispute_review" | "review" | "arbiter") {
+                1
+            } else {
+                2
+            }
+        }
+        _ => 2,
+    }
+}
+
+fn phase_supports_background_completion(phase: &str) -> bool {
+    matches!(phase, "proposal" | "dispute_review" | "review" | "arbiter")
+}
+
+fn sorted_strings<I>(items: I) -> Vec<String>
+where
+    I: IntoIterator<Item = String>,
+{
+    let mut values: Vec<String> = items.into_iter().collect();
+    values.sort();
+    values.dedup();
+    values
+}
+
+fn pending_snapshot(pending_engines: &HashSet<String>) -> Vec<String> {
+    sorted_strings(pending_engines.iter().cloned())
+}
+
+async fn call_engines_windowed(tasks: &[(Engine, String)], cfg: &OrchestratorConfig, phase: &str) -> PhaseBatch {
+    if tasks.is_empty() {
+        return PhaseBatch::default();
+    }
+
+    if !phase_supports_background_completion(phase) {
+        return PhaseBatch {
+            reports: call_engines_parallel(tasks, cfg, phase).await,
+            pending_engines: Vec::new(),
+        };
+    }
+
+    let quorum = phase_quorum_target(phase, tasks.len());
+    let deadline = tokio::time::Instant::now() + cfg.phase_window;
+    let grace_window = Duration::from_secs(phase_grace_window_secs());
+    let (tx, mut rx) = mpsc::unbounded_channel();
+
+    for (engine, prompt) in tasks {
+        let engine = *engine;
+        let prompt = prompt.clone();
+        let cfg = cfg.clone();
+        let phase = phase.to_string();
+        let tx = tx.clone();
+        tokio::spawn(async move {
+            let report = call_engine_detailed(engine, &prompt, &cfg, &phase).await;
+            if tx.send(report.clone()).is_err() {
+                append_trace(&json!({
+                    "timestamp": now_millis(),
+                    "phase": phase,
+                    "engine": report.engine,
+                    "late_completion": true,
+                    "success": report.success,
+                    "cache_hit": report.cache_hit,
+                    "duration_ms": report.duration_ms,
+                    "error_kind": report.error_kind,
+                }));
+            }
+        });
+    }
+    drop(tx);
+
+    let mut reports: Vec<EngineCallReport> = Vec::new();
+    let mut quorum_started_at = None;
+    while reports.len() < tasks.len() {
+        let successful = reports.iter().filter(|report| report.success).count();
+        if successful >= quorum && quorum_started_at.is_none() {
+            quorum_started_at = Some(tokio::time::Instant::now());
+        }
+
+        let next_deadline = quorum_started_at
+            .map(|started| std::cmp::min(deadline, started + grace_window))
+            .unwrap_or(deadline);
+        if tokio::time::Instant::now() >= next_deadline {
+            break;
+        }
+
+        match tokio::time::timeout_at(next_deadline, rx.recv()).await {
+            Ok(Some(report)) => reports.push(report),
+            Ok(None) | Err(_) => break,
+        }
+    }
+
+    let seen: HashSet<String> = reports.iter().map(|report| report.engine.clone()).collect();
+    let pending_engines = sorted_strings(
+        tasks
+            .iter()
+            .map(|(engine, _)| engine.label().to_string())
+            .filter(|engine| !seen.contains(engine)),
+    );
+
+    PhaseBatch {
+        reports,
+        pending_engines,
+    }
 }
 
 fn parse_engines(ctx: &ExecutionContext) -> Vec<Engine> {
@@ -1143,6 +1401,7 @@ struct WorkflowOutcome {
     workflow: String,
     task: String,
     participants: Vec<String>,
+    pending_engines: Vec<String>,
     phase_trace: Vec<Value>,
     proposal_summary: Vec<Proposal>,
     consensus_status: String,
@@ -1198,12 +1457,16 @@ async fn run_collaboration_workflow(
     let cfg = OrchestratorConfig::from_env();
     let mut phase_trace = Vec::new();
     let mut all_reports = Vec::new();
+    let mut pending_engines = HashSet::new();
 
     let proposal_tasks: Vec<_> = selected_engines
         .iter()
         .map(|engine| (*engine, proposal_prompt(task, workflow, risk_level)))
         .collect();
-    let proposal_reports = call_engines_parallel(&proposal_tasks, &cfg, "proposal").await;
+    let proposal_batch = call_engines_windowed(&proposal_tasks, &cfg, "proposal").await;
+    let proposal_reports = proposal_batch.reports;
+    let proposal_pending = proposal_batch.pending_engines;
+    pending_engines.extend(proposal_pending.iter().cloned());
     let proposal_failures = reports_to_failures(&proposal_reports);
     let mut proposals = Vec::new();
     for report in &proposal_reports {
@@ -1220,10 +1483,14 @@ async fn run_collaboration_workflow(
         "completed_at": now_millis(),
         "success_count": proposals.len(),
         "failure_count": proposal_failures.len(),
+        "pending_engines": proposal_pending,
     }));
     all_reports.extend(proposal_reports.clone());
 
-    let mut consensus_status = if proposals_agree(&proposals) {
+    let proposal_quorum = phase_quorum_target("proposal", selected_engines.len());
+    let mut consensus_status = if proposals.len() < proposal_quorum {
+        "unresolved".to_string()
+    } else if proposals_agree(&proposals) {
         "agreed".to_string()
     } else {
         "disputed".to_string()
@@ -1248,7 +1515,10 @@ async fn run_collaboration_workflow(
             .iter()
             .map(|engine| (*engine, dispute_review_prompt(task, &proposals)))
             .collect();
-        let review_reports = call_engines_parallel(&review_tasks, &cfg, "dispute_review").await;
+        let review_batch = call_engines_windowed(&review_tasks, &cfg, "dispute_review").await;
+        let review_reports = review_batch.reports;
+        let review_pending = review_batch.pending_engines;
+        pending_engines.extend(review_pending.iter().cloned());
         let successful_reviews: Vec<ReviewDecision> = review_reports
             .iter()
             .filter(|report| report.success)
@@ -1281,6 +1551,7 @@ async fn run_collaboration_workflow(
             "completed_at": now_millis(),
             "review_count": successful_reviews.len(),
             "selected_plan_id": selected_plan_id,
+            "pending_engines": review_pending,
         }));
         all_reports.extend(review_reports);
     }
@@ -1361,7 +1632,10 @@ async fn run_collaboration_workflow(
                 .iter()
                 .map(|engine| (*engine, arbitration_prompt(task, &solutions)))
                 .collect();
-            let arbitration_reports = call_engines_parallel(&arbitration_tasks, &cfg, "arbiter").await;
+            let arbitration_batch = call_engines_windowed(&arbitration_tasks, &cfg, "arbiter").await;
+            let arbitration_reports = arbitration_batch.reports;
+            let arbitration_pending = arbitration_batch.pending_engines;
+            pending_engines.extend(arbitration_pending.iter().cloned());
             let mut votes: BTreeMap<String, usize> = BTreeMap::new();
             let mut reasons = Vec::new();
             for report in &arbitration_reports {
@@ -1393,6 +1667,7 @@ async fn run_collaboration_workflow(
             "completed_at": now_millis(),
             "mode": execution_mode,
             "winner_engine": winner_engine,
+            "pending_engines": pending_snapshot(&pending_engines),
         }));
     } else {
         let primary_engine = Engine::from_label(&selected_proposal.primary_engine)
@@ -1440,7 +1715,10 @@ async fn run_collaboration_workflow(
                 )
             })
             .collect();
-        let review_reports = call_engines_parallel(&review_tasks, &cfg, "review").await;
+        let review_batch = call_engines_windowed(&review_tasks, &cfg, "review").await;
+        let review_reports = review_batch.reports;
+        let review_pending = review_batch.pending_engines;
+        pending_engines.extend(review_pending.iter().cloned());
         for report in &review_reports {
             if report.success {
                 if let Some(output) = &report.output {
@@ -1454,6 +1732,7 @@ async fn run_collaboration_workflow(
             "completed_at": now_millis(),
             "mode": execution_mode,
             "primary_engine": selected_proposal.primary_engine,
+            "pending_engines": review_pending,
         }));
     }
 
@@ -1461,7 +1740,7 @@ async fn run_collaboration_workflow(
         disputed = vec!["方案仍未完全收敛".to_string()];
     }
 
-    let degraded = all_reports.iter().any(|report| !report.success || report.skipped);
+    let degraded = !pending_engines.is_empty() || all_reports.iter().any(|report| !report.success || report.skipped);
     let outcome = WorkflowOutcome {
         workflow: workflow.to_string(),
         task: task.to_string(),
@@ -1469,6 +1748,7 @@ async fn run_collaboration_workflow(
             .iter()
             .map(|engine| engine.label().to_string())
             .collect(),
+        pending_engines: pending_snapshot(&pending_engines),
         phase_trace,
         proposal_summary: proposals.clone(),
         consensus_status,
@@ -1497,6 +1777,7 @@ async fn run_collaboration_workflow(
         "consensus_status": outcome.consensus_status,
         "degraded": degraded,
         "participants": outcome.participants,
+        "pending_engines": outcome.pending_engines,
     }));
 
     serde_json::to_value(outcome).unwrap_or_else(|_| json!({"error": "failed to serialize orchestration outcome"}))
