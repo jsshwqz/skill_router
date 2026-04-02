@@ -226,6 +226,23 @@ impl CapabilityRegistry {
                 examples: vec![],
             },
             CapabilityDefinition {
+                name: "text_wordcount".to_string(),
+                description: "Count the number of words, characters, and lines in input text".to_string(),
+                inputs: vec!["text".to_string()],
+                outputs: vec!["word_count".to_string(), "char_count".to_string(), "line_count".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "text": { "type": "string", "description": "The text to count words, characters, and lines in" }
+                    },
+                    "required": ["text"]
+                }),
+                examples: vec![serde_json::json!({
+                    "intent": "text_wordcount",
+                    "parameters": { "text": "Hello world\nThis is a test" }
+                })],
+            },
+            CapabilityDefinition {
                 name: "web_search".to_string(),
                 description: "Search the web via SerpAPI and return organic results".to_string(),
                 inputs: vec!["query".to_string()],
@@ -774,6 +791,20 @@ impl CapabilityRegistry {
                     "type": "object",
                     "properties": {},
                     "required": []
+                }),
+                examples: vec![],
+            },
+            // ── Health Check ─────────────────────────────────────────────────
+            CapabilityDefinition {
+                name: "health_check".to_string(),
+                description: "Check the health status of all AI engines (claude, openai, gemini) and return the server version".to_string(),
+                inputs: vec![],
+                outputs: vec!["overall_status".to_string(), "engines".to_string(), "server_version".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "workspace": { "type": "string", "description": "Workspace root path (optional, defaults to current directory)" }
+                    }
                 }),
                 examples: vec![],
             },

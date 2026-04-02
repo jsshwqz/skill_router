@@ -115,8 +115,8 @@ fn keyword_weight_match(
         let matched: Vec<String> = rule
             .keywords
             .iter()
-            .filter(|kw| kw.chars().count() >= 2) // 忽略单字关键词，防止误匹配
-            .filter(|kw| task_lower.contains(&kw.to_lowercase()))
+            .filter(|kw: &&String| kw.chars().count() >= 2) // 忽略单字关键词，防止误匹配
+            .filter(|kw: &&String| task_lower.contains(&kw.to_lowercase()))
             .cloned()
             .collect();
 

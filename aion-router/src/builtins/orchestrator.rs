@@ -1838,6 +1838,46 @@ async fn spawn_orchestration_with_wait(
         let result = task_fn(input).await;
         let mut store = task_store().lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task) = store.get_mut(&tid) {
+            // Detect all-engines-failed: no final_solution and every participant failed
+            let all_engines_failed = result.get("final_solution").map_or(true, |v| v.is_null())
+                && result.get("solutions").map_or(true, |v| {
+                    v.as_object().map_or(true, |m| m.is_empty())
+                })
+                && result.get("failures").map_or(false, |v| {
+                    v.as_array().map_or(false, |arr| !arr.is_empty())
+                });
+
+            if all_engines_failed {
+                task.status = "error".to_string();
+                // Build a result that includes failure reasons from each engine
+                let failure_reasons: Vec<Value> = result
+                    .get("failures")
+                    .and_then(|v| v.as_array())
+                    .cloned()
+                    .unwrap_or_default();
+                let error_summary: Vec<String> = failure_reasons
+                    .iter()
+                    .filter_map(|f| {
+                        let engine = f.get("engine").and_then(|e| e.as_str()).unwrap_or("unknown");
+                        let kind = f.get("kind").and_then(|k| k.as_str()).unwrap_or("unknown");
+                        let message = f.get("message").and_then(|m| m.as_str()).unwrap_or("no details");
+                        Some(format!("{}: [{}] {}", engine, kind, message))
+                    })
+                    .collect();
+                let error_result = json!({
+                    "error": "all engines failed",
+                    "engine_count": failure_reasons.len(),
+                    "failure_reasons": failure_reasons,
+                    "error_summary": error_summary,
+                    "workflow": &workflow_name,
+                    "original_result": result,
+                });
+                task.finished_at = Some(now_secs());
+                task.result = Some(error_result.clone());
+                info!("async orchestration [{}] {} failed: all engines returned errors", tid, workflow_name);
+                return error_result;
+            }
+
             task.status = "done".to_string();
             task.finished_at = Some(now_secs());
             task.result = Some(result.clone());
@@ -1847,14 +1887,24 @@ async fn spawn_orchestration_with_wait(
     });
 
     match tokio::time::timeout(Duration::from_secs(wait), handle).await {
-        Ok(Ok(result)) => json!({
-            "type": "completed",
-            "task_id": task_id,
-            "workflow": workflow,
-            "status": "done",
-            "waited_secs": wait,
-            "result": result
-        }),
+        Ok(Ok(result)) => {
+            // Propagate error status if all engines failed
+            let status = if result.get("error").is_some()
+                && result.get("error").and_then(|e| e.as_str()) == Some("all engines failed")
+            {
+                "error"
+            } else {
+                "done"
+            };
+            json!({
+                "type": "completed",
+                "task_id": task_id,
+                "workflow": workflow,
+                "status": status,
+                "waited_secs": wait,
+                "result": result
+            })
+        }
         _ => json!({
             "type": "async",
             "task_id": task_id,

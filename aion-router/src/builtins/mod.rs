@@ -16,6 +16,7 @@ pub mod rag;
 pub mod orchestrator;
 pub mod spec_driven;
 pub mod task_router;
+pub mod health_check;
 
 use std::collections::HashMap;
 
@@ -76,6 +77,7 @@ impl BuiltinRegistry {
         reg.register(Box::new(text::TextDiff));
         reg.register(Box::new(text::TextEmbed));
         reg.register(Box::new(text::MarkdownRender));
+        reg.register(Box::new(text::TextWordcount));
 
         // 网络类
         reg.register(Box::new(web::WebSearch));
@@ -135,6 +137,9 @@ impl BuiltinRegistry {
 
         // AI 任务路由器
         reg.register(Box::new(task_router::RouteTaskBuiltin));
+
+        // 健康检查
+        reg.register(Box::new(health_check::HealthCheck));
 
         reg
     }

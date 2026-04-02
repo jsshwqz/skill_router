@@ -128,6 +128,29 @@ impl BuiltinSkill for MarkdownRender {
     }
 }
 
+// ── text_wordcount ──────────────────────────────────────────────────────────
+
+pub struct TextWordcount;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for TextWordcount {
+    fn name(&self) -> &'static str { "text_wordcount" }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let text = require_text(context)?;
+
+        let word_count = text.split_whitespace().count();
+        let char_count = text.chars().count();
+        let line_count = if text.is_empty() { 0 } else { text.lines().count() };
+
+        Ok(json!({
+            "word_count": word_count,
+            "char_count": char_count,
+            "line_count": line_count
+        }))
+    }
+}
+
 // ── LCS diff 算法 ──────────────────────────────────────────────────────────
 
 /// 构建 LCS 长度表
