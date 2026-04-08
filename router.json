@@ -46,7 +46,7 @@
     {
       "id": "code-daily",
       "category": "CODE",
-      "keywords": ["代码补全", "单函数", "debug", "fix", "bug修复", "小改动", "快速修复"],
+      "keywords": ["代码补全", "单函数", "debug", "fix", "bug修复", "小改动", "快速修复", "日志", "log", "排错", "写个脚本", "脚本", "script", "自动化", "改个", "加个功能", "写个函数", "写代码", "改代码", "加个接口"],
       "weight": 60,
       "engine": "anthropic",
       "model": "claude-sonnet-4-5",
@@ -99,7 +99,7 @@
     {
       "id": "code-review",
       "category": "CODE",
-      "keywords": ["代码审查", "review", "code review", "PR review", "安全审计", "代码检查"],
+      "keywords": ["代码审查", "review", "code review", "PR review", "安全审计", "代码检查", "测试", "test", "单元测试", "检查代码", "看看代码", "代码质量", "测试代码"],
       "weight": 70,
       "engine": "anthropic",
       "model": "claude-opus-4-5",

@@ -7,7 +7,7 @@ use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
-use tracing::{info, warn};
+use tracing::info;
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
 

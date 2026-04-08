@@ -151,8 +151,18 @@ impl RagEngine {
             .collect();
         let context = context_parts.join("\n\n");
 
-        // 4. 调用 AI 生成回答
-        let answer = self.generate_answer(question, &context).await?;
+        // 4. 调用 AI 生成回答，失败时 fallback 到原始 chunks
+        let (answer, ai_generated) = match self.generate_answer(question, &context).await {
+            Ok(a) if a != "无法生成回答" => (a, true),
+            Ok(_) | Err(_) => {
+                // AI 不可用或返回空回答，fallback 返回原始检索内容
+                let fallback = format!(
+                    "（AI 暂不可用，以下为检索到的原始内容）\n\n{}",
+                    context
+                );
+                (fallback, false)
+            }
+        };
 
         // 5. 返回结果
         let sources: Vec<Value> = results
@@ -168,6 +178,7 @@ impl RagEngine {
 
         Ok(json!({
             "answer": answer,
+            "ai_generated": ai_generated,
             "sources": sources,
             "chunks_searched": self.chunks.len(),
             "chunks_matched": results.len()

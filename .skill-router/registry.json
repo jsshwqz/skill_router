@@ -30,6 +30,90 @@
       ],
       "last_used_epoch_ms": 1774402587178
     },
+    "health_check_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775127604670,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775127604670
+    },
+    "json_parse_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775109378083,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775109378083
+    },
+    "json_query_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775109378581,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775109378581
+    },
+    "memory_recall_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775109427421,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775109427421
+    },
+    "memory_remember_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775109399947,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775109399947
+    },
+    "rag_query_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775109441556,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775109441556
+    },
+    "regex_match_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775109426973,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775109426973
+    },
+    "route_task_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775109442335,
+          "success": true
+        },
+        {
+          "epoch_ms": 1775127450900,
+          "success": true
+        },
+        {
+          "epoch_ms": 1775127470213,
+          "success": true
+        },
+        {
+          "epoch_ms": 1775127493344,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775127493344
+    },
     "spec_driven_placeholder": {
       "executions": [
         {
@@ -47,14 +131,36 @@
       ],
       "last_used_epoch_ms": 1774526658308
     },
+    "text_diff_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775109410401,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775109410401
+    },
+    "text_wordcount_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1775127438899,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1775127438899
+    },
     "yaml_parse_placeholder": {
       "executions": [
         {
           "epoch_ms": 1774286278545,
           "success": true
+        },
+        {
+          "epoch_ms": 1775109407193,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1774286278545
+      "last_used_epoch_ms": 1775109407193
     }
   }
 }

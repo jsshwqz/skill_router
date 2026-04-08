@@ -120,8 +120,6 @@ impl BuiltinSkill for TaskRace {
             .unwrap_or("echo")
             .to_string();
 
-        let registry = super::BuiltinRegistry::default_registry();
-
         // 用不同的 builtin 竞争同一个任务
         // 如果指定了 agent_ids，按名称查找；否则用 capability 本身
         let candidates: Vec<String> = context.context.get("agent_ids")

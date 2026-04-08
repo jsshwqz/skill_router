@@ -7,3 +7,17 @@
 {"capability":"spec_driven","skill":"spec_driven_placeholder","status":"ok","timestamp":1774518012}
 {"capability":"spec_driven","skill":"spec_driven_placeholder","status":"ok","timestamp":1774518018}
 {"capability":"spec_driven","skill":"spec_driven_placeholder","status":"ok","timestamp":1774526658}
+{"capability":"json_parse","skill":"json_parse_placeholder","status":"ok","timestamp":1775109378}
+{"capability":"json_query","skill":"json_query_placeholder","status":"ok","timestamp":1775109378}
+{"capability":"memory_remember","skill":"memory_remember_placeholder","status":"ok","timestamp":1775109399}
+{"capability":"yaml_parse","skill":"yaml_parse_placeholder","status":"ok","timestamp":1775109407}
+{"capability":"text_diff","skill":"text_diff_placeholder","status":"ok","timestamp":1775109410}
+{"capability":"regex_match","skill":"regex_match_placeholder","status":"ok","timestamp":1775109426}
+{"capability":"memory_recall","skill":"memory_recall_placeholder","status":"ok","timestamp":1775109427}
+{"capability":"rag_query","skill":"rag_query_placeholder","status":"ok","timestamp":1775109441}
+{"capability":"route_task","skill":"route_task_placeholder","status":"ok","timestamp":1775109442}
+{"capability":"text_wordcount","skill":"text_wordcount_placeholder","status":"ok","timestamp":1775127438}
+{"capability":"route_task","skill":"route_task_placeholder","status":"ok","timestamp":1775127450}
+{"capability":"route_task","skill":"route_task_placeholder","status":"ok","timestamp":1775127470}
+{"capability":"route_task","skill":"route_task_placeholder","status":"ok","timestamp":1775127493}
+{"capability":"health_check","skill":"health_check_placeholder","status":"ok","timestamp":1775127604}

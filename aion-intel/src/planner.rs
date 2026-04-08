@@ -5,6 +5,7 @@ use aion_types::capability_registry::CapabilityRegistry;
 
 /// AI endpoint for planner inference calls, with fallback chain support.
 struct PlannerEndpoint {
+    #[allow(dead_code)]
     label: &'static str,
     base_url: String,
     api_key: String,
@@ -50,7 +51,10 @@ async fn ai_chat(body_fn: impl Fn(&str) -> serde_json::Value) -> Option<String> 
                 let content = v["choices"][0]["message"]["content"]
                     .as_str()
                     .or_else(|| v["result"].as_str())
-                    .unwrap_or("")
+                    .unwrap_or_else(|| {
+                        tracing::warn!("AI response missing content field: {:?}", v);
+                        ""
+                    })
                     .trim()
                     .to_ascii_lowercase();
                 if !content.is_empty() {
@@ -86,7 +90,10 @@ impl Planner {
     /// 纯同步的关键词推断（不调用 AI），可在持有 MutexGuard 时安全调用
     pub fn infer_via_keywords_only(task: &str, registry: &CapabilityRegistry) -> Option<String> {
         let key = hash_task(task);
-        if let Ok(c) = cache().lock() { if let Some(v) = c.get(key) { return Some(v.to_string()); } }
+        match cache().lock() {
+            Ok(c) => { if let Some(v) = c.get(key) { return Some(v.to_string()); } }
+            Err(e) => tracing::warn!("planner cache lock poisoned on read: {}", e),
+        }
         Self::infer_via_keywords(task, registry)
     }
 

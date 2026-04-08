@@ -158,6 +158,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "aion-zl"
+version = "0.2.0"
+dependencies = [
+ "aion-intel",
+ "aion-memory",
+ "aion-router",
+ "aion-types",
+ "anyhow",
+ "chrono",
+ "clap",
+ "dotenvy",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
