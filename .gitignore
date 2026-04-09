@@ -23,6 +23,16 @@ Desktop.ini
 /work_dir/
 /learning/
 /memory_store.json
+/.skill-router/cli_health.json
+/.skill-router/engine_result_cache.json
+/.skill-router/orchestration_trace.jsonl
+/.skill-router/security_audit.log
+/.skill-router/rag/
+/.skill-router/specs/
+/capabilities_manifest.json
+/skill.json
 
-# Release archives (build via CI)
+# Release archives & binaries (build via CI)
 /dist/
+/aion-cli.exe
+/aion-server.exe
