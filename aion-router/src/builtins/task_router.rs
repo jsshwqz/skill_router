@@ -280,7 +280,7 @@ fn build_ai_fallback_instruction(task: &str, rules: &[RouteRule]) -> Value {
 
 enum RouteOutcome {
     /// 第一/二层命中，直接返回决策
-    Decision(RouteDecision),
+    Decision(Box<RouteDecision>),
     /// 第三层未命中关键词，返回 passthrough 指令让宿主 LLM 决策
     Passthrough(Value),
 }
@@ -293,7 +293,7 @@ fn route_task_core(task: &str, hints: Option<RouteHints>) -> RouteOutcome {
     let rules = &data.rules;
 
     if rules.is_empty() {
-        return RouteOutcome::Decision(default_fallback(task));
+        return RouteOutcome::Decision(Box::new(default_fallback(task)));
     }
 
     // 第一层：结构特征快筛
@@ -327,7 +327,7 @@ fn route_task_core(task: &str, hints: Option<RouteHints>) -> RouteOutcome {
             rule.id, best.weight, best.matched_keywords
         );
 
-        return RouteOutcome::Decision(build_decision(rule, task, config, conflict_note));
+        return RouteOutcome::Decision(Box::new(build_decision(rule, task, config, conflict_note)));
     }
 
     // 第三层：passthrough 模式，让宿主 LLM 选择

@@ -80,11 +80,10 @@ impl PlanValidator {
         let mut visited = std::collections::HashSet::new();
         let mut rec_stack = std::collections::HashSet::new();
         for step_id in seen_ids {
-            if !visited.contains(&step_id) {
-                if has_cycle(&step_id, &adj, &mut visited, &mut rec_stack) {
+            if !visited.contains(&step_id)
+                && has_cycle(&step_id, &adj, &mut visited, &mut rec_stack) {
                     return Err(anyhow!("Circular dependency detected in the plan involving step '{}'", step_id));
                 }
-            }
         }
 
         Ok(())

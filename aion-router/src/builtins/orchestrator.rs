@@ -1793,7 +1793,7 @@ fn default_wait_secs(workflow: &str) -> u64 {
     let configured = std::env::var("AION_ORCH_WAIT_SECS")
         .ok()
         .and_then(|value| value.parse::<u64>().ok());
-    let raw = configured.unwrap_or_else(|| match workflow {
+    let raw = configured.unwrap_or(match workflow {
         "code_generate" | "long_context" => 50,
         "cross_review" | "serial_optimize" => 55,
         "parallel_solve" | "triple_vote" | "triangle_review" | "smart_collaborate" | "research" => 55,
@@ -1839,12 +1839,12 @@ async fn spawn_orchestration_with_wait(
         let mut store = task_store().lock().unwrap_or_else(|e| e.into_inner());
         if let Some(task) = store.get_mut(&tid) {
             // Detect all-engines-failed: no final_solution and every participant failed
-            let all_engines_failed = result.get("final_solution").map_or(true, |v| v.is_null())
-                && result.get("solutions").map_or(true, |v| {
-                    v.as_object().map_or(true, |m| m.is_empty())
+            let all_engines_failed = result.get("final_solution").is_none_or(|v| v.is_null())
+                && result.get("solutions").is_none_or(|v| {
+                    v.as_object().is_none_or(|m| m.is_empty())
                 })
-                && result.get("failures").map_or(false, |v| {
-                    v.as_array().map_or(false, |arr| !arr.is_empty())
+                && result.get("failures").is_some_and(|v| {
+                    v.as_array().is_some_and(|arr| !arr.is_empty())
                 });
 
             if all_engines_failed {
@@ -1857,11 +1857,11 @@ async fn spawn_orchestration_with_wait(
                     .unwrap_or_default();
                 let error_summary: Vec<String> = failure_reasons
                     .iter()
-                    .filter_map(|f| {
+                    .map(|f| {
                         let engine = f.get("engine").and_then(|e| e.as_str()).unwrap_or("unknown");
                         let kind = f.get("kind").and_then(|k| k.as_str()).unwrap_or("unknown");
                         let message = f.get("message").and_then(|m| m.as_str()).unwrap_or("no details");
-                        Some(format!("{}: [{}] {}", engine, kind, message))
+                        format!("{}: [{}] {}", engine, kind, message)
                     })
                     .collect();
                 let error_result = json!({

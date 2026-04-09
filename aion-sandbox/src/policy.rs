@@ -13,8 +13,10 @@ use serde::{Deserialize, Serialize};
 /// 工作目录策略
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum WorkDirPolicy {
     /// 使用临时目录（默认，最安全）
+    #[default]
     TempDir,
     /// 继承父进程工作目录
     Inherit,
@@ -22,11 +24,6 @@ pub enum WorkDirPolicy {
     Specified(PathBuf),
 }
 
-impl Default for WorkDirPolicy {
-    fn default() -> Self {
-        Self::TempDir
-    }
-}
 
 /// 单条命令规则
 #[derive(Debug, Clone, Serialize, Deserialize)]

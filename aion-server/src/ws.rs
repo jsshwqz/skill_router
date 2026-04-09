@@ -35,7 +35,7 @@ async fn handle_ws(mut socket: WebSocket, session_id: String, state: Arc<AppStat
                     Ok(evt) if evt.session_id() == session_id => {
                         match serde_json::to_string(&evt) {
                             Ok(json) => {
-                                if socket.send(Message::Text(json.into())).await.is_err() {
+                                if socket.send(Message::Text(json)).await.is_err() {
                                     break; // 客户端断开
                                 }
                             }

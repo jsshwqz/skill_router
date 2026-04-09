@@ -230,7 +230,7 @@ impl MultiAgentCoordinator {
             }
         }
 
-        if pending_ids.len() > 0 {
+        if !pending_ids.is_empty() {
             warn!(
                 "Expert panel timed out: {} agents did not respond: {:?}",
                 pending_ids.len(),

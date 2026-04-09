@@ -1,3 +1,28 @@
+# Rust build artifacts
 /target
+
+# Environment & secrets
 .env
 *.pdb
+
+# Backup files
+*.bak
+*.old
+*.orig
+
+# OS artifacts
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Runtime state (regenerated on startup)
+/work_dir/
+/learning/
+/memory_store.json
+
+# Release archives (build via CI)
+/dist/

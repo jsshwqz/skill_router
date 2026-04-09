@@ -283,7 +283,7 @@ impl BuiltinSkill for CodeLint {
         let errors = issues.iter().filter(|i| i["severity"] == "error").count();
         let warnings = issues.iter().filter(|i| i["severity"] == "warning").count();
         let infos = issues.iter().filter(|i| i["severity"] == "info").count();
-        let score = if issues.is_empty() { 10 } else { (10 - errors * 3 - warnings).max(0).min(10) };
+        let score = if issues.is_empty() { 10 } else { (10 - errors * 3 - warnings).clamp(0, 10) };
 
         Ok(json!({
             "issues": issues,

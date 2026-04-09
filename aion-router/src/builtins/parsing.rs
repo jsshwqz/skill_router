@@ -327,7 +327,7 @@ fn extract_hex_string_text(line: &str, out: &mut String) {
                 let hex = &line[pos + 1..pos + 1 + end];
                 let hex_clean: String = hex.chars().filter(|c| c.is_ascii_hexdigit()).collect();
                 // 尝试 UTF-16BE 解码（CID 字体常用）
-                if hex_clean.len() >= 4 && hex_clean.len() % 4 == 0 {
+                if hex_clean.len() >= 4 && hex_clean.len().is_multiple_of(4) {
                     let mut decoded = String::new();
                     for chunk in hex_clean.as_bytes().chunks(4) {
                         if let Ok(s) = std::str::from_utf8(chunk) {

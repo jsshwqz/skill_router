@@ -169,7 +169,7 @@ fn epoch_to_ymd(mut days: u64) -> (u64, u64, u64) {
 }
 
 fn is_leap(y: u64) -> bool {
-    (y % 4 == 0 && y % 100 != 0) || y % 400 == 0
+    (y.is_multiple_of(4) && !y.is_multiple_of(100)) || y.is_multiple_of(400)
 }
 
 fn now_epoch() -> u64 {
@@ -565,7 +565,7 @@ fn handle_execute(ctx: &ExecutionContext) -> Result<Value> {
 fn handle_status(ctx: &ExecutionContext) -> Result<Value> {
     let workspace = ctx.context.get("workspace")
         .and_then(|v| v.as_str())
-        .map(|s| PathBuf::from(s))
+        .map(PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
     ensure_loaded(&workspace);

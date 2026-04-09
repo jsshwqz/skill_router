@@ -13,6 +13,7 @@ use crate::types::ExecutionResponse;
 /// 撤销动作
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[derive(Default)]
 pub enum UndoAction {
     /// 从快照恢复文件
     RestoreFile {
@@ -26,6 +27,7 @@ pub enum UndoAction {
         args: Vec<String>,
     },
     /// 无法撤销（只读操作）
+    #[default]
     None,
 }
 
@@ -82,11 +84,6 @@ fn default_undo() -> UndoAction {
     UndoAction::None
 }
 
-impl Default for UndoAction {
-    fn default() -> Self {
-        UndoAction::None
-    }
-}
 
 /// 有状态会话
 #[derive(Debug, Clone, Serialize, Deserialize)]

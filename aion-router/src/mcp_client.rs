@@ -86,6 +86,12 @@ pub struct McpClientManager {
     servers: HashMap<String, McpServerHandle>,
 }
 
+impl Default for McpClientManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl McpClientManager {
     /// 创建空管理器
     pub fn new() -> Self {

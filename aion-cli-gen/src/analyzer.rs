@@ -199,7 +199,7 @@ impl ToolAnalyzer {
         };
 
         for token in flags_part.split(',') {
-            let token = token.trim().split_whitespace().next().unwrap_or("");
+            let token = token.split_whitespace().next().unwrap_or("");
             if token.starts_with("--") {
                 long = Some(token.to_string());
             } else if token.starts_with('-') {

@@ -61,6 +61,7 @@ impl AuditLog {
     }
 
     /// 创建一条审计记录（便捷构造方法）
+    #[allow(clippy::too_many_arguments)]
     pub fn make_entry(
         policy_name: &str,
         command: &str,

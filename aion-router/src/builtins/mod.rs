@@ -44,6 +44,12 @@ pub struct BuiltinRegistry {
     skills: HashMap<&'static str, Box<dyn BuiltinSkill>>,
 }
 
+impl Default for BuiltinRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BuiltinRegistry {
     /// 创建空注册表
     pub fn new() -> Self {
