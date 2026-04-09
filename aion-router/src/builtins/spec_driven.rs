@@ -185,10 +185,10 @@ fn new_project_id() -> String {
 
 // ── Passthrough 检测 ──────────────────────────────────────────
 
+/// spec_driven 需要真实 AI 执行分析/分解/规划，不受 passthrough 影响。
+/// passthrough 仅适用于单引擎 AI 能力，由 MCP 入口层拦截。
 fn is_passthrough() -> bool {
-    std::env::var("AI_PASSTHROUGH")
-        .map(|v| v == "true" || v == "1")
-        .unwrap_or(false)
+    false
 }
 
 // ── BuiltinSkill 实现 ─────────────────────────────────────────

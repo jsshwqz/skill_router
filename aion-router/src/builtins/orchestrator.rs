@@ -458,9 +458,10 @@ impl OrchestratorConfig {
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(40),
             ),
-            passthrough: std::env::var("AI_PASSTHROUGH")
-                .map(|v| v == "true" || v == "1")
-                .unwrap_or(false),
+            // 多引擎编排始终走真实引擎，不受 AI_PASSTHROUGH 影响。
+            // passthrough 仅适用于单引擎 AI 能力（text_summarize 等），
+            // 由 MCP 入口层 (mcp.rs) 拦截处理。
+            passthrough: false,
         }
     }
 }
