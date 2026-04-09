@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 本地打包：将当前编译结果 + 配置文件打成一个 zip 技能包
-# 用法: bash scripts/package-local.sh [--release]
+# 用法: bash scripts/build/package-local.sh [--release]
 # 输出: dist/aion-forge-v0.4.0-windows-x86_64.zip（当前平台）
 set -euo pipefail
 

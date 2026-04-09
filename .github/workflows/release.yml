@@ -120,7 +120,7 @@ jobs:
 
       - name: Package platform zip archives
         run: |
-          bash scripts/package.sh release-artifacts ${{ github.ref_name }}
+          bash scripts/build/package.sh release-artifacts ${{ github.ref_name }}
 
       - name: Create release
         uses: softprops/action-gh-release@v2

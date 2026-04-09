@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 打包脚本：生成各平台的完整技能包 (.zip)
-# 用法: bash scripts/package.sh <artifacts-dir> <version>
+# 用法: bash scripts/build/package.sh <artifacts-dir> <version>
 # 输出: aion-forge-<platform>.zip（每个平台一个，包含二进制+配置+文档）
 set -euo pipefail
 
