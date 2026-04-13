@@ -31,6 +31,7 @@ use std::sync::Arc;
 
 use axum::routing::{get, post};
 use axum::Router;
+use axum::http::{HeaderValue, Method};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -87,11 +88,10 @@ async fn main() -> anyhow::Result<()> {
         event_bus,
     });
 
-    // CORS policy (permissive for development, tighten in production)
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    // CORS policy: read allowed origins from CORS_ALLOWED_ORIGINS env var.
+    // Use "*" for fully permissive (development only).
+    // Default: localhost dev servers.
+    let cors = build_cors_layer();
 
     // Build router
     let app = Router::new()
@@ -131,4 +131,52 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// Build CORS layer from `CORS_ALLOWED_ORIGINS` environment variable.
+///
+/// - If set to `"*"`: fully permissive (development mode).
+/// - If set to comma-separated origins (e.g. `"https://app.example.com,https://admin.example.com"`):
+///   only those origins are allowed.
+/// - If unset: defaults to `http://localhost:3000,http://localhost:8080`.
+fn build_cors_layer() -> CorsLayer {
+    let raw = std::env::var("CORS_ALLOWED_ORIGINS")
+        .unwrap_or_else(|_| "http://localhost:3000,http://localhost:8080".to_string());
+
+    let base = if raw.trim() == "*" {
+        info!("CORS: permissive mode (all origins allowed)");
+        CorsLayer::new().allow_origin(Any)
+    } else {
+        let origins: Vec<HeaderValue> = raw
+            .split(',')
+            .filter_map(|s| {
+                let s = s.trim();
+                if s.is_empty() {
+                    return None;
+                }
+                match s.parse::<HeaderValue>() {
+                    Ok(v) => Some(v),
+                    Err(e) => {
+                        tracing::warn!("Ignoring invalid CORS origin '{}': {}", s, e);
+                        None
+                    }
+                }
+            })
+            .collect();
+        info!("CORS: allowing {} origin(s)", origins.len());
+        CorsLayer::new().allow_origin(origins)
+    };
+
+    base.allow_methods([
+        Method::GET,
+        Method::POST,
+        Method::PUT,
+        Method::DELETE,
+        Method::OPTIONS,
+    ])
+    .allow_headers([
+        axum::http::header::CONTENT_TYPE,
+        axum::http::header::AUTHORIZATION,
+        axum::http::header::ACCEPT,
+    ])
 }

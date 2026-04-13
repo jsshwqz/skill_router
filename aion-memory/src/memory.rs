@@ -14,10 +14,15 @@ pub struct MemoryEntry {
     pub id: String,
     pub category: MemoryCategory,
     pub content: String,
+    #[serde(default)]
     pub source_session: String,
+    #[serde(default)]
     pub timestamp: u64,
+    #[serde(default = "default_importance")]
     pub importance: u8, // 1-10
+    #[serde(default)]
     pub access_count: u64,
+    #[serde(default)]
     pub last_accessed: u64,
 }
 
@@ -34,9 +39,20 @@ pub enum MemoryCategory {
 /// The persistent memory store, serialized as JSON.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryStore {
+    #[serde(default = "default_version")]
     pub version: String,
+    #[serde(default)]
     pub entries: Vec<MemoryEntry>,
+    #[serde(default)]
     pub last_updated: u64,
+}
+
+fn default_importance() -> u8 {
+    5
+}
+
+fn default_version() -> String {
+    "1.0.0".to_string()
 }
 
 impl MemoryStore {
@@ -131,6 +147,12 @@ impl MemoryManager {
 
     // ── Remember ─────────────────────────────────────────────────────────
 
+    /// Auto-distillation threshold: when entries exceed this count after a write,
+    /// distillation is triggered automatically.
+    const AUTO_DISTILL_THRESHOLD: usize = 150;
+    /// Target entry count after auto-distillation.
+    const AUTO_DISTILL_TARGET: usize = 120;
+
     pub fn remember(
         &self,
         category: MemoryCategory,
@@ -153,6 +175,31 @@ impl MemoryManager {
         store.entries.push(entry);
         store.last_updated = now_epoch();
         self.save(&store)?;
+
+        // Auto-distill when memory exceeds threshold
+        if store.entries.len() > Self::AUTO_DISTILL_THRESHOLD {
+            tracing::info!(
+                "Memory store has {} entries (threshold {}), triggering auto-distillation",
+                store.entries.len(),
+                Self::AUTO_DISTILL_THRESHOLD
+            );
+            match crate::memory_distiller::MemoryDistiller::distill(self, Self::AUTO_DISTILL_TARGET) {
+                Ok(report) => {
+                    tracing::info!(
+                        "Auto-distillation complete: {} → {} entries (dedup: {}, evicted: {}, merged: {})",
+                        report.original_count,
+                        report.final_count,
+                        report.duplicates_removed,
+                        report.low_value_evicted,
+                        report.lessons_merged
+                    );
+                }
+                Err(e) => {
+                    tracing::warn!("Auto-distillation failed (non-fatal): {}", e);
+                }
+            }
+        }
+
         Ok(id)
     }
 

@@ -25,7 +25,7 @@ use anyhow::Result;
 use tracing::{info, warn};
 use aion_types::capability_registry::CapabilityRegistry;
 use aion_types::lifecycle::LifecycleRecommendation;
-use aion_types::types::{ExecutionContext, RouteResult, RouterPaths, SkillDefinition};
+use aion_types::types::{ExecutionContext, ExecutionResponse, RouteResult, RouterPaths, SkillDefinition};
 use aion_types::ai_native::AiNativePayload;
 
 use aion_intel::planner::Planner;
@@ -122,9 +122,10 @@ impl SkillRouter {
             (matching, trusted, registry_store)
         }; // MutexGuard dropped here — safe to .await below
 
+        let learner_ref = learner::learner();
         let selected = if !matching_local.is_empty() {
             // Tier 1: Local Match
-            Matcher::select_best_with_registry(capability, &matching_local, &trusted, Some(&registry_store))?
+            Matcher::select_best_full(capability, &matching_local, &trusted, Some(&registry_store), learner_ref)?
         } else {
             // Tier 2: Cascade Discovery
             info!("Local skill miss — triggering DiscoveryRadar cascade search for '{}'", task);
@@ -144,7 +145,7 @@ impl SkillRouter {
                 )?
             };
 
-            Matcher::select_best_with_registry(capability, &[synthesized], &trusted, Some(&registry_store))?
+            Matcher::select_best_full(capability, &[synthesized], &trusted, Some(&registry_store), learner_ref)?
         };
 
         let exec_ctx = {
@@ -156,8 +157,17 @@ impl SkillRouter {
         let execution = Executor::execute(&selected, &exec_ctx, &self.paths).await?;
 
         let mut registry = RegistryStore::load(&self.paths)?;
-        registry.record_execution(&selected.metadata.name, execution.status == "ok", std::time::SystemTime::now());
+        let success = execution.status == "ok";
+        registry.record_execution(&selected.metadata.name, success, std::time::SystemTime::now());
         registry.save(&self.paths)?;
+
+        // Write execution results to memory system for cross-session learning
+        Self::record_execution_to_memory(
+            &self.paths,
+            capability,
+            &selected.metadata.name,
+            &execution,
+        );
 
         let stats = registry.skill_stats(&selected.metadata.name)
             .ok_or_else(|| anyhow::anyhow!("missing registry stats for {}", selected.metadata.name))?;
@@ -215,6 +225,50 @@ impl SkillRouter {
                             .unwrap_or(preferred.as_str());
                         warn!("AgentFailover: distributed mode not yet available, falling back to capability '{}'", fallback_cap);
                         self.route_inner(&payload.intent, fallback_cap, Some(payload.parameters.clone())).await
+                    }
+                }
+            }
+        }
+    }
+
+    /// Record significant execution results to the memory system for cross-session learning.
+    /// Failures are always recorded (Error category). Successes are only recorded when
+    /// they represent a first successful execution of a capability (Lesson category).
+    fn record_execution_to_memory(
+        paths: &RouterPaths,
+        capability: &str,
+        skill_name: &str,
+        execution: &ExecutionResponse,
+    ) {
+        use aion_memory::memory::{MemoryCategory, MemoryManager};
+
+        let mem = MemoryManager::new(&paths.workspace_root);
+
+        if execution.status != "ok" {
+            // Always record failures — they are valuable lessons
+            let error_msg = execution
+                .error
+                .as_deref()
+                .unwrap_or("unknown error");
+            let content = format!(
+                "Skill '{}' (capability '{}') failed: {}",
+                skill_name, capability, error_msg
+            );
+            if let Err(e) = mem.remember(MemoryCategory::Error, &content, "system", 7) {
+                warn!("Failed to write execution error to memory: {}", e);
+            }
+        } else {
+            // Only record first-time successes for a capability (avoid flooding memory)
+            if let Some(learner) = crate::learner::learner() {
+                let stats = learner.get_stats(capability);
+                // Record lesson only on first successful execution (total == 1 means just recorded)
+                if stats.map(|s| s.ok == 1).unwrap_or(false) {
+                    let content = format!(
+                        "Capability '{}' first successful execution via skill '{}'",
+                        capability, skill_name
+                    );
+                    if let Err(e) = mem.remember(MemoryCategory::Lesson, &content, "system", 4) {
+                        warn!("Failed to write execution lesson to memory: {}", e);
                     }
                 }
             }

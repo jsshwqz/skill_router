@@ -39,6 +39,14 @@ impl BuiltinSkill for McpCall {
             .cloned()
             .unwrap_or_else(|| json!({}));
 
+        // Validate server_name: only alphanumeric, underscore, hyphen allowed
+        if !server_name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+            return Err(anyhow!(
+                "Invalid MCP server name '{}': only [a-zA-Z0-9_-] allowed",
+                server_name
+            ));
+        }
+
         info!("mcp_call: server={}, tool={}", server_name, tool_name);
 
         // 查找 MCP server 配置（从环境变量或 .mcp.json）
