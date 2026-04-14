@@ -14,6 +14,34 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
+/// 熔断器冷却期（秒）：Open 状态经过此时间后进入 HalfOpen
+const CIRCUIT_COOLDOWN_SECS: u64 = 300; // 5 分钟
+
+/// 熔断器状态
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CircuitState {
+    /// 正常运行，允许所有请求
+    Closed,
+    /// 熔断打开，拒绝所有请求（等待冷却期）
+    Open,
+    /// 半开状态，允许少量试探请求（1 次）
+    HalfOpen,
+}
+
+impl Default for CircuitState {
+    fn default() -> Self {
+        CircuitState::Closed
+    }
+}
+
+/// 获取当前时间戳（epoch secs）
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
 /// 单个技能的累积统计
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillStats {
@@ -41,6 +69,12 @@ pub struct SkillStats {
     /// 用户显式差评次数
     #[serde(default)]
     pub thumbs_down: u32,
+    /// 熔断器当前状态
+    #[serde(default)]
+    pub circuit_state: CircuitState,
+    /// 熔断器进入 Open 状态的时间戳（epoch secs）
+    #[serde(default)]
+    pub circuit_opened_at: u64,
 }
 
 impl Default for SkillStats {
@@ -55,6 +89,8 @@ impl Default for SkillStats {
             consecutive_failures: 0,
             thumbs_up: 0,
             thumbs_down: 0,
+            circuit_state: CircuitState::Closed,
+            circuit_opened_at: 0,
         }
     }
 }
@@ -89,18 +125,78 @@ impl SkillStats {
         };
 
         // 熔断惩罚
-        let circuit_penalty = if self.consecutive_failures >= 3 {
-            0.3
-        } else {
-            0.0
+        let circuit_penalty = match self.effective_circuit_state() {
+            CircuitState::Open => 0.3,
+            CircuitState::HalfOpen => 0.15,
+            CircuitState::Closed => 0.0,
         };
 
         (sr - latency_penalty + feedback_bonus - circuit_penalty).clamp(0.0, 1.0)
     }
 
-    /// 是否应该熔断（连续失败 >= 3 次）
+    /// 获取熔断器的有效状态（考虑冷却期自动转换）
+    ///
+    /// 如果当前是 Open 且已过冷却期，返回 HalfOpen（允许试探）。
+    pub fn effective_circuit_state(&self) -> CircuitState {
+        match self.circuit_state {
+            CircuitState::Open => {
+                if self.circuit_opened_at > 0 {
+                    let elapsed = now_secs().saturating_sub(self.circuit_opened_at);
+                    if elapsed >= CIRCUIT_COOLDOWN_SECS {
+                        return CircuitState::HalfOpen;
+                    }
+                }
+                CircuitState::Open
+            }
+            other => other,
+        }
+    }
+
+    /// 是否应该拒绝请求
+    ///
+    /// Closed / HalfOpen 允许请求，Open 拒绝请求。
     pub fn is_circuit_open(&self) -> bool {
-        self.consecutive_failures >= 3
+        self.effective_circuit_state() == CircuitState::Open
+    }
+
+    /// 记录成功，更新熔断器状态
+    fn circuit_on_success(&mut self) {
+        match self.effective_circuit_state() {
+            CircuitState::HalfOpen => {
+                // 试探成功 → 恢复 Closed
+                self.circuit_state = CircuitState::Closed;
+                self.circuit_opened_at = 0;
+                self.consecutive_failures = 0;
+                info!("circuit breaker: HalfOpen → Closed (probe succeeded)");
+            }
+            _ => {
+                self.consecutive_failures = 0;
+                if self.circuit_state != CircuitState::Closed {
+                    self.circuit_state = CircuitState::Closed;
+                    self.circuit_opened_at = 0;
+                }
+            }
+        }
+    }
+
+    /// 记录失败，更新熔断器状态
+    fn circuit_on_failure(&mut self) {
+        self.consecutive_failures += 1;
+        match self.effective_circuit_state() {
+            CircuitState::HalfOpen => {
+                // 试探失败 → 重新 Open 并重置冷却期
+                self.circuit_state = CircuitState::Open;
+                self.circuit_opened_at = now_secs();
+                info!("circuit breaker: HalfOpen → Open (probe failed, cooldown reset)");
+            }
+            CircuitState::Closed if self.consecutive_failures >= 3 => {
+                // 连续失败达到阈值 → 打开熔断器
+                self.circuit_state = CircuitState::Open;
+                self.circuit_opened_at = now_secs();
+                info!("circuit breaker: Closed → Open (consecutive_failures={})", self.consecutive_failures);
+            }
+            _ => {}
+        }
     }
 }
 
@@ -143,10 +239,10 @@ impl SkillLearner {
 
         if success {
             stats.ok += 1;
-            stats.consecutive_failures = 0;
+            stats.circuit_on_success();
         } else {
             stats.fail += 1;
-            stats.consecutive_failures += 1;
+            stats.circuit_on_failure();
         }
 
         // 滑动平均延迟
@@ -159,10 +255,7 @@ impl SkillLearner {
             stats.recent_latencies.remove(0);
         }
 
-        stats.last_used = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+        stats.last_used = now_secs();
 
         drop(data);
 
@@ -230,6 +323,7 @@ impl SkillLearner {
                     "success_rate": format!("{:.1}%", stats.success_rate() * 100.0),
                     "avg_latency_ms": format!("{:.0}", stats.avg_latency_ms),
                     "quality_score": format!("{:.2}", stats.quality_score()),
+                    "circuit_state": format!("{:?}", stats.effective_circuit_state()),
                     "circuit_open": stats.is_circuit_open(),
                     "feedback": format!("+{} -{}", stats.thumbs_up, stats.thumbs_down),
                 })
@@ -345,14 +439,86 @@ mod tests {
 
     #[test]
     fn test_circuit_breaker_open() {
-        let s = make_stats(10, 7, 3, 100.0, 3);
+        let mut s = make_stats(10, 7, 3, 100.0, 3);
+        s.circuit_state = CircuitState::Open;
+        s.circuit_opened_at = now_secs(); // 刚刚打开，还在冷却期内
         assert!(s.is_circuit_open());
     }
 
     #[test]
     fn test_quality_score_circuit_penalty() {
-        let s = make_stats(10, 10, 0, 100.0, 3);
+        let mut s = make_stats(10, 10, 0, 100.0, 3);
+        s.circuit_state = CircuitState::Open;
+        s.circuit_opened_at = now_secs();
         assert!(s.quality_score() < 0.8); // 熔断惩罚
+    }
+
+    #[test]
+    fn test_circuit_halfopen_after_cooldown() {
+        let mut s = make_stats(10, 7, 3, 100.0, 3);
+        s.circuit_state = CircuitState::Open;
+        // 模拟冷却期已过（设置为 6 分钟前）
+        s.circuit_opened_at = now_secs().saturating_sub(360);
+        assert_eq!(s.effective_circuit_state(), CircuitState::HalfOpen);
+        assert!(!s.is_circuit_open()); // HalfOpen 允许试探请求
+    }
+
+    #[test]
+    fn test_circuit_halfopen_probe_success() {
+        let mut s = make_stats(10, 7, 3, 100.0, 3);
+        s.circuit_state = CircuitState::Open;
+        s.circuit_opened_at = now_secs().saturating_sub(360); // 冷却期已过
+        assert_eq!(s.effective_circuit_state(), CircuitState::HalfOpen);
+
+        // 试探成功 → Closed
+        s.circuit_on_success();
+        assert_eq!(s.circuit_state, CircuitState::Closed);
+        assert_eq!(s.circuit_opened_at, 0);
+        assert_eq!(s.consecutive_failures, 0);
+    }
+
+    #[test]
+    fn test_circuit_halfopen_probe_failure() {
+        let mut s = make_stats(10, 7, 3, 100.0, 3);
+        s.circuit_state = CircuitState::Open;
+        s.circuit_opened_at = now_secs().saturating_sub(360); // 冷却期已过
+        assert_eq!(s.effective_circuit_state(), CircuitState::HalfOpen);
+
+        // 试探失败 → 重新 Open，重置冷却期
+        s.circuit_on_failure();
+        assert_eq!(s.circuit_state, CircuitState::Open);
+        assert!(s.circuit_opened_at > 0);
+        // 冷却期刚重置，应该是 Open 而不是 HalfOpen
+        assert_eq!(s.effective_circuit_state(), CircuitState::Open);
+    }
+
+    #[test]
+    fn test_circuit_quality_score_halfopen_penalty() {
+        let mut s = make_stats(100, 100, 0, 500.0, 3);
+        s.circuit_state = CircuitState::Open;
+        s.circuit_opened_at = now_secs().saturating_sub(360); // HalfOpen
+        let score = s.quality_score();
+        // HalfOpen 惩罚 0.15，小于 Open 的 0.3
+        assert!(score > 0.8 && score < 1.0);
+    }
+
+    #[test]
+    fn test_record_triggers_circuit_open() {
+        let tmp = std::env::temp_dir().join("aion_test_circuit_open");
+        let _ = std::fs::remove_dir_all(&tmp);
+        let learner = SkillLearner::load(&tmp);
+
+        // 3 次连续失败应触发熔断
+        learner.record("fragile", false, Duration::from_millis(10));
+        learner.record("fragile", false, Duration::from_millis(10));
+        learner.record("fragile", false, Duration::from_millis(10));
+
+        let stats = learner.get_stats("fragile").unwrap();
+        assert_eq!(stats.circuit_state, CircuitState::Open);
+        assert!(stats.circuit_opened_at > 0);
+        assert!(stats.is_circuit_open());
+
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     #[test]

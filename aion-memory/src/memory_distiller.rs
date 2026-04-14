@@ -53,14 +53,51 @@ impl MemoryDistiller {
     }
 
     /// Decay importance of entries that haven't been accessed recently.
+    ///
+    /// 按类型差异化衰减策略：
+    /// - `TaskProgress`: 完成后 3 天快速衰减（importance 每次 -2）
+    /// - `Error`: 衰减周期延长到 30 天（每次 -1）
+    /// - `Architecture`: importance > 5 时不衰减
+    /// - 其他类型: 保持原策略（7 天，每次 -1）
     fn apply_decay(store: &mut MemoryStore) {
         let now = now_epoch();
+        let three_days = 3 * 24 * 3600;
         let one_week = 7 * 24 * 3600;
+        let thirty_days = 30 * 24 * 3600;
+
         for entry in &mut store.entries {
             let last_touch = entry.last_accessed.max(entry.timestamp);
             let age = now.saturating_sub(last_touch);
-            if age > one_week && entry.access_count == 0 && entry.importance > 1 {
-                entry.importance = entry.importance.saturating_sub(1);
+
+            if entry.access_count > 0 || entry.importance <= 1 {
+                continue;
+            }
+
+            match entry.category {
+                MemoryCategory::TaskProgress => {
+                    // 快速衰减：3 天后每次 -2
+                    if age > three_days {
+                        entry.importance = entry.importance.saturating_sub(2);
+                    }
+                }
+                MemoryCategory::Error => {
+                    // 慢速衰减：30 天后每次 -1
+                    if age > thirty_days {
+                        entry.importance = entry.importance.saturating_sub(1);
+                    }
+                }
+                MemoryCategory::Architecture => {
+                    // 几乎不衰减：importance > 5 时完全不衰减
+                    if entry.importance <= 5 && age > one_week {
+                        entry.importance = entry.importance.saturating_sub(1);
+                    }
+                }
+                _ => {
+                    // 默认策略：7 天后每次 -1
+                    if age > one_week {
+                        entry.importance = entry.importance.saturating_sub(1);
+                    }
+                }
             }
         }
     }

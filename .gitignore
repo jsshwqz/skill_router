@@ -20,9 +20,14 @@ Desktop.ini
 *.swp
 
 # Runtime state (regenerated on startup)
+/\.claude/
+/.claude/settings.local.json
+/.claude/scheduled_tasks.lock
 /work_dir/
 /learning/
 /memory_store.json
+/aion-cli/.git.bak/
+/.skill-router/generated-skills/
 /.skill-router/cli_health.json
 /.skill-router/engine_result_cache.json
 /.skill-router/orchestration_trace.jsonl

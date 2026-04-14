@@ -25,6 +25,9 @@ mod handlers;
 mod telemetry;
 mod ws;
 
+#[cfg(test)]
+mod tests;
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;

@@ -1,0 +1,27 @@
+[package]
+name = "aion-zl"
+version = "0.2.0"
+edition = "2021"
+description = "Dialectical strategy for AI agent orchestration — inspired by github.com/whatwoods/dialectical-vibe-coding"
+
+[[bin]]
+name = "aion-zl"
+path = "src/main.rs"
+
+[dependencies]
+aion-types = { path = "../aion-types" }
+aion-router = { path = "../aion-router" }
+aion-intel = { path = "../aion-intel" }
+aion-memory = { path = "../aion-memory" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+reqwest = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+dotenvy = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { version = "4", features = ["derive"] }

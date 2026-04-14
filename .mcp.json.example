@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "aion-forge": {
+      "command": "aion-cli",
+      "args": ["mcp-server"],
+      "env": {
+        "AI_PASSTHROUGH": "true",
+        "CLAUDE_CLI": "claude",
+        "CODEX_CLI": "codex",
+        "GEMINI_CLI": "gemini",
+        "OPENAI_MODEL": "gpt-5.4",
+        "REQUEST_TIMEOUT": "120",
+        "AI_BASE_URL": "https://open.bigmodel.cn/api/paas/v4",
+        "AI_API_KEY": "your-api-key-here",
+        "AI_MODEL": "glm-4-flash",
+        "SERPAPI_KEY": "your-serpapi-key-here"
+      }
+    }
+  }
+}
