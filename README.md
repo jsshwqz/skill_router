@@ -4,6 +4,11 @@
 
 29+ 种内置能力。一键安装。支持 aionui、Claude、ChatGPT 及任意 HTTP 调用。
 
+## Release Governance / 发版治理
+
+- Release Criteria: [docs/RELEASE_CRITERIA.md](docs/RELEASE_CRITERIA.md)
+- Version Rebaseline Plan: [docs/VERSION_REBASELINE_PLAN.md](docs/VERSION_REBASELINE_PLAN.md)
+
 ---
 
 ## Install / 安装

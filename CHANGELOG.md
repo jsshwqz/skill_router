@@ -1,5 +1,10 @@
 # Changelog
 
+## Release Governance
+
+- 发版门槛规范：`docs/RELEASE_CRITERIA.md`
+- 版本重排方案：`docs/VERSION_REBASELINE_PLAN.md`
+
 ## v0.5.2 (2026-03-29)
 
 ### New Features
