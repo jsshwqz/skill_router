@@ -1,4 +1,4 @@
-//! 新增 builtin 技能：echo, json_query, regex_match, skill_report
+//! 新增 builtin 技能：echo, json_query, regex_match, skill_report, evolution_report
 
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
@@ -406,6 +406,29 @@ impl BuiltinSkill for SkillReport {
     async fn execute(&self, _skill: &SkillDefinition, _context: &ExecutionContext) -> Result<Value> {
         match crate::learner::learner() {
             Some(learner) => Ok(learner.report()),
+            None => Ok(json!({"error": "学习引擎未初始化"})),
+        }
+    }
+}
+
+// ── evolution_report ───────────────────────────────────────────────────────
+
+/// 自进化报告：基于执行事件日志输出来源分布、失败分类、近期失败与建议
+pub struct EvolutionReport;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for EvolutionReport {
+    fn name(&self) -> &'static str { "evolution_report" }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let limit = context
+            .context
+            .get("limit")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(10) as usize;
+
+        match crate::learner::learner() {
+            Some(learner) => Ok(learner.evolution_report(limit)),
             None => Ok(json!({"error": "学习引擎未初始化"})),
         }
     }

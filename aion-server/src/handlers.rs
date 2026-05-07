@@ -16,6 +16,20 @@ use aion_types::ai_native::AiNativePayload;
 use crate::error::{ApiError, AppError};
 use crate::AppState;
 
+fn with_source(context: Option<serde_json::Value>, source: &str) -> Option<serde_json::Value> {
+    let mut ctx = context.unwrap_or_else(|| serde_json::json!({}));
+    if let Some(map) = ctx.as_object_mut() {
+        map.entry("source".to_string())
+            .or_insert_with(|| serde_json::Value::String(source.to_string()));
+        Some(serde_json::Value::Object(map.clone()))
+    } else {
+        Some(serde_json::json!({
+            "source": source,
+            "payload": ctx
+        }))
+    }
+}
+
 // ── Health & Info ────────────────────────────────────────────────────────────
 
 /// `GET /v1/health`
@@ -76,7 +90,8 @@ pub async fn route_task(
         timestamp: chrono::Utc::now().timestamp(),
     });
 
-    match state.router.route_with_context(&req.task, req.context).await {
+    let ctx = with_source(req.context, "http");
+    match state.router.route_with_context(&req.task, ctx).await {
         Ok(route_result) => {
             // 发射 TaskCompleted 事件
             state.event_bus.publish(crate::events::ServerEvent::TaskCompleted {
@@ -139,6 +154,12 @@ pub async fn route_native(
         return Err(ApiError::bad_request(format!(
             "delegation chain exceeds maximum depth of {}", max_depth
         )));
+    }
+
+    let mut payload = payload;
+    if let Some(map) = payload.parameters.as_object_mut() {
+        map.entry("source".to_string())
+            .or_insert_with(|| serde_json::Value::String("http".to_string()));
     }
 
     match state.router.route_native(payload).await {

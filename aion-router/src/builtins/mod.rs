@@ -117,6 +117,7 @@ impl BuiltinRegistry {
         reg.register(Box::new(new_skills::CodeLint));
         reg.register(Box::new(new_skills::CodeTest));
         reg.register(Box::new(new_skills::SkillReport));
+        reg.register(Box::new(new_skills::EvolutionReport));
 
         // MCP 调用
         reg.register(Box::new(mcp::McpCall));

@@ -6,7 +6,8 @@
 //! 数据存储在 `{workspace}/learning/skill_stats.json`。
 
 use std::collections::HashMap;
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::Duration;
@@ -40,6 +41,49 @@ fn now_secs() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+
+/// 是否启用执行遥测（默认启用）
+fn telemetry_enabled() -> bool {
+    match std::env::var("AION_TELEMETRY") {
+        Ok(v) => !matches!(v.to_ascii_lowercase().as_str(), "off" | "0" | "false"),
+        Err(_) => true,
+    }
+}
+
+fn classify_error(error: &str) -> &'static str {
+    let msg = error.to_ascii_lowercase();
+    if msg.contains("timeout") || msg.contains("timed out") {
+        "timeout"
+    } else if msg.contains("auth") || msg.contains("unauthorized") || msg.contains("forbidden") {
+        "auth_error"
+    } else if msg.contains("security") || msg.contains("blocked") || msg.contains("deny") {
+        "safety_block"
+    } else if msg.contains("empty") || msg.contains("no output") {
+        "empty_output"
+    } else if msg.contains("not found") || msg.contains("missing") {
+        "not_found"
+    } else {
+        "runtime_error"
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExecutionEvent {
+    #[serde(default)]
+    pub timestamp: u64,
+    pub capability: String,
+    #[serde(default)]
+    pub skill: String,
+    #[serde(default)]
+    pub source: String,
+    pub success: bool,
+    #[serde(default)]
+    pub duration_ms: u64,
+    #[serde(default)]
+    pub error_class: String,
+    #[serde(default)]
+    pub empty_output: bool,
 }
 
 /// 单个技能的累积统计
@@ -206,6 +250,8 @@ pub struct SkillLearner {
     data: Mutex<HashMap<String, SkillStats>>,
     /// 持久化文件路径
     store_path: PathBuf,
+    /// 执行事件日志（JSONL）
+    events_path: PathBuf,
 }
 
 impl SkillLearner {
@@ -213,6 +259,7 @@ impl SkillLearner {
     /// `learning_dir` 是学习数据目录（如 ~/.aion/learning）
     pub fn load(learning_dir: &Path) -> Self {
         let store_path = learning_dir.join("skill_stats.json");
+        let events_path = learning_dir.join("execution_events.jsonl");
 
         let data = if store_path.exists() {
             match fs::read_to_string(&store_path) {
@@ -226,11 +273,34 @@ impl SkillLearner {
         Self {
             data: Mutex::new(data),
             store_path,
+            events_path,
         }
     }
 
     /// 记录一次执行结果
     pub fn record(&self, capability: &str, success: bool, duration: Duration) {
+        self.record_execution(
+            capability,
+            capability,
+            "unknown",
+            success,
+            duration,
+            None,
+            false,
+        );
+    }
+
+    /// 记录一次完整执行（含来源、错误分类、空输出标记）
+    pub fn record_execution(
+        &self,
+        capability: &str,
+        skill: &str,
+        source: &str,
+        success: bool,
+        duration: Duration,
+        error: Option<&str>,
+        empty_output: bool,
+    ) {
         let mut data = self.data.lock().unwrap_or_else(|e| e.into_inner());
         let stats = data.entry(capability.to_string()).or_default();
 
@@ -261,6 +331,24 @@ impl SkillLearner {
 
         // 异步持久化（不阻塞执行）
         let _ = self.persist();
+
+        if telemetry_enabled() {
+            let event = ExecutionEvent {
+                timestamp: now_secs(),
+                capability: capability.to_string(),
+                skill: skill.to_string(),
+                source: source.to_string(),
+                success,
+                duration_ms: ms,
+                error_class: if success {
+                    String::new()
+                } else {
+                    error.map(classify_error).unwrap_or("runtime_error").to_string()
+                },
+                empty_output,
+            };
+            let _ = self.append_event(&event);
+        }
     }
 
     /// 记录用户反馈
@@ -345,6 +433,85 @@ impl SkillLearner {
                 "circuit_breakers_open": data.values().filter(|s| s.is_circuit_open()).count(),
             },
             "capabilities": entries,
+            "evolution": self.evolution_report(10),
+        })
+    }
+
+    /// 生成自进化报告（基于 execution_events.jsonl）
+    pub fn evolution_report(&self, latest_limit: usize) -> serde_json::Value {
+        let events = self.read_events();
+        if events.is_empty() {
+            return serde_json::json!({
+                "summary": {
+                    "total_events": 0,
+                    "success_rate": "N/A"
+                },
+                "sources": {},
+                "errors": {},
+                "latest_failures": [],
+                "recommendations": ["暂未采集到调用事件，先执行常用能力以建立基线"]
+            });
+        }
+
+        let total = events.len() as u64;
+        let ok = events.iter().filter(|e| e.success).count() as u64;
+
+        let mut source_map: HashMap<String, u64> = HashMap::new();
+        let mut error_map: HashMap<String, u64> = HashMap::new();
+        for e in &events {
+            *source_map.entry(e.source.clone()).or_insert(0) += 1;
+            if !e.success && !e.error_class.is_empty() {
+                *error_map.entry(e.error_class.clone()).or_insert(0) += 1;
+            }
+        }
+
+        let latest_failures: Vec<_> = events
+            .iter()
+            .rev()
+            .filter(|e| !e.success)
+            .take(latest_limit)
+            .map(|e| {
+                serde_json::json!({
+                    "timestamp": e.timestamp,
+                    "capability": e.capability,
+                    "skill": e.skill,
+                    "source": e.source,
+                    "duration_ms": e.duration_ms,
+                    "error_class": e.error_class,
+                    "empty_output": e.empty_output,
+                })
+            })
+            .collect();
+
+        let success_rate = ok as f64 / total as f64;
+        let mut recommendations = Vec::new();
+        if success_rate < 0.8 {
+            recommendations.push("整体成功率偏低，建议先收敛到高成功率能力白名单");
+        }
+        if error_map.get("timeout").copied().unwrap_or(0) > 0 {
+            recommendations.push("timeout 偏多，建议缩短单次任务并降低并发/引擎数量");
+        }
+        if error_map.get("safety_block").copied().unwrap_or(0) > 0 {
+            recommendations.push("存在安全拦截，建议检查输入是否触发高风险规则");
+        }
+        if error_map.get("empty_output").copied().unwrap_or(0) > 0 {
+            recommendations.push("出现空输出，建议增加重试策略或切换稳定模型");
+        }
+        if recommendations.is_empty() {
+            recommendations.push("当前运行稳定，可逐步扩大能力覆盖面");
+        }
+
+        serde_json::json!({
+            "summary": {
+                "total_events": total,
+                "success_events": ok,
+                "failed_events": total.saturating_sub(ok),
+                "success_rate": format!("{:.1}%", success_rate * 100.0),
+            },
+            "sources": source_map,
+            "errors": error_map,
+            "latest_failures": latest_failures,
+            "recommendations": recommendations,
         })
     }
 
@@ -357,6 +524,31 @@ impl SkillLearner {
         let json = serde_json::to_string_pretty(&*data)?;
         fs::write(&self.store_path, json)?;
         Ok(())
+    }
+
+    fn append_event(&self, event: &ExecutionEvent) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(parent) = self.events_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.events_path)?;
+        writeln!(file, "{}", serde_json::to_string(event)?)?;
+        Ok(())
+    }
+
+    fn read_events(&self) -> Vec<ExecutionEvent> {
+        let file = match fs::File::open(&self.events_path) {
+            Ok(file) => file,
+            Err(_) => return Vec::new(),
+        };
+        let reader = BufReader::new(file);
+        reader
+            .lines()
+            .map_while(Result::ok)
+            .filter_map(|line| serde_json::from_str::<ExecutionEvent>(&line).ok())
+            .collect()
     }
 }
 

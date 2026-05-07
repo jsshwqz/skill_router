@@ -794,6 +794,19 @@ impl CapabilityRegistry {
                 }),
                 examples: vec![],
             },
+            CapabilityDefinition {
+                name: "evolution_report".to_string(),
+                description: "Generate self-evolution diagnostics from execution events: source breakdown, error taxonomy, latest failures, and actionable recommendations.".to_string(),
+                inputs: vec!["limit".to_string()],
+                outputs: vec!["summary".to_string(), "errors".to_string(), "recommendations".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "limit": { "type": "integer", "description": "How many recent failures to include (default: 10)" }
+                    }
+                }),
+                examples: vec![],
+            },
             // ── Health Check ─────────────────────────────────────────────────
             CapabilityDefinition {
                 name: "health_check".to_string(),

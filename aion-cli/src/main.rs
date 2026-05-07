@@ -387,9 +387,21 @@ async fn run_task(task: &str, context: Option<String>, paths: RouterPaths, repor
     let router = SkillRouter::new(paths)?;
 
     let extra_context = if let Some(ctx_str) = context {
-        Some(serde_json::from_str(&ctx_str)?)
+        let mut ctx: serde_json::Value = serde_json::from_str(&ctx_str)?;
+        if let Some(map) = ctx.as_object_mut() {
+            map.entry("source".to_string())
+                .or_insert_with(|| serde_json::Value::String("cli".to_string()));
+            Some(serde_json::Value::Object(map.clone()))
+        } else {
+            Some(serde_json::json!({
+                "source": "cli",
+                "payload": ctx
+            }))
+        }
     } else {
-        None
+        Some(serde_json::json!({
+            "source": "cli"
+        }))
     };
 
     let spinner = reporter.routing_spinner();

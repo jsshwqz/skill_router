@@ -31,6 +31,16 @@ fn builtin_registry() -> &'static BuiltinRegistry {
 pub struct Executor;
 
 impl Executor {
+    fn execution_source(context: &ExecutionContext) -> String {
+        if let Some(source) = context.context.get("source").and_then(|v| v.as_str()) {
+            return source.to_string();
+        }
+        if std::env::var("AION_MCP_MODE").ok().as_deref() == Some("1") {
+            return "mcp".to_string();
+        }
+        "cli".to_string()
+    }
+
     pub fn validate_permissions(skill: &SkillDefinition, paths: &RouterPaths) -> Result<()> {
         Security::validate(skill, paths)
     }
@@ -76,9 +86,27 @@ impl Executor {
             duration,
         );
 
-        // 学习引擎：持久化记录执行结果
+        // 学习引擎：持久化记录执行结果（含来源与失败分类）
         if let Some(learner) = crate::learner::learner() {
-            learner.record(&context.capability, success, duration);
+            let source = Self::execution_source(context);
+            let error = response
+                .as_ref()
+                .err()
+                .map(|e| e.to_string());
+            let empty_output = response
+                .as_ref()
+                .ok()
+                .map(|r| r.result.is_null() || r.result == Value::String(String::new()))
+                .unwrap_or(false);
+            learner.record_execution(
+                &context.capability,
+                &skill.metadata.name,
+                &source,
+                success,
+                duration,
+                error.as_deref(),
+                empty_output,
+            );
         }
 
         let response = response?;
