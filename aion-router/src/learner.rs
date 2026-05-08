@@ -86,6 +86,18 @@ pub struct ExecutionEvent {
     pub empty_output: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AutonomyPolicy {
+    #[serde(default)]
+    pub blocked_capabilities: Vec<String>,
+    #[serde(default)]
+    pub preferred_capabilities: Vec<String>,
+    #[serde(default)]
+    pub recent_success_rate: f64,
+    #[serde(default)]
+    pub unresolved_failures: usize,
+}
+
 /// 单个技能的累积统计
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillStats {
@@ -577,6 +589,63 @@ impl SkillLearner {
         })
     }
 
+    /// 生成可执行的自治策略（供路由前注入）。
+    pub fn autonomy_policy(&self) -> AutonomyPolicy {
+        let events = self.read_events();
+        if events.is_empty() {
+            return AutonomyPolicy::default();
+        }
+
+        // 计算 unresolved failures（同 evolution_report 逻辑）
+        let mut seen_success: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut unresolved_failures: Vec<&ExecutionEvent> = Vec::new();
+        for e in events.iter().rev() {
+            if e.success {
+                seen_success.insert(e.capability.clone());
+            } else if !seen_success.contains(&e.capability) {
+                unresolved_failures.push(e);
+            }
+        }
+
+        let blocked_capabilities: std::collections::HashSet<String> = unresolved_failures
+            .iter()
+            .filter(|e| matches!(e.error_class.as_str(), "runtime_error" | "timeout" | "safety_block"))
+            .map(|e| e.capability.clone())
+            .collect();
+
+        // 最近窗口成功率
+        let recent_window = events.iter().rev().take(50).collect::<Vec<_>>();
+        let recent_total = recent_window.len();
+        let recent_ok = recent_window.iter().filter(|e| e.success).count();
+        let recent_success_rate = if recent_total > 0 {
+            recent_ok as f64 / recent_total as f64
+        } else {
+            0.0
+        };
+
+        // 优先能力：高质量且未熔断的前 5 个
+        let data = self.data.lock().unwrap_or_else(|e| e.into_inner());
+        let mut ranked: Vec<(String, f64)> = data
+            .iter()
+            .filter(|(_, s)| !s.is_circuit_open())
+            .map(|(cap, s)| (cap.clone(), s.quality_score()))
+            .collect();
+        ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        let preferred_capabilities = ranked
+            .into_iter()
+            .filter(|(_, score)| *score >= 0.8)
+            .take(5)
+            .map(|(cap, _)| cap)
+            .collect::<Vec<_>>();
+
+        AutonomyPolicy {
+            blocked_capabilities: blocked_capabilities.into_iter().collect(),
+            preferred_capabilities,
+            recent_success_rate,
+            unresolved_failures: unresolved_failures.len(),
+        }
+    }
+
     /// 持久化到磁盘
     fn persist(&self) -> Result<(), Box<dyn std::error::Error>> {
         let data = self.data.lock().unwrap_or_else(|e| e.into_inner());
@@ -812,6 +881,43 @@ mod tests {
         let candidates = vec!["good_cap".to_string(), "bad_cap".to_string()];
         let recommended = learner.recommend(&candidates);
         assert_eq!(recommended.as_deref(), Some("good_cap"));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_autonomy_policy_blocks_unresolved_runtime_error() {
+        let tmp = std::env::temp_dir().join("aion_test_autonomy_policy");
+        let _ = std::fs::remove_dir_all(&tmp);
+        let learner = SkillLearner::load(&tmp);
+
+        // 先失败且未恢复，应进入 blocked_capabilities
+        learner.record_execution(
+            "text_wordcount",
+            "text_wordcount_placeholder",
+            "cli",
+            false,
+            Duration::from_millis(1),
+            Some("context.text is required"),
+            false,
+        );
+
+        let policy = learner.autonomy_policy();
+        assert!(policy.blocked_capabilities.contains(&"text_wordcount".to_string()));
+        assert!(policy.unresolved_failures >= 1);
+
+        // 恢复成功后不应再 block
+        learner.record_execution(
+            "text_wordcount",
+            "text_wordcount_placeholder",
+            "cli",
+            true,
+            Duration::from_millis(1),
+            None,
+            false,
+        );
+        let policy2 = learner.autonomy_policy();
+        assert!(!policy2.blocked_capabilities.contains(&"text_wordcount".to_string()));
 
         let _ = std::fs::remove_dir_all(&tmp);
     }

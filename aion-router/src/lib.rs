@@ -37,6 +37,25 @@ use loader::Loader;
 use matcher::Matcher;
 use registry::RegistryStore;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AutonomyMode {
+    Off,
+    Assist,
+    Auto,
+}
+
+fn autonomy_mode() -> AutonomyMode {
+    match std::env::var("AUTONOMY_MODE")
+        .unwrap_or_else(|_| "assist".to_string())
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "off" | "0" | "false" => AutonomyMode::Off,
+        "auto" | "2" => AutonomyMode::Auto,
+        _ => AutonomyMode::Assist,
+    }
+}
+
 pub struct SkillRouter {
     paths: RouterPaths,
     capability_registry: std::sync::Mutex<CapabilityRegistry>,
@@ -65,6 +84,15 @@ impl SkillRouter {
     }
 
     pub async fn route_with_context(&self, task: &str, context: Option<serde_json::Value>) -> Result<RouteResult> {
+        let mode = autonomy_mode();
+        let policy = learner::learner().map(|l| l.autonomy_policy());
+        let is_blocked = |cap: &str| -> bool {
+            policy
+                .as_ref()
+                .map(|p| p.blocked_capabilities.iter().any(|c| c == cap))
+                .unwrap_or(false)
+        };
+
         // Phase 1: 同步关键词推断（持锁，无 await，立即释放）
         let keyword_result = {
             let reg = self.capability_registry.lock().map_err(|e| anyhow::anyhow!("registry lock poisoned: {}", e))?;
@@ -72,7 +100,19 @@ impl SkillRouter {
         }; // MutexGuard dropped
 
         if let Some(ref cap) = keyword_result {
-            return self.route_inner(task, cap, context).await;
+            if is_blocked(cap) {
+                match mode {
+                    AutonomyMode::Auto => {
+                        warn!("autonomy(auto): capability '{}' blocked by unresolved failures, skipping keyword route", cap);
+                    }
+                    AutonomyMode::Assist => {
+                        warn!("autonomy(assist): capability '{}' is blocked suggestion, but will continue fallback phases", cap);
+                    }
+                    AutonomyMode::Off => return self.route_inner(task, cap, context).await,
+                }
+            } else {
+                return self.route_inner(task, cap, context).await;
+            }
         }
 
         // Phase 2: 异步 AI 推断（锁在独立作用域中，.await 在作用域外）
@@ -83,7 +123,19 @@ impl SkillRouter {
         let ai_result = Planner::infer_via_ai_with_defs(task, &caps_for_ai).await;
 
         if let Some(ref cap) = ai_result {
-            return self.route_inner(task, cap, context).await;
+            if is_blocked(cap) {
+                match mode {
+                    AutonomyMode::Auto => {
+                        warn!("autonomy(auto): capability '{}' blocked by unresolved failures, skipping ai route", cap);
+                    }
+                    AutonomyMode::Assist => {
+                        warn!("autonomy(assist): capability '{}' is blocked suggestion, but will continue fallback phases", cap);
+                    }
+                    AutonomyMode::Off => return self.route_inner(task, cap, context).await,
+                }
+            } else {
+                return self.route_inner(task, cap, context).await;
+            }
         }
 
         // Phase 3: AI 发现新能力（需要 &mut registry 写入——获取锁、做同步写、释放）
@@ -93,7 +145,25 @@ impl SkillRouter {
         };
 
         if let Some(ref cap) = discovered {
+            if is_blocked(cap) && mode == AutonomyMode::Auto {
+                return Err(anyhow::anyhow!(
+                    "autonomy policy blocked discovered capability '{}' due to unresolved failures",
+                    cap
+                ));
+            }
             return self.route_inner(task, cap, context).await;
+        }
+
+        if mode != AutonomyMode::Off {
+            if let Some(p) = policy {
+                if !p.preferred_capabilities.is_empty() {
+                    warn!(
+                        "autonomy: no route inferred for task '{}'; preferred capabilities: {:?}",
+                        task,
+                        p.preferred_capabilities
+                    );
+                }
+            }
         }
 
         Err(anyhow::anyhow!("could not infer capability for task: '{task}'"))
