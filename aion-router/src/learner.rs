@@ -483,14 +483,55 @@ impl SkillLearner {
             })
             .collect();
 
+        // 失败是否“已修复”判定：
+        // 从最新往回扫描，若某能力在失败之后出现成功，则认为历史失败已修复。
+        let mut seen_success: std::collections::HashSet<String> = std::collections::HashSet::new();
+        let mut unresolved_failures: Vec<&ExecutionEvent> = Vec::new();
+        for e in events.iter().rev() {
+            if e.success {
+                seen_success.insert(e.capability.clone());
+            } else if !seen_success.contains(&e.capability) {
+                unresolved_failures.push(e);
+            }
+        }
+        unresolved_failures.reverse();
+        let unresolved_failures_json: Vec<_> = unresolved_failures
+            .iter()
+            .rev()
+            .take(latest_limit)
+            .map(|e| {
+                serde_json::json!({
+                    "timestamp": e.timestamp,
+                    "capability": e.capability,
+                    "skill": e.skill,
+                    "source": e.source,
+                    "duration_ms": e.duration_ms,
+                    "error_class": e.error_class,
+                    "empty_output": e.empty_output,
+                })
+            })
+            .collect();
+
+        // 最近窗口（默认 50 次）指标：更反映当前状态，避免老故障长期污染结论。
+        let recent_window = events.iter().rev().take(50).collect::<Vec<_>>();
+        let recent_total = recent_window.len() as u64;
+        let recent_ok = recent_window.iter().filter(|e| e.success).count() as u64;
+        let recent_failed = recent_total.saturating_sub(recent_ok);
+
         let success_rate = ok as f64 / total as f64;
         let failed = total.saturating_sub(ok);
         let mut recommendations = Vec::new();
-        if failed > 0 {
-            recommendations.push("检测到失败事件，建议优先修复最近失败能力并执行一次回归验证");
+        if !unresolved_failures.is_empty() {
+            recommendations.push("检测到未修复失败，建议优先处理 unresolved_failures 中的能力并回归验证");
+        }
+        if failed > 0 && unresolved_failures.is_empty() {
+            recommendations.push("存在历史失败但已被后续成功覆盖，建议继续观察近期窗口指标");
         }
         if success_rate < 0.95 {
             recommendations.push("整体成功率低于 95%，建议收敛高成功率能力白名单并降低任务复杂度");
+        }
+        if recent_total >= 10 && recent_failed > 0 {
+            recommendations.push("最近 50 次调用中仍有失败，建议优先修复近期重复失败项");
         }
         if success_rate < 0.8 {
             recommendations.push("整体成功率偏低，建议先收敛到高成功率能力白名单");
@@ -520,10 +561,18 @@ impl SkillLearner {
                 "success_events": ok,
                 "failed_events": total.saturating_sub(ok),
                 "success_rate": format!("{:.1}%", success_rate * 100.0),
+                "recent_window": recent_total,
+                "recent_success_rate": if recent_total > 0 {
+                    format!("{:.1}%", recent_ok as f64 / recent_total as f64 * 100.0)
+                } else {
+                    "N/A".to_string()
+                },
+                "unresolved_failures": unresolved_failures.len(),
             },
             "sources": source_map,
             "errors": error_map,
             "latest_failures": latest_failures,
+            "unresolved_failures": unresolved_failures_json,
             "recommendations": recommendations,
         })
     }
