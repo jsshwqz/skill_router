@@ -484,9 +484,22 @@ impl SkillLearner {
             .collect();
 
         let success_rate = ok as f64 / total as f64;
+        let failed = total.saturating_sub(ok);
         let mut recommendations = Vec::new();
+        if failed > 0 {
+            recommendations.push("检测到失败事件，建议优先修复最近失败能力并执行一次回归验证");
+        }
+        if success_rate < 0.95 {
+            recommendations.push("整体成功率低于 95%，建议收敛高成功率能力白名单并降低任务复杂度");
+        }
         if success_rate < 0.8 {
             recommendations.push("整体成功率偏低，建议先收敛到高成功率能力白名单");
+        }
+        if error_map.get("runtime_error").copied().unwrap_or(0) > 0 {
+            recommendations.push("runtime_error 存在，建议补输入兼容与参数校验，减少调用契约错误");
+        }
+        if error_map.get("not_found").copied().unwrap_or(0) > 0 {
+            recommendations.push("not_found 偏多，建议检查能力注册和路由规则覆盖");
         }
         if error_map.get("timeout").copied().unwrap_or(0) > 0 {
             recommendations.push("timeout 偏多，建议缩短单次任务并降低并发/引擎数量");

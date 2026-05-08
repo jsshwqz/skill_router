@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
-use super::{require_text, BuiltinSkill};
+use super::{extract_text, require_text, BuiltinSkill};
 
 // ── text_diff ───────────────────────────────────────────────────────────────
 
@@ -137,7 +137,9 @@ impl BuiltinSkill for TextWordcount {
     fn name(&self) -> &'static str { "text_wordcount" }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
-        let text = require_text(context)?;
+        // 对 text_wordcount 做宽松输入兼容：
+        // 当 context.text 缺失时，自动回退到 input/task，避免自然语言调用直接失败。
+        let text = extract_text(context);
 
         let word_count = text.split_whitespace().count();
         let char_count = text.chars().count();
@@ -148,6 +150,37 @@ impl BuiltinSkill for TextWordcount {
             "char_count": char_count,
             "line_count": line_count
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aion_types::types::SkillMetadata;
+    use aion_types::types::{PermissionSet, SkillSource};
+    use std::path::PathBuf;
+
+    fn dummy_skill() -> SkillDefinition {
+        SkillDefinition {
+            metadata: SkillMetadata {
+                name: "text_wordcount_placeholder".to_string(),
+                version: "0.0.0".to_string(),
+                capabilities: vec!["text_wordcount".to_string()],
+                entrypoint: "builtin:text_wordcount".to_string(),
+                permissions: PermissionSet::default(),
+                instruction: None,
+            },
+            root_dir: PathBuf::new(),
+            source: SkillSource::Local,
+        }
+    }
+
+    #[tokio::test]
+    async fn text_wordcount_fallback_to_task() {
+        let ctx = ExecutionContext::new("hello world", "text_wordcount");
+        let out = TextWordcount.execute(&dummy_skill(), &ctx).await.unwrap();
+        assert_eq!(out["word_count"].as_u64(), Some(2));
+        assert_eq!(out["line_count"].as_u64(), Some(1));
     }
 }
 
