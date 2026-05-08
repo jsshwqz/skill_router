@@ -153,6 +153,7 @@ async fn main() -> Result<()> {
 
     let workdir = cli.workdir.unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
     let paths = RouterPaths::for_workspace(&workdir);
+    aion_router::learner::init_learner(&paths.workspace_root);
     let reporter = ProgressReporter::new(output_mode);
 
     match cli.command {

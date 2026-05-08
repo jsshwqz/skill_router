@@ -73,6 +73,7 @@ async fn main() -> anyhow::Result<()> {
 
     let paths = RouterPaths::for_workspace(&workdir);
     info!("Workspace: {:?}", paths.workspace_root);
+    aion_router::learner::init_learner(&paths.workspace_root);
 
     // Initialize metrics
     let prometheus_handle = telemetry::init_prometheus();
