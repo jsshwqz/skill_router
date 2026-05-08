@@ -5,6 +5,30 @@
 - 发版门槛规范：`docs/RELEASE_CRITERIA.md`
 - 版本重排方案：`docs/VERSION_REBASELINE_PLAN.md`
 
+## v0.3.0 (2026-05-08)
+
+### 用户可见能力
+- 新增 `evolution_report` 能力：可直接输出近期执行来源分布、错误分类、最新失败与改进建议。
+- 新增自治策略前置路由：基于近期未修复失败能力做拦截与偏好提示（`AUTONOMY_MODE=off|assist|auto`）。
+- `text_wordcount` 增强：当 `context.text` 缺失时自动回退 `task/input`，降低调用契约不一致导致的失败。
+
+### 使用示例
+- 命令：`aion-cli --json "evolution report"`
+- 预期：返回 `summary/sources/errors/recommendations/unresolved_failures` 结构化结果。
+
+### 质量指标（对比 v0.2.1）
+- 稳定性（success_rate，10 次 YAML 解析基准）：`0% -> 100%`  
+  - v0.2.1：`skill-router "yaml parse: a: 1"`，10/10 失败（Security Violation）。
+  - v0.3.0：`aion-cli --json "yaml parse: a: 1"`，10/10 成功（`status=ok`）。
+- 时延（P95，同基准）：`9727ms -> 13291ms`（稳定性显著提升，时延后续继续优化）。
+
+### 修复项
+- 修复 learner 未初始化导致 `skill_report/evolution_report` 无法运行的问题（CLI/Server 入口统一初始化）。
+- 增加执行事件自动采集与失败归因落盘，形成可追溯执行证据链。
+
+### 兼容性
+- breaking changes: 无
+
 ## v0.5.2 (2026-03-29)
 
 ### New Features

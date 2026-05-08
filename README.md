@@ -4,6 +4,8 @@
 
 29+ 种内置能力。一键安装。支持 aionui、Claude、ChatGPT 及任意 HTTP 调用。
 
+> 当前公开稳定版本：`v0.3.0`（2026-05-08）
+
 ## Release Governance / 发版治理
 
 - Release Criteria: [docs/RELEASE_CRITERIA.md](docs/RELEASE_CRITERIA.md)
@@ -166,9 +168,14 @@ Edit `~/.aion/.env` (created by installer) or set environment variables:
 
 ```bash
 # AI Backend
-AI_BASE_URL=http://localhost:11434/v1   # Ollama (default)
-AI_API_KEY=                             # API key (if needed)
-AI_MODEL=qwen2.5:7b                    # Model name
+ANTHROPIC_BASE_URL=http://127.0.0.1:8080/v1  # Host platform proxy (preferred)
+ANTHROPIC_API_KEY=host-proxy
+ANTHROPIC_MODEL=deepseek-chat
+
+# Optional OpenAI-compatible fallback
+AI_BASE_URL=https://openrouter.ai/api/v1
+AI_API_KEY=sk-or-v1-...
+AI_MODEL=inclusionai/ling-2.6-1t:free
 
 # Web Search (optional)
 SERPAPI_KEY=                            # serpapi.com API key
@@ -180,6 +187,9 @@ AION_PORT=3000
 # Security
 AI_SECURITY_FAIL_POLICY=closed
 ```
+
+AI provider resolution order:
+host Anthropic proxy (`ANTHROPIC_*` / `AION_HOST_AI_*`) → explicit `AI_*` → `OPENCODE_ZEN_*` → `OPENROUTER_*` → `OPENAI_*` → `GOOGLE_AI_*` → `ZHIPU_AI_*` → local Ollama.
 
 ---
 
