@@ -26,6 +26,8 @@ use tracing::{info, warn};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
+use crate::config::{candidate_ai_endpoints, AiEndpoint, AiProtocol};
+
 use super::BuiltinSkill;
 
 fn safe_truncate(s: &str, max_chars: usize) -> &str {
@@ -848,6 +850,175 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
 
     update_engine_health(&report);
     report
+}
+
+fn http_provider_disabled(label: &str) -> bool {
+    std::env::var("AI_PROVIDERS_DISABLED")
+        .map(|value| value.split(',').any(|item| item.trim() == label))
+        .unwrap_or(false)
+}
+
+async fn call_http_ai_endpoint(client: &reqwest::Client, endpoint: &AiEndpoint, prompt: &str) -> Result<String> {
+    match endpoint.protocol {
+        AiProtocol::OpenAiChat => {
+            let body = json!({
+                "model": endpoint.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "temperature": 0.2
+            });
+            let resp = client
+                .post(endpoint.chat_completions_url())
+                .header("Authorization", format!("Bearer {}", endpoint.api_key))
+                .json(&body)
+                .send()
+                .await?;
+            let status = resp.status();
+            let raw = resp.text().await.unwrap_or_default();
+            let parsed: Value = serde_json::from_str(&raw).unwrap_or_default();
+            if !status.is_success() {
+                let message = parsed["error"]["message"]
+                    .as_str()
+                    .or_else(|| parsed["message"].as_str())
+                    .unwrap_or("HTTP AI backend returned an error");
+                return Err(anyhow::anyhow!("{}", message));
+            }
+            let content = parsed["choices"][0]["message"]["content"]
+                .as_str()
+                .or_else(|| parsed["choices"][0]["delta"]["content"].as_str())
+                .or_else(|| parsed["result"].as_str())
+                .unwrap_or("")
+                .trim()
+                .to_string();
+            validate_http_ai_content(content)
+        }
+        AiProtocol::AnthropicMessages => {
+            let body = json!({
+                "model": endpoint.model,
+                "max_tokens": 4096,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": false
+            });
+            let resp = client
+                .post(endpoint.anthropic_messages_url())
+                .header("x-api-key", &endpoint.api_key)
+                .header("anthropic-version", "2023-06-01")
+                .json(&body)
+                .send()
+                .await?;
+            let status = resp.status();
+            let raw = resp.text().await.unwrap_or_default();
+            let parsed: Value = serde_json::from_str(&raw).unwrap_or_default();
+            if !status.is_success() {
+                let message = parsed["error"]["message"]
+                    .as_str()
+                    .or_else(|| parsed["message"].as_str())
+                    .unwrap_or("HTTP AI backend returned an error");
+                return Err(anyhow::anyhow!("{}", message));
+            }
+            let content = parsed["content"][0]["text"].as_str().unwrap_or("").trim().to_string();
+            validate_http_ai_content(content)
+        }
+    }
+}
+
+fn validate_http_ai_content(content: String) -> Result<String> {
+    if content.is_empty() {
+        return Err(anyhow::anyhow!("HTTP AI backend returned empty content"));
+    }
+    if matches!(content.as_str(), "参数错误" | "Invalid API key.") {
+        return Err(anyhow::anyhow!(
+            "HTTP AI backend returned provider error text: {}",
+            content
+        ));
+    }
+    Ok(content)
+}
+
+async fn call_http_ai_fallback(prompt: &str, phase: &str) -> EngineCallReport {
+    let started = Instant::now();
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(
+            std::env::var("AION_HTTP_AI_TIMEOUT_SECS")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(120),
+        ))
+        .build()
+    {
+        Ok(client) => client,
+        Err(error) => {
+            return EngineCallReport {
+                engine: "http-ai-fallback".to_string(),
+                phase: phase.to_string(),
+                success: false,
+                status_before: "unknown".to_string(),
+                status_after: "down".to_string(),
+                duration_ms: started.elapsed().as_millis() as u64,
+                output: None,
+                output_excerpt: None,
+                error_kind: Some(FailureKind::ProcessError.as_str().to_string()),
+                error_message: Some(error.to_string()),
+                exit_code: None,
+                stdout_excerpt: None,
+                stderr_excerpt: None,
+                skipped: false,
+                cache_hit: false,
+            };
+        }
+    };
+
+    let endpoints = candidate_ai_endpoints()
+        .into_iter()
+        .filter(|endpoint| !http_provider_disabled(&endpoint.label))
+        .collect::<Vec<_>>();
+    let mut failures = Vec::new();
+
+    for endpoint in endpoints {
+        match call_http_ai_endpoint(&client, &endpoint, prompt).await {
+            Ok(output) => {
+                return EngineCallReport {
+                    engine: format!("http:{}", endpoint.label),
+                    phase: phase.to_string(),
+                    success: true,
+                    status_before: "fallback".to_string(),
+                    status_after: "healthy".to_string(),
+                    duration_ms: started.elapsed().as_millis() as u64,
+                    output_excerpt: Some(excerpt(&output, 320)),
+                    output: Some(output),
+                    error_kind: None,
+                    error_message: None,
+                    exit_code: None,
+                    stdout_excerpt: Some(format!("HTTP AI fallback provider '{}' succeeded", endpoint.label)),
+                    stderr_excerpt: None,
+                    skipped: false,
+                    cache_hit: false,
+                };
+            }
+            Err(error) => failures.push(format!("{}: {}", endpoint.label, error)),
+        }
+    }
+
+    EngineCallReport {
+        engine: "http-ai-fallback".to_string(),
+        phase: phase.to_string(),
+        success: false,
+        status_before: "fallback".to_string(),
+        status_after: "down".to_string(),
+        duration_ms: started.elapsed().as_millis() as u64,
+        output: None,
+        output_excerpt: None,
+        error_kind: Some(FailureKind::ProcessError.as_str().to_string()),
+        error_message: Some(if failures.is_empty() {
+            "No HTTP AI fallback endpoints configured".to_string()
+        } else {
+            failures.join(" | ")
+        }),
+        exit_code: None,
+        stdout_excerpt: None,
+        stderr_excerpt: None,
+        skipped: false,
+        cache_hit: false,
+    }
 }
 
 async fn call_engines_parallel(
@@ -1841,12 +2012,12 @@ async fn spawn_orchestration_with_wait(
         if let Some(task) = store.get_mut(&tid) {
             // Detect all-engines-failed: no final_solution and every participant failed
             let all_engines_failed = result.get("final_solution").is_none_or(|v| v.is_null())
-                && result.get("solutions").is_none_or(|v| {
-                    v.as_object().is_none_or(|m| m.is_empty())
-                })
-                && result.get("failures").is_some_and(|v| {
-                    v.as_array().is_some_and(|arr| !arr.is_empty())
-                });
+                && result
+                    .get("solutions")
+                    .is_none_or(|v| v.as_object().is_none_or(|m| m.is_empty()))
+                && result
+                    .get("failures")
+                    .is_some_and(|v| v.as_array().is_some_and(|arr| !arr.is_empty()));
 
             if all_engines_failed {
                 task.status = "error".to_string();
@@ -1875,7 +2046,10 @@ async fn spawn_orchestration_with_wait(
                 });
                 task.finished_at = Some(now_secs());
                 task.result = Some(error_result.clone());
-                info!("async orchestration [{}] {} failed: all engines returned errors", tid, workflow_name);
+                info!(
+                    "async orchestration [{}] {} failed: all engines returned errors",
+                    tid, workflow_name
+                );
                 return error_result;
             }
 
@@ -2138,15 +2312,28 @@ impl BuiltinSkill for AiCodeGenerate {
                         .and_then(Engine::from_label)
                         .unwrap_or(Engine::OpenAi);
 
-                    let code_report = call_engine_detailed(
+                    let mut participants_extra: Vec<EngineCallReport> = Vec::new();
+                    let mut code_report = call_engine_detailed(
                         primary,
                         &format!("请用 {} 实现以下功能：\n{}", language, task),
                         &cfg,
                         "execute",
                     )
                     .await;
+                    if !code_report.success || code_report.output.as_deref().unwrap_or("").trim().is_empty() {
+                        let fallback_prompt = format!(
+                            "你是 Aion Forge 的主实现引擎。请用 {} 实现以下功能，输出可直接落地的实现内容、修改文件建议、测试与验证步骤：\n{}",
+                            language, task
+                        );
+                        let fallback_report = call_http_ai_fallback(&fallback_prompt, "execute_http_fallback").await;
+                        if fallback_report.success {
+                            code_report = fallback_report;
+                        } else {
+                            participants_extra.push(fallback_report);
+                        }
+                    }
                     let generated_code = code_report.output.clone().unwrap_or_default();
-                    let review_report = if generated_code.is_empty() {
+                    let mut review_report = if generated_code.is_empty() {
                         None
                     } else {
                         Some(
@@ -2175,8 +2362,39 @@ impl BuiltinSkill for AiCodeGenerate {
                             .await,
                         )
                     };
+                    if generated_code.is_empty() {
+                        review_report = None;
+                    } else if review_report
+                        .as_ref()
+                        .is_none_or(|report| !report.success || report.output.as_deref().unwrap_or("").trim().is_empty())
+                    {
+                        let fallback_review_prompt = review_execution_prompt(
+                            task,
+                            &Proposal {
+                                engine: code_report.engine.clone(),
+                                plan_id: code_report.engine.clone(),
+                                target_path: "code_refactor".to_string(),
+                                primary_engine: code_report.engine.clone(),
+                                review_engines: vec!["http-ai-fallback".to_string()],
+                                execution_mode: "primary_plus_http_review".to_string(),
+                                key_risks: vec!["实现正确性".to_string()],
+                                execution_order: vec!["execute".to_string(), "review".to_string()],
+                                verify_method: "通过代码审查与测试验证".to_string(),
+                                summary: "HTTP fallback 代码生成后复审".to_string(),
+                                raw: String::new(),
+                            },
+                            &generated_code,
+                        );
+                        let fallback_review = call_http_ai_fallback(&fallback_review_prompt, "review_http_fallback").await;
+                        if fallback_review.success {
+                            review_report = Some(fallback_review);
+                        } else {
+                            participants_extra.push(fallback_review);
+                        }
+                    }
 
                     let mut participants = vec![code_report.clone()];
+                    participants.extend(participants_extra);
                     if let Some(review_report) = &review_report {
                         participants.push(review_report.clone());
                     }
@@ -2502,5 +2720,11 @@ SUMMARY: 先改再审\n";
     fn classifies_model_not_found() {
         let kind = classify_failure("ModelNotFoundError: gemini-999", "");
         assert_eq!(kind.as_str(), "model_not_found");
+    }
+
+    #[test]
+    fn rejects_provider_error_text_from_http_fallback() {
+        let result = validate_http_ai_content("参数错误".to_string());
+        assert!(result.is_err());
     }
 }
