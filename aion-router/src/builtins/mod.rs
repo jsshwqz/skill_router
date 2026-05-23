@@ -170,6 +170,11 @@ impl BuiltinRegistry {
         // 郝匠代码质量门禁
         reg.register(Box::new(haoojiang::HaoJiangReview));
 
+        // 朝堂颗粒协作工具
+        reg.register(Box::new(orchestrator::Brainstorm));
+        reg.register(Box::new(orchestrator::Compare));
+        reg.register(Box::new(orchestrator::Discuss));
+
         reg
     }
 }

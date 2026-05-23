@@ -2713,6 +2713,95 @@ impl BuiltinSkill for AiCrossReview {
     }
 }
 
+// ── 朝堂 Granular Collaboration Tools ──────────────────────────────────────────
+
+pub struct Brainstorm;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for Brainstorm {
+    fn name(&self) -> &'static str { "brainstorm" }
+
+    async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
+        let cfg = OrchestratorConfig::from_env();
+        let topic = ctx.context["topic"].as_str().unwrap_or(&ctx.task).to_string();
+        let count = ctx.context.get("count").and_then(|v| v.as_u64()).unwrap_or(5);
+
+        if cfg.passthrough {
+            return Ok(json!({"type":"passthrough","instruction":"多引擎头脑风暴","input":topic,"workflow":"brainstorm"}));
+        }
+
+        let prompt = format!(
+            "你是一个创意生成器。围绕以下主题提出 {} 个方案。每个方案用 1-2 句描述。\n只列出方案，不要额外说明。\n\n<topic>{}</topic>",
+            count, topic
+        );
+        let engines = vec![Engine::Claude, Engine::OpenAi, Engine::Gemini];
+        let tasks: Vec<_> = engines.iter().map(|e| (*e, prompt.clone())).collect();
+        let reports = call_engines_parallel(&tasks, &cfg, "brainstorm").await;
+        Ok(json!({
+            "ideas": reports.iter().filter_map(|r| r.output.as_ref().map(|o| (r.engine.clone(), o))).collect::<BTreeMap<_,_>>(),
+            "participants_status": reports,
+        }))
+    }
+}
+
+pub struct Compare;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for Compare {
+    fn name(&self) -> &'static str { "compare" }
+
+    async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
+        let cfg = OrchestratorConfig::from_env();
+        let options = ctx.context["options"].as_array()
+            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("\n"))
+            .unwrap_or_else(|| ctx.task.clone());
+
+        if cfg.passthrough {
+            return Ok(json!({"type":"passthrough","instruction":"多引擎比较各方案优劣","input":options,"workflow":"compare"}));
+        }
+
+        let prompt = format!(
+            "你是一个方案比较器。比较以下选项，按正确性、成本、风险、可维护性四个维度评分。\n输出表格或结构化文本。\n\n<options>\n{}\n</options>",
+            options
+        );
+        let engines = vec![Engine::Claude, Engine::OpenAi, Engine::Gemini];
+        let tasks: Vec<_> = engines.iter().map(|e| (*e, prompt.clone())).collect();
+        let reports = call_engines_parallel(&tasks, &cfg, "compare").await;
+        Ok(json!({
+            "comparisons": reports.iter().filter_map(|r| r.output.as_ref().map(|o| (r.engine.clone(), o))).collect::<BTreeMap<_,_>>(),
+            "participants_status": reports,
+        }))
+    }
+}
+
+pub struct Discuss;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for Discuss {
+    fn name(&self) -> &'static str { "discuss" }
+
+    async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
+        let cfg = OrchestratorConfig::from_env();
+        let topic = ctx.context["topic"].as_str().unwrap_or(&ctx.task).to_string();
+
+        if cfg.passthrough {
+            return Ok(json!({"type":"passthrough","instruction":"多引擎讨论复杂问题","input":topic,"workflow":"discuss"}));
+        }
+
+        let prompt = format!(
+            "你是讨论参与者。针对以下议题给出你的分析和观点。注意其他参与者会有不同视角，\n先给出独立分析，再指出你与其他视角可能的共识或分歧。\n\n<topic>{}</topic>",
+            topic
+        );
+        let engines = vec![Engine::Claude, Engine::OpenAi, Engine::Gemini];
+        let tasks: Vec<_> = engines.iter().map(|e| (*e, prompt.clone())).collect();
+        let reports = call_engines_parallel(&tasks, &cfg, "discuss").await;
+        Ok(json!({
+            "discussions": reports.iter().filter_map(|r| r.output.as_ref().map(|o| (r.engine.clone(), o))).collect::<BTreeMap<_,_>>(),
+            "participants_status": reports,
+        }))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

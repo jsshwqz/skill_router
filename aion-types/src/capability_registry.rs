@@ -942,6 +942,31 @@ impl CapabilityRegistry {
                 parameters_schema: serde_json::json!({"type":"object","properties":{"code":{"type":"string"},"language":{"type":"string"}},"required":["code"]}),
                 examples: vec![],
             },
+            // ── 朝堂颗粒协作工具 ──────────────────────────────────────────────
+            CapabilityDefinition {
+                name: "brainstorm".to_string(),
+                description: "Multi-engine brainstorm: generate diverse ideas around a topic.".to_string(),
+                inputs: vec!["topic".to_string(), "count".to_string()],
+                outputs: vec!["ideas".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"topic":{"type":"string"},"count":{"type":"integer"}},"required":["topic"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "compare".to_string(),
+                description: "Multi-engine comparison: score options across correctness, cost, risk, maintainability.".to_string(),
+                inputs: vec!["options".to_string()],
+                outputs: vec!["comparisons".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"options":{"type":"array","items":{"type":"string"}}},"required":["options"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "discuss".to_string(),
+                description: "Multi-engine discussion: independent analysis then consensus/disagreement detection.".to_string(),
+                inputs: vec!["topic".to_string()],
+                outputs: vec!["discussions".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"topic":{"type":"string"}},"required":["topic"]}),
+                examples: vec![],
+            },
         ] {
             registry
                 .definitions
