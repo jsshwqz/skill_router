@@ -98,10 +98,27 @@ impl SandboxedExecutor {
             },
         };
 
-        // 5. 构建进程
-        let mut process = tokio::process::Command::new(&cmd.command);
+        // 5. 可选 RTK 包装（token 优化）
+        let rtk_enabled = std::env::var("FORGE_RTK_ENABLED")
+            .map(|v| v == "true" || v == "1")
+            .unwrap_or(false);
+        let rtk_auto = std::env::var("AION_MCP_MODE")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let use_rtk = rtk_enabled || rtk_auto;
+
+        let (final_cmd, final_args): (String, Vec<String>) = if use_rtk {
+            let mut args = vec![cmd.command.clone()];
+            args.extend(cmd.args.iter().cloned());
+            ("rtk".to_string(), args)
+        } else {
+            (cmd.command.clone(), cmd.args.clone())
+        };
+
+        // 6. 构建进程
+        let mut process = tokio::process::Command::new(&final_cmd);
         process
-            .args(&cmd.args)
+            .args(&final_args)
             .current_dir(&work_dir)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
@@ -124,7 +141,7 @@ impl SandboxedExecutor {
             process.env(k, v);
         }
 
-        // 6. 执行并计时
+        // 7. 执行并计时
         let start = Instant::now();
         tracing::info!(
             command = %cmd.command,
