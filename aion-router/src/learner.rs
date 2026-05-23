@@ -16,6 +16,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tracing::info;
 
+use aion_intel::synth::Synthesizer;
+use aion_types::types::RouterPaths;
+
 /// 熔断器冷却期（秒）：Open 状态经过此时间后进入 HalfOpen
 const CIRCUIT_COOLDOWN_SECS: u64 = 300; // 5 分钟
 
@@ -282,12 +285,15 @@ pub struct SkillLearner {
     store_path: PathBuf,
     /// 执行事件日志（JSONL）
     events_path: PathBuf,
+    /// 工作区根目录（用于生成 evolved 技能）
+    workspace_root: PathBuf,
 }
 
 impl SkillLearner {
     /// 从磁盘加载或创建新的学习引擎
     /// `learning_dir` 是学习数据目录（如 ~/.aion/learning）
-    pub fn load(learning_dir: &Path) -> Self {
+    /// `workspace_root` 是项目根目录（用于生成 evolved 技能）
+    pub fn load(learning_dir: &Path, workspace_root: &Path) -> Self {
         let store_path = learning_dir.join("skill_stats.json");
         let events_path = learning_dir.join("execution_events.jsonl");
 
@@ -304,6 +310,7 @@ impl SkillLearner {
             data: Mutex::new(data),
             store_path,
             events_path,
+            workspace_root: workspace_root.to_path_buf(),
         }
     }
 
@@ -350,8 +357,9 @@ impl SkillLearner {
             if consec == threshold {
                 let store = self.store_path.clone();
                 let events = self.events_path.clone();
+                let ws = self.workspace_root.clone();
                 let _ = std::thread::spawn(move || {
-                    Self::auto_evolve_if_needed(&store, &events, &cap, consec);
+                    Self::auto_evolve_if_needed(&store, &events, &ws, &cap, consec);
                 });
             }
         }
@@ -864,9 +872,8 @@ impl SkillLearner {
             .collect()
     }
 
-    /// 自动进化触发：当连续失败达到阈值时记录 evolve 事件
-    /// 注意：此为静态方法，不持有 &self 引用（在 spawn 中调用）
-    fn auto_evolve_if_needed(_store_path: &Path, events_path: &Path, capability: &str, consecutive_failures: u32) {
+    /// 自动进化触发：当连续失败达到阈值时记录 evolve 事件并生成 evolved 技能
+    fn auto_evolve_if_needed(_store_path: &Path, events_path: &Path, workspace_root: &Path, capability: &str, consecutive_failures: u32) {
         // 读取最近的失败事件以获取错误原因
         let events = Self::read_events_from(events_path);
         let failures: Vec<&str> = events
@@ -919,6 +926,13 @@ impl SkillLearner {
             "auto_evolve: capability={} consecutive_failures={} errors=[{}]",
             capability, consecutive_failures, error_summary
         );
+
+        // 生成 evolved 技能
+        let paths = RouterPaths::for_workspace(workspace_root);
+        let _ = Synthesizer::evolve_with_failures(
+            &paths, capability, capability, "",
+            &format!("consecutive_failures={} error_types=[{}]", consecutive_failures, error_summary),
+        );
     }
 
     fn read_events_from(path: &Path) -> Vec<ExecutionEvent> {
@@ -958,7 +972,7 @@ pub fn init_learner(workspace: &Path) {
             })
             .unwrap_or_else(|_| workspace.join("learning"));
 
-        let learner = SkillLearner::load(&effective_path);
+        let learner = SkillLearner::load(&effective_path, workspace);
         info!("SkillLearner initialized at {:?}, tracking {} capabilities",
             effective_path, learner.all_stats().len());
         learner
@@ -1087,7 +1101,7 @@ mod tests {
     fn test_record_triggers_circuit_open() {
         let tmp = std::env::temp_dir().join("aion_test_circuit_open");
         let _ = std::fs::remove_dir_all(&tmp);
-        let learner = SkillLearner::load(&tmp);
+        let learner = SkillLearner::load(&tmp, &tmp);
 
         // 3 次连续失败应触发熔断
         learner.record("fragile", false, Duration::from_millis(10));
@@ -1106,7 +1120,7 @@ mod tests {
     fn test_learner_record_and_recall() {
         let tmp = std::env::temp_dir().join("aion_test_learner");
         let _ = std::fs::remove_dir_all(&tmp);
-        let learner = SkillLearner::load(&tmp);
+        let learner = SkillLearner::load(&tmp, &tmp);
 
         learner.record("test_cap", true, Duration::from_millis(50));
         learner.record("test_cap", true, Duration::from_millis(100));
@@ -1125,7 +1139,7 @@ mod tests {
     fn test_learner_recommend() {
         let tmp = std::env::temp_dir().join("aion_test_recommend");
         let _ = std::fs::remove_dir_all(&tmp);
-        let learner = SkillLearner::load(&tmp);
+        let learner = SkillLearner::load(&tmp, &tmp);
 
         // good_cap: 100% 成功
         for _ in 0..5 {
@@ -1147,7 +1161,7 @@ mod tests {
     fn test_autonomy_policy_blocks_unresolved_runtime_error() {
         let tmp = std::env::temp_dir().join("aion_test_autonomy_policy");
         let _ = std::fs::remove_dir_all(&tmp);
-        let learner = SkillLearner::load(&tmp);
+        let learner = SkillLearner::load(&tmp, &tmp);
 
         // 先失败且未恢复，应进入 blocked_capabilities
         learner.record_execution(
@@ -1185,7 +1199,7 @@ mod tests {
         let tmp = std::env::temp_dir().join("aion_test_auto_evolve");
         let _ = std::fs::remove_dir_all(&tmp);
         // 记录：3 次失败 → 应触发 auto_evolve 事件
-        let learner = SkillLearner::load(&tmp);
+        let learner = SkillLearner::load(&tmp, &tmp);
         for i in 0..3 {
             learner.record_execution(
                 "test_fragile", "test_skill", "test",
@@ -1198,6 +1212,8 @@ mod tests {
         // 检查 stats
         let stats = learner.get_stats("test_fragile").unwrap();
         assert!(stats.circuit_state == CircuitState::Open, "circuit should be open after 3 failures");
+        // 等待异步线程写入 evolve 事件
+        std::thread::sleep(std::time::Duration::from_millis(200));
         // 检查 evolve 事件
         let events = SkillLearner::read_events_from(&learner.events_path);
         let evolve_events: Vec<&ExecutionEvent> = events.iter().filter(|e| e.event_type == "evolve").collect();

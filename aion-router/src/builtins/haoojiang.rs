@@ -56,10 +56,45 @@ impl BuiltinSkill for HaoJiangReview {
             }));
         }
 
-        // Step 2: AI review via HTTP fallback
+        // Step 2: Static analysis pre-check (language-agnostic + Rust-specific)
+        let mut lint_issues: Vec<Value> = Vec::new();
+        for (line_no, line) in code.lines().enumerate() {
+            let line = line.trim();
+            let ln = line_no + 1;
+            if line.contains("unwrap()") && !line.trim_start().starts_with("//") {
+                lint_issues.push(json!({"severity":"major","category":"safety","line":ln,
+                    "description":"unchecked unwrap() — may panic","suggestion":"Use match or ? operator"}));
+            }
+            if line.contains("println!") && !line.trim_start().starts_with("//") {
+                lint_issues.push(json!({"severity":"minor","category":"style","line":ln,
+                    "description":"println! in library code — use tracing instead","suggestion":"Use tracing::info!/warn!"}));
+            }
+            if line.to_uppercase().contains("TODO") || line.to_uppercase().contains("FIXME") {
+                lint_issues.push(json!({"severity":"minor","category":"maintainability","line":ln,
+                    "description":"Incomplete code marker found","suggestion":"Resolve before merging"}));
+            }
+            if line.contains("unsafe") && !line.trim_start().starts_with("//") {
+                lint_issues.push(json!({"severity":"critical","category":"safety","line":ln,
+                    "description":"unsafe block — requires justification","suggestion":"Add safety comment explaining why"}));
+            }
+            if line.contains("dbg!") && !line.trim_start().starts_with("//") {
+                lint_issues.push(json!({"severity":"minor","category":"correctness","line":ln,
+                    "description":"dbg! left in code — will print in production","suggestion":"Replace with tracing::debug!"}));
+            }
+        }
+        // Limit to first 20 issues to keep prompt manageable
+        lint_issues.truncate(20);
+
+        // Step 3: AI review via HTTP fallback, with lint results as context
+        let lint_context = if lint_issues.is_empty() {
+            String::new()
+        } else {
+            format!("\n\nStatic analysis pre-check issues:\n{}", serde_json::to_string_pretty(&lint_issues).unwrap_or_default())
+        };
+
         let prompt = format!(
-            "{}Language: {}\n\n<code>\n{}\n</code>",
-            SYSTEM_REVIEW, language, code
+            "{}Language: {}{}\n\n<code>\n{}\n</code>",
+            SYSTEM_REVIEW, language, lint_context, code
         );
         let report = call_http_ai_fallback(&prompt, "haoojiang_review").await;
 

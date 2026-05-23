@@ -51,6 +51,19 @@ impl Executor {
         paths: &RouterPaths,
     ) -> Result<ExecutionResponse> {
         Self::validate_permissions(skill, paths)?;
+
+        // 可选前置治理（AION_EVOLVER_GOVERNANCE=true 时启用）
+        if std::env::var("AION_EVOLVER_GOVERNANCE").map(|v| v == "true").unwrap_or(false) {
+            if let Some(governance) = Self::run_governance(context).await? {
+                return Ok(ExecutionResponse {
+                    status: "governance_blocked".into(),
+                    result: governance,
+                    artifacts: serde_json::json!({}),
+                    error: Some("task requires clarification before execution".into()),
+                });
+            }
+        }
+
         paths.ensure_base_dirs()?;
 
         if let Verdict::Deny(reason) =
@@ -321,4 +334,46 @@ impl Executor {
         writeln!(file, "{}", serde_json::to_string(&line)?)?;
         Ok(())
     }
+}
+
+// ── 前置治理（可选）─────────────────────────────────────────────────────────
+impl Executor {
+    /// 当 AION_EVOLVER_GOVERNANCE=true 时，对模糊/高风险任务返回治理建议
+    async fn run_governance(context: &ExecutionContext) -> Result<Option<Value>> {
+        use crate::builtins::orchestrator::call_http_ai_fallback;
+
+        let task = ctx_get_task(context);
+        let prompt = format!(
+            "You are a governance analyst. Classify the task and output JSON only:\n\
+             {{\"clarity\":\"clear|vague|ambiguous\",\"risk\":\"low|medium|high\",\
+             \"critical_assumptions\":[],\"rationale\":\"\"}}\n\n<task>{}</task>",
+            task
+        );
+
+        let report = call_http_ai_fallback(&prompt, "governance").await;
+        let output = match &report.output {
+            Some(o) => o,
+            None => return Ok(None),
+        };
+
+        let parsed: Value = serde_json::from_str(output).unwrap_or_default();
+        let clarity = parsed["clarity"].as_str().unwrap_or("clear");
+        let risk = parsed["risk"].as_str().unwrap_or("low");
+
+        if clarity != "clear" || risk == "high" {
+            Ok(Some(json!({
+                "governance": parsed,
+                "recommendation": "Task needs clarification before execution",
+            })))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+fn ctx_get_task(context: &ExecutionContext) -> &str {
+    context.context["task"]
+        .as_str()
+        .or_else(|| context.context["text"].as_str())
+        .unwrap_or(&context.task)
 }

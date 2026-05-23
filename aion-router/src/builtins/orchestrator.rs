@@ -494,7 +494,7 @@ impl FailureKind {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub(super) struct EngineCallReport {
+pub(crate) struct EngineCallReport {
     pub engine: String,
     pub phase: String,
     pub success: bool,
@@ -935,7 +935,7 @@ fn validate_http_ai_content(content: String) -> Result<String> {
     Ok(content)
 }
 
-pub(super) async fn call_http_ai_fallback(prompt: &str, phase: &str) -> EngineCallReport {
+pub(crate) async fn call_http_ai_fallback(prompt: &str, phase: &str) -> EngineCallReport {
     let started = Instant::now();
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(

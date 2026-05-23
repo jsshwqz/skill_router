@@ -105,7 +105,12 @@ impl SandboxedExecutor {
         let rtk_auto = std::env::var("AION_MCP_MODE")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
-        let use_rtk = rtk_enabled || rtk_auto;
+        let rtk_available = rtk_binary_in_path();
+        let use_rtk = (rtk_enabled || rtk_auto) && rtk_available;
+
+        if (rtk_enabled || rtk_auto) && !rtk_available {
+            tracing::warn!("RTK requested but not found in PATH — falling back to direct execution");
+        }
 
         let (final_cmd, final_args): (String, Vec<String>) = if use_rtk {
             let mut args = vec![cmd.command.clone()];
@@ -227,6 +232,18 @@ impl SandboxedExecutor {
             }
         }
     }
+}
+
+/// 检查 `rtk` 是否在 PATH 中可用
+fn rtk_binary_in_path() -> bool {
+    let which = if cfg!(windows) { "where" } else { "which" };
+    std::process::Command::new(which)
+        .arg("rtk")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
