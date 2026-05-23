@@ -494,18 +494,18 @@ impl FailureKind {
 }
 
 #[derive(Debug, Clone, Serialize)]
-struct EngineCallReport {
-    engine: String,
-    phase: String,
-    success: bool,
+pub(super) struct EngineCallReport {
+    pub engine: String,
+    pub phase: String,
+    pub success: bool,
     status_before: String,
     status_after: String,
-    duration_ms: u64,
+    pub duration_ms: u64,
     #[serde(skip_serializing)]
-    output: Option<String>,
-    output_excerpt: Option<String>,
-    error_kind: Option<String>,
-    error_message: Option<String>,
+    pub output: Option<String>,
+    pub output_excerpt: Option<String>,
+    pub error_kind: Option<String>,
+    pub error_message: Option<String>,
     exit_code: Option<i32>,
     stdout_excerpt: Option<String>,
     stderr_excerpt: Option<String>,
@@ -935,7 +935,7 @@ fn validate_http_ai_content(content: String) -> Result<String> {
     Ok(content)
 }
 
-async fn call_http_ai_fallback(prompt: &str, phase: &str) -> EngineCallReport {
+pub(super) async fn call_http_ai_fallback(prompt: &str, phase: &str) -> EngineCallReport {
     let started = Instant::now();
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(

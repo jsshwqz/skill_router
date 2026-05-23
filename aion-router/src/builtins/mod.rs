@@ -17,6 +17,7 @@ pub mod orchestrator;
 pub mod spec_driven;
 pub mod task_router;
 pub mod health_check;
+pub mod zl;
 
 use std::collections::HashMap;
 
@@ -118,6 +119,9 @@ impl BuiltinRegistry {
         reg.register(Box::new(new_skills::CodeTest));
         reg.register(Box::new(new_skills::SkillReport));
         reg.register(Box::new(new_skills::EvolutionReport));
+        reg.register(Box::new(new_skills::SessionReport));
+        reg.register(Box::new(new_skills::RecordChange));
+        reg.register(Box::new(new_skills::RecordDecision));
 
         // MCP 调用
         reg.register(Box::new(mcp::McpCall));
@@ -147,6 +151,16 @@ impl BuiltinRegistry {
 
         // 健康检查
         reg.register(Box::new(health_check::HealthCheck));
+
+        // 辩证/战略工具 (aion-zl 作为 Builtin)
+        reg.register(Box::new(zl::ZLStrategicPlan));
+        reg.register(Box::new(zl::ZLTaskDialectic));
+        reg.register(Box::new(zl::ZLContradictionAnalyze));
+        reg.register(Box::new(zl::ZLCompileContract));
+        reg.register(Box::new(zl::ZLCheckSufficiency));
+        reg.register(Box::new(zl::ZLVerifyResult));
+        reg.register(Box::new(zl::ZLDetectDrift));
+        reg.register(Box::new(zl::ZLDialecticalRetry));
 
         reg
     }

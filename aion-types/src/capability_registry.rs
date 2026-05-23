@@ -807,6 +807,44 @@ impl CapabilityRegistry {
                 }),
                 examples: vec![],
             },
+            CapabilityDefinition {
+                name: "session_report".to_string(),
+                description: "Generate a session summary report: code changes, decisions made, execution stats, and recommendations.".to_string(),
+                inputs: vec![],
+                outputs: vec!["changes".to_string(), "decisions".to_string(), "execution_stats".to_string(), "recommendations".to_string()],
+                parameters_schema: serde_json::json!({ "type": "object", "properties": {} }),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "record_change".to_string(),
+                description: "Record a code change event for the self-evolution protocol. kind: feature|fix|refactor|prompt|doc|config|test.".to_string(),
+                inputs: vec!["kind".to_string(), "file".to_string(), "summary".to_string()],
+                outputs: vec!["status".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "kind": { "type": "string", "description": "feature|fix|refactor|prompt|doc|config|test" },
+                        "file": { "type": "string", "description": "File path changed" },
+                        "summary": { "type": "string", "description": "Brief description of the change" }
+                    }
+                }),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "record_decision".to_string(),
+                description: "Record an architecture/design decision for the self-evolution protocol.".to_string(),
+                inputs: vec!["context".to_string(), "choice".to_string(), "rationale".to_string()],
+                outputs: vec!["status".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "context": { "type": "string", "description": "Decision context / topic" },
+                        "choice": { "type": "string", "description": "What was chosen" },
+                        "rationale": { "type": "string", "description": "Why this choice" }
+                    }
+                }),
+                examples: vec![],
+            },
             // ── Health Check ─────────────────────────────────────────────────
             CapabilityDefinition {
                 name: "health_check".to_string(),
@@ -819,6 +857,71 @@ impl CapabilityRegistry {
                         "workspace": { "type": "string", "description": "Workspace root path (optional, defaults to current directory)" }
                     }
                 }),
+                examples: vec![],
+            },
+            // ── 辩证/战略工具 (aion-zl) ────────────────────────────────────────
+            CapabilityDefinition {
+                name: "strategic_plan".to_string(),
+                description: "Three-phase strategic plan (defense/stalemate/offense) mapping to aion-forge capabilities.".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["current_phase".to_string(), "steps".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "task_dialectic".to_string(),
+                description: "Execute thesis-antithesis-synthesis dialectical analysis. Three AI passes: propose, critique, synthesize.".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["thesis".to_string(), "antithesis".to_string(), "synthesis".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "contradiction_analyze".to_string(),
+                description: "Identify principal/secondary contradictions. Find bottlenecks, recommend resource allocation.".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["principal_contradiction".to_string(), "recommended_focus".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "compile_contract".to_string(),
+                description: "Compile a natural language task into a structured contract defining acceptance criteria, expected outputs, and verification method.".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["task_summary".to_string(), "acceptance_criteria".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "check_sufficiency".to_string(),
+                description: "P0 Sensor: Check if context is sufficient before execution. Prevents premature action.".to_string(),
+                inputs: vec!["contract".to_string(), "context".to_string()],
+                outputs: vec!["sufficient".to_string(), "confidence".to_string(), "missing".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"contract":{"type":"string"},"context":{"type":"string"}},"required":["contract","context"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "verify_result".to_string(),
+                description: "P1 Sensor: Verify execution result against task contract. Checks each acceptance criterion.".to_string(),
+                inputs: vec!["contract".to_string(), "result".to_string()],
+                outputs: vec!["passed".to_string(), "score".to_string(), "verdict".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"contract":{"type":"string"},"result":{"type":"string"}},"required":["contract","result"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "detect_drift".to_string(),
+                description: "P1 Sensor: Detect if execution is drifting away from original goal. Returns correction suggestions.".to_string(),
+                inputs: vec!["contract".to_string(), "current_state".to_string()],
+                outputs: vec!["on_track".to_string(), "drift_score".to_string(), "correction".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"contract":{"type":"string"},"current_state":{"type":"string"}},"required":["contract","current_state"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "dialectical_retry".to_string(),
+                description: "Execute task with learning-based retry. On failure: analyze root cause, learn, adapt, retry.".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["success".to_string(), "attempts".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"},"max_attempts":{"type":"integer"}},"required":["task"]}),
                 examples: vec![],
             },
         ] {
