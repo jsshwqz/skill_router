@@ -1179,4 +1179,31 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    #[test]
+    fn test_auto_evolve_on_3_failures() {
+        let tmp = std::env::temp_dir().join("aion_test_auto_evolve");
+        let _ = std::fs::remove_dir_all(&tmp);
+        // 记录：3 次失败 → 应触发 auto_evolve 事件
+        let learner = SkillLearner::load(&tmp);
+        for i in 0..3 {
+            learner.record_execution(
+                "test_fragile", "test_skill", "test",
+                false, Duration::from_millis(1),
+                Some("timeout"), false,
+            );
+            // 等待异步事件写入
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        // 检查 stats
+        let stats = learner.get_stats("test_fragile").unwrap();
+        assert!(stats.circuit_state == CircuitState::Open, "circuit should be open after 3 failures");
+        // 检查 evolve 事件
+        let events = SkillLearner::read_events_from(&learner.events_path);
+        let evolve_events: Vec<&ExecutionEvent> = events.iter().filter(|e| e.event_type == "evolve").collect();
+        assert!(!evolve_events.is_empty(), "expected at least one evolve event");
+        assert!(evolve_events[0].capability == "test_fragile");
+        info!("auto-evolve verified: event_type=evolve capability=test_fragile");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }
