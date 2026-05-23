@@ -162,26 +162,43 @@ impl Synthesizer {
         task: &str,
         requirement: &str,
     ) -> Result<SkillDefinition> {
+        Self::evolve_with_failures(paths, capability, task, requirement, "")
+    }
+
+    /// 带失败上下文的进化版本。`failure_context` 包含失败原因摘要，
+    /// 会写入生成的 skill instruction 中，使下一版能规避已知问题。
+    pub fn evolve_with_failures(
+        paths: &RouterPaths,
+        capability: &str,
+        _task: &str,
+        _requirement: &str,
+        failure_context: &str,
+    ) -> Result<SkillDefinition> {
         let name = format!("{}_evolved", capability);
         let root_dir = paths.generated_skills_dir.join(&name);
+
+        let instruction = if failure_context.is_empty() {
+            None
+        } else {
+            Some(format!(
+                "你是一个改进后的 {} 工具。\n已知失败模式：{}。\n在实现中需参考失败原因规避这些问题。",
+                capability, failure_context
+            ))
+        };
+
         let definition = SkillDefinition {
             metadata: SkillMetadata {
                 name,
-                version: "0.1.0".to_string(),
+                version: "0.2.0".to_string(),
                 capabilities: vec![capability.to_string()],
-                entrypoint: "main.rs".to_string(),
-                permissions: PermissionSet::default_deny(),
-                instruction: None,
+                entrypoint: "builtin:ai_task".to_string(),
+                permissions: PermissionSet::default_deny().with_network(true),
+                instruction,
             },
             root_dir,
             source: SkillSource::Generated,
         };
         Self::persist_definition(&definition)?;
-        let code = format!(
-            "// Automatically evolved skill for {}\nfn main() {{\n    println!(\"Task: {}\");\n    // Requirement: {}\n}}",
-            capability, task, requirement
-        );
-        fs::write(definition.root_dir.join("main.rs"), code)?;
         Ok(definition)
     }
 

@@ -108,7 +108,8 @@ mod tests {
 
         let skill = result.unwrap();
         assert!(skill.metadata.name.contains("evolved"));
-        assert!(skill.root_dir.join("main.rs").exists());
+        assert!(skill.root_dir.join("skill.json").exists());
+        assert_eq!(skill.metadata.entrypoint, "builtin:ai_task");
 
         let _ = fs::remove_dir_all(&tmp);
     }

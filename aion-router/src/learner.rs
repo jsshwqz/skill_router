@@ -13,10 +13,19 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use tracing::info;
 
 /// 熔断器冷却期（秒）：Open 状态经过此时间后进入 HalfOpen
 const CIRCUIT_COOLDOWN_SECS: u64 = 300; // 5 分钟
+
+/// 自动进化触发阈值：连续失败达到此值触发 evolve
+fn auto_evolve_threshold() -> u32 {
+    std::env::var("AION_AUTO_EVOLVE_THRESHOLD")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(3)
+}
 
 /// 熔断器状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,6 +93,15 @@ pub struct ExecutionEvent {
     pub error_class: String,
     #[serde(default)]
     pub empty_output: bool,
+    /// 事件类型：execution（默认）| change | decision
+    #[serde(default)]
+    pub event_type: String,
+    /// 事件摘要（用于 change/decision 类型）
+    #[serde(default)]
+    pub summary: String,
+    /// 事件详情（用于 change/decision 类型）
+    #[serde(default)]
+    pub details: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -325,6 +343,17 @@ impl SkillLearner {
         } else {
             stats.fail += 1;
             stats.circuit_on_failure();
+            // 触发自动进化检查（异步，不阻塞）
+            let cap = capability.to_string();
+            let consec = stats.consecutive_failures;
+            let threshold = auto_evolve_threshold();
+            if consec == threshold {
+                let store = self.store_path.clone();
+                let events = self.events_path.clone();
+                let _ = std::thread::spawn(move || {
+                    Self::auto_evolve_if_needed(&store, &events, &cap, consec);
+                });
+            }
         }
 
         // 滑动平均延迟
@@ -358,6 +387,9 @@ impl SkillLearner {
                     error.map(classify_error).unwrap_or("runtime_error").to_string()
                 },
                 empty_output,
+                event_type: String::new(),
+                summary: String::new(),
+                details: String::new(),
             };
             let _ = self.append_event(&event);
         }
@@ -374,6 +406,48 @@ impl SkillLearner {
         }
         drop(data);
         let _ = self.persist();
+    }
+
+    /// 记录代码变更事件
+    pub fn record_change(&self, kind: &str, file: &str, summary: &str) {
+        if !telemetry_enabled() {
+            return;
+        }
+        let event = ExecutionEvent {
+            timestamp: now_secs(),
+            capability: kind.to_string(),
+            skill: "change".to_string(),
+            source: "session".to_string(),
+            success: true,
+            duration_ms: 0,
+            error_class: String::new(),
+            empty_output: false,
+            event_type: "change".to_string(),
+            summary: summary.to_string(),
+            details: file.to_string(),
+        };
+        let _ = self.append_event(&event);
+    }
+
+    /// 记录架构/设计决策事件
+    pub fn record_decision(&self, context: &str, choice: &str, rationale: &str) {
+        if !telemetry_enabled() {
+            return;
+        }
+        let event = ExecutionEvent {
+            timestamp: now_secs(),
+            capability: "decision".to_string(),
+            skill: "decision".to_string(),
+            source: "session".to_string(),
+            success: true,
+            duration_ms: 0,
+            error_class: String::new(),
+            empty_output: false,
+            event_type: "decision".to_string(),
+            summary: format!("{} → {}", context, choice),
+            details: rationale.to_string(),
+        };
+        let _ = self.append_event(&event);
     }
 
     /// 获取某个能力的统计数据
@@ -589,6 +663,116 @@ impl SkillLearner {
         })
     }
 
+    /// 生成会话报告：汇总本次 session 的变更、决策、错误和推荐
+    pub fn session_report(&self) -> serde_json::Value {
+        let events = self.read_events();
+        if events.is_empty() {
+            return json!({
+                "summary": "暂无事件数据",
+                "changes": [],
+                "decisions": [],
+                "execution_stats": {},
+                "recommendations": ["执行一些能力后再查看会话报告"]
+            });
+        }
+
+        // 按事件类型分类
+        let changes: Vec<_> = events.iter().filter(|e| e.event_type == "change").map(|e| {
+            json!({
+                "type": e.capability,
+                "file": e.details,
+                "summary": e.summary,
+                "timestamp": e.timestamp,
+            })
+        }).collect();
+
+        let decisions: Vec<_> = events.iter().filter(|e| e.event_type == "decision").map(|e| {
+            json!({
+                "context_choice": e.summary,
+                "rationale": e.details,
+                "timestamp": e.timestamp,
+            })
+        }).collect();
+
+        let executions: Vec<_> = events.iter().filter(|e| e.event_type.is_empty() || e.event_type == "execution").collect();
+        let total_exec = executions.len();
+        let ok_exec = executions.iter().filter(|e| e.success).count();
+
+        // 最近失败
+        let recent_failures: Vec<_> = executions.iter().rev().filter(|e| !e.success).take(5).map(|e| {
+            json!({
+                "capability": e.capability,
+                "error": e.error_class,
+                "timestamp": e.timestamp,
+            })
+        }).collect();
+
+        // 反复出现的错误模式（最近 100 次执行中，同 error_class 出现 >=2 次）
+        let recent_100 = executions.iter().rev().take(100).collect::<Vec<_>>();
+        let mut pattern_map: std::collections::BTreeMap<String, (u32, u64, Vec<String>)> = std::collections::BTreeMap::new();
+        for e in recent_100.iter().filter(|e| !e.success && !e.error_class.is_empty()) {
+            let key = format!("{}/{}", e.capability, e.error_class);
+            let entry = pattern_map.entry(key).or_insert((0, 0, Vec::new()));
+            entry.0 += 1;
+            entry.1 = entry.1.max(e.timestamp);
+            entry.2.push(e.capability.clone());
+        }
+        let recurring_patterns: Vec<_> = pattern_map.iter()
+            .filter(|(_, (count, _, _))| *count >= 2)
+            .map(|(key, (count, latest_ts, _caps))| {
+                let parts: Vec<&str> = key.splitn(2, '/').collect();
+                json!({
+                    "capability": parts.get(0).unwrap_or(&"unknown"),
+                    "error_class": parts.get(1).unwrap_or(&"unknown"),
+                    "occurrences": *count,
+                    "latest": *latest_ts,
+                    "severity": if *count >= 5 { "high" } else if *count >= 3 { "medium" } else { "low" },
+                })
+            })
+            .collect();
+
+        // 推荐
+        let mut recommendations: Vec<String> = Vec::new();
+        if !recent_failures.is_empty() {
+            recommendations.push("存在未修复失败，建议优先处理".to_string());
+        }
+        for p in &recurring_patterns {
+            let cap = p["capability"].as_str().unwrap_or("");
+            let cls = p["error_class"].as_str().unwrap_or("");
+            let occ = p["occurrences"].as_u64().unwrap_or(0);
+            let sev = p["severity"].as_str().unwrap_or("low");
+            recommendations.push(format!("[{}] {} 的 {} 已出现 {} 次，建议排查根因", sev, cap, cls, occ));
+        }
+        if total_exec > 0 && (ok_exec as f64 / total_exec as f64) < 0.9 {
+            recommendations.push("成功率偏低，建议排查失败原因".to_string());
+        }
+        if !recurring_patterns.is_empty() {
+            recommendations.push("发现反复错误模式，修复后请用 record_change 记录改动".to_string());
+        }
+        if changes.is_empty() && decisions.is_empty() {
+            recommendations.push("本次无记录变更和决策，考虑调用 record_change / record_decision".to_string());
+        }
+        if recommendations.is_empty() {
+            recommendations.push("运行稳定，可继续扩展能力".to_string());
+        }
+
+        json!({
+            "changes": changes,
+            "decisions": decisions,
+            "execution_stats": {
+                "total": total_exec,
+                "succeeded": ok_exec,
+                "failed": total_exec.saturating_sub(ok_exec),
+                "success_rate": if total_exec > 0 {
+                    format!("{:.1}%", ok_exec as f64 / total_exec as f64 * 100.0)
+                } else { "N/A".to_string() },
+            },
+            "recent_failures": recent_failures,
+            "recurring_patterns": recurring_patterns,
+            "recommendations": recommendations,
+        })
+    }
+
     /// 生成可执行的自治策略（供路由前注入）。
     pub fn autonomy_policy(&self) -> AutonomyPolicy {
         let events = self.read_events();
@@ -669,8 +853,76 @@ impl SkillLearner {
         Ok(())
     }
 
-    fn read_events(&self) -> Vec<ExecutionEvent> {
-        let file = match fs::File::open(&self.events_path) {
+    /// 读取指定能力的最近 N 条失败事件
+    #[allow(dead_code)]
+    fn read_recent_failures(&self, capability: &str, limit: usize) -> Vec<ExecutionEvent> {
+        self.read_events()
+            .into_iter()
+            .filter(|e| e.capability == capability && !e.success)
+            .rev()
+            .take(limit)
+            .collect()
+    }
+
+    /// 自动进化触发：当连续失败达到阈值时记录 evolve 事件
+    /// 注意：此为静态方法，不持有 &self 引用（在 spawn 中调用）
+    fn auto_evolve_if_needed(_store_path: &Path, events_path: &Path, capability: &str, consecutive_failures: u32) {
+        // 读取最近的失败事件以获取错误原因
+        let events = Self::read_events_from(events_path);
+        let failures: Vec<&str> = events
+            .iter()
+            .filter(|e| e.capability == capability && !e.success)
+            .rev()
+            .take(5)
+            .map(|e| e.error_class.as_str())
+            .filter(|c| !c.is_empty())
+            .collect();
+
+        let error_summary = if failures.is_empty() {
+            "unknown".to_string()
+        } else {
+            let mut seen = Vec::new();
+            for c in &failures {
+                if !seen.contains(c) {
+                    seen.push(*c);
+                }
+            }
+            seen.join(", ")
+        };
+
+        // 追加一个 evolve 事件
+        let event = ExecutionEvent {
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+            capability: capability.to_string(),
+            skill: String::new(),
+            source: String::new(),
+            success: false,
+            duration_ms: 0,
+            error_class: error_summary.clone(),
+            empty_output: false,
+            event_type: "evolve".to_string(),
+            summary: format!("auto_evolve: consecutive_failures={} errors=[{}]", consecutive_failures, error_summary),
+            details: String::new(),
+        };
+
+        if let Some(parent) = events_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(events_path) {
+            let _ = writeln!(file, "{}", serde_json::to_string(&event).unwrap_or_default());
+        }
+
+        info!(
+            "auto_evolve: capability={} consecutive_failures={} errors=[{}]",
+            capability, consecutive_failures, error_summary
+        );
+    }
+
+    fn read_events_from(path: &Path) -> Vec<ExecutionEvent> {
+        let file = match fs::File::open(path) {
             Ok(file) => file,
             Err(_) => return Vec::new(),
         };
@@ -680,6 +932,12 @@ impl SkillLearner {
             .map_while(Result::ok)
             .filter_map(|line| serde_json::from_str::<ExecutionEvent>(&line).ok())
             .collect()
+    }
+}
+
+impl SkillLearner {
+    fn read_events(&self) -> Vec<ExecutionEvent> {
+        Self::read_events_from(&self.events_path)
     }
 }
 
