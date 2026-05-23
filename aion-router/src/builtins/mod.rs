@@ -19,6 +19,7 @@ pub mod task_router;
 pub mod health_check;
 pub mod zl;
 pub mod evolver;
+pub mod haoojiang;
 
 use std::collections::HashMap;
 
@@ -165,6 +166,9 @@ impl BuiltinRegistry {
 
         // 治理中间件 (forge-evolver)
         reg.register(Box::new(evolver::EvolverGovernance));
+
+        // 郝匠代码质量门禁
+        reg.register(Box::new(haoojiang::HaoJiangReview));
 
         reg
     }

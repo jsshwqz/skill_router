@@ -933,6 +933,15 @@ impl CapabilityRegistry {
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
                 examples: vec![],
             },
+            // ── 郝匠代码质量门禁 ──────────────────────────────────────────────
+            CapabilityDefinition {
+                name: "haoojiang_review".to_string(),
+                description: "Code quality gate combining AI review, correctness, safety, style, and maintainability assessment.".to_string(),
+                inputs: vec!["code".to_string(), "language".to_string()],
+                outputs: vec!["score".to_string(), "verdict".to_string(), "issues".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"code":{"type":"string"},"language":{"type":"string"}},"required":["code"]}),
+                examples: vec![],
+            },
         ] {
             registry
                 .definitions
