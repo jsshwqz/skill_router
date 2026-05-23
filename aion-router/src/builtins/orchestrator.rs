@@ -1272,6 +1272,27 @@ struct Proposal {
 }
 
 fn parse_keyed_lines(raw: &str) -> HashMap<String, String> {
+    // Try JSON first: if the output is valid JSON, parse it directly.
+    let trimmed = raw.trim();
+    if trimmed.starts_with('{') {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(trimmed) {
+            if let Some(obj) = json.as_object() {
+                let mut map = HashMap::new();
+                for (k, v) in obj {
+                    let value = match v {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    };
+                    map.insert(k.to_uppercase(), value);
+                }
+                if !map.is_empty() {
+                    return map;
+                }
+            }
+        }
+    }
+
+    // Fallback: KEY: value lines.
     raw.lines()
         .filter_map(|line| {
             let line = line.trim();
@@ -1459,20 +1480,33 @@ fn choose_plan_from_reviews(reviews: &[ReviewDecision], fallback: &str) -> (Stri
 
 fn proposal_prompt(task: &str, workflow: &str, risk_level: &str) -> String {
     format!(
-        "你正在参与三模型协作的方案讨论阶段。\n\
-请只输出以下字段，每行一项，不要添加任何额外说明：\n\
-TARGET_PATH: 从 [code_refactor, data_analysis, long_context_analysis, research_synthesis, code_review, generic_problem_solving] 里选一个\n\
-PRIMARY_ENGINE: 从 [claude, openai, gemini] 里选一个\n\
-REVIEW_ENGINES: 用 | 分隔列出另外两个引擎\n\
-EXECUTION_MODE: 从 [single_primary, primary_plus_review, triple_execute] 里选一个\n\
-KEY_RISKS: 用 | 分隔列出 1-3 个关键风险短语\n\
-EXECUTION_ORDER: 用 > 分隔列出 2-4 个步骤\n\
-VERIFY: 一句话说明如何验证结果\n\
-SUMMARY: 一句话概括方案\n\
-\n\
-WORKFLOW: {}\n\
-RISK_LEVEL: {}\n\
-TASK: {}\n",
+        "你是三模型协作方案讨论阶段的 AI 架构师。请分析任务并设计方案。
+先思考任务的关键挑战，再按以下字段输出。
+
+只输出以下字段，每行一项，不要添加任何额外说明：
+
+TARGET_PATH: 从 [code_refactor, data_analysis, long_context_analysis, research_synthesis, code_review, generic_problem_solving] 里选一个
+PRIMARY_ENGINE: 从 [claude, openai, gemini] 里选一个
+REVIEW_ENGINES: 用 | 分隔列出另外两个引擎
+EXECUTION_MODE: 从 [single_primary, primary_plus_review, triple_execute] 里选一个
+KEY_RISKS: 用 | 分隔列出 1-3 个关键风险短语
+EXECUTION_ORDER: 用 > 分隔列出 2-4 个步骤
+VERIFY: 一句话说明如何验证结果
+SUMMARY: 一句话概括方案
+
+Example:
+TARGET_PATH: code_refactor
+PRIMARY_ENGINE: claude
+REVIEW_ENGINES: openai | gemini
+EXECUTION_MODE: primary_plus_review
+KEY_RISKS: regression | edge_cases
+EXECUTION_ORDER: analyze > execute > review
+VERIFY: run tests and compare output
+SUMMARY: refactor with multi-engine review
+
+<workflow>{}</workflow>
+<risk_level>{}</risk_level>
+<task>{}</task>",
         workflow,
         risk_level,
         task
@@ -1480,7 +1514,9 @@ TASK: {}\n",
 }
 
 fn dispute_review_prompt(task: &str, proposals: &[Proposal]) -> String {
-    let mut body = String::from("你正在参与第二轮争议复审。请先阅读候选方案，再只输出固定字段。\n候选方案：\n");
+    let mut body = String::from(
+        "你是第二轮争议复审的评审员。请先阅读所有候选方案，比较它们的优劣，再输出评审意见。\n\n候选方案：\n"
+    );
     for proposal in proposals {
         body.push_str(&format!(
             "- PLAN_ID={} TARGET_PATH={} PRIMARY_ENGINE={} RISKS={} ORDER={} SUMMARY={}\n",
@@ -1497,24 +1533,27 @@ fn dispute_review_prompt(task: &str, proposals: &[Proposal]) -> String {
 STANCE: support | oppose | conditional\n\
 PREFERRED_PLAN_ID: 从候选 plan_id 中选一个\n\
 RATIONALE: 一句话说明原因\n\
-VERIFY: 一句话说明最终怎么验证\n",
+VERIFY: 一句话说明最终怎么验证\n\
+\n如果不确定选哪个，选 STANCE=conditional 并说明需要什么额外信息。\n",
     );
-    body.push_str(&format!("\nTASK: {}\n", task));
+    body.push_str(&format!("\n<task>{}</task>\n", task));
     body
 }
 
 fn execution_prompt(task: &str, proposal: &Proposal, workflow: &str) -> String {
     format!(
-        "你现在进入执行阶段，不再继续讨论。\n\
-WORKFLOW: {}\n\
-SELECTED_PLAN_ID: {}\n\
-TARGET_PATH: {}\n\
-PRIMARY_ENGINE: {}\n\
-KEY_RISKS: {}\n\
-EXECUTION_ORDER: {}\n\
-VERIFY: {}\n\
-TASK: {}\n\
-\n请直接给出最终执行结果。如果是代码任务，给出完整可落地实现；如果是分析任务，给出清晰结论与依据。",
+        "你是执行阶段的 AI 工程师。不再继续讨论，直接给出最终执行结果。
+
+<workflow>{}</workflow>
+<selected_plan_id>{}</selected_plan_id>
+<target_path>{}</target_path>
+<primary_engine>{}</primary_engine>
+<key_risks>{}</key_risks>
+<execution_order>{}</execution_order>
+<verify>{}</verify>
+<task>{}</task>
+
+如果是代码任务，给出完整可落地实现；如果是分析任务，给出清晰结论与依据。输出直接可用的内容，不要用占位符。",
         workflow,
         proposal.plan_id,
         proposal.target_path,
@@ -1528,26 +1567,34 @@ TASK: {}\n\
 
 fn review_execution_prompt(task: &str, proposal: &Proposal, primary_output: &str) -> String {
     format!(
-        "你是执行结果审核者。请只输出以下字段，每行一项：\n\
-VERDICT: approve | revise | reject\n\
-RISK_LEVEL: low | medium | high\n\
-ISSUES: 用 | 分隔问题点，没有问题写 none\n\
-SUGGESTED_FIX: 一句话给出修正建议\n\
-\nTASK: {}\n\
-PLAN: {}\n\
-PRIMARY_OUTPUT:\n{}\n",
+        "你是代码审核员。请仔细检查以下执行结果，判断其质量和安全性。先逐项检查 ISSUES，再给出 VERDICT。
+
+请只输出以下字段，每行一项：
+VERDICT: approve | revise | reject
+RISK_LEVEL: low | medium | high
+ISSUES: 用 | 分隔问题点，没有问题写 none
+SUGGESTED_FIX: 一句话给出修正建议
+
+<task>{}</task>
+<plan>{}</plan>
+<primary_output>
+{}</primary_output>",
         task, proposal.summary, primary_output
     )
 }
 
 fn arbitration_prompt(task: &str, execution_outputs: &BTreeMap<String, String>) -> String {
     let mut prompt = String::from(
-        "你正在做结果仲裁。请阅读各引擎执行结果，并只输出以下字段：\n\
-WINNER_ENGINE: claude | openai | gemini\n\
-RATIONALE: 一句话说明为什么它更好\n\
-VERIFY: 一句话说明如何验证胜出结果\n\n",
+        "你作为仲裁员，请阅读各引擎的执行结果，比较它们对任务的完成度、代码质量和正确性，然后输出仲裁意见。
+
+请只输出以下字段：
+WINNER_ENGINE: claude | openai | gemini
+RATIONALE: 一句话说明为什么它更好
+VERIFY: 一句话说明如何验证胜出结果
+
+如果所有引擎输出质量相近，选最完整的那个。如果所有输出都有严重问题，WINNER_ENGINE 选 none。\n\n"
     );
-    prompt.push_str(&format!("TASK: {}\n", task));
+    prompt.push_str(&format!("<task>{}</task>\n", task));
     for (engine, output) in execution_outputs {
         prompt.push_str(&format!("ENGINE={} OUTPUT=\n{}\n\n", engine, output));
     }

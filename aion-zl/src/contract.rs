@@ -10,6 +10,8 @@ use tracing::info;
 
 const CONTRACT_SYSTEM: &str = r#"You are a task contract compiler. Convert natural language tasks into structured contracts.
 
+First, analyze what type of task this is (code/text/data/config/action), then compile the contract step by step.
+
 A contract defines:
 1. What "done" looks like (acceptance_criteria)
 2. Required outputs (expected_outputs)
@@ -27,10 +29,27 @@ Output JSON:
   "verification_method": "how to check if done correctly",
   "complexity": "low|medium|high",
   "estimated_steps": 3
-}"#;
+}
+
+Example:
+Input: "Write a Python function to calculate Fibonacci numbers"
+Output: {
+  "task_summary": "Implement Fibonacci function",
+  "acceptance_criteria": ["Function correctly computes the nth term", "Handles n=0 boundary"],
+  "expected_outputs": [{"type": "code", "description": "Python function source"}],
+  "required_context": ["Language: Python"],
+  "verification_method": "Run test cases to verify results",
+  "complexity": "low",
+  "estimated_steps": 1
+}
+
+If you are unsure about any field, output "unknown" for string fields, [] for array fields."#;
 
 const SUFFICIENCY_SYSTEM: &str = r#"You are a context sufficiency sensor.
 Given a task contract and available context, determine if there is enough information to proceed.
+
+Check each required_context item against the available context one by one.
+If a required_context item has no match in the available context, list it in "missing".
 
 Output JSON:
 {
@@ -38,10 +57,27 @@ Output JSON:
   "confidence": 0.0-1.0,
   "missing": ["what info is missing"],
   "recommendation": "proceed|gather_more|clarify_with_user"
-}"#;
+}
+
+Example:
+Input contract: {"task_summary": "Implement Fibonacci function", "required_context": ["Language: Python"]}
+Available context: "Python 3.11 installed"
+Output: {
+  "sufficient": true,
+  "confidence": 0.9,
+  "missing": [],
+  "recommendation": "proceed"
+}
+
+If you are uncertain about the confidence level, set it to 0.5."#;
 
 const VERIFY_SYSTEM: &str = r#"You are a result verification sensor.
 Given a task contract and execution result, verify if the result meets the acceptance criteria.
+
+Go through each acceptance criterion one by one:
+1. Check if the result provides evidence for this criterion
+2. Mark met=true only if there is clear evidence
+3. If no evidence exists, set met=false and note why
 
 Output JSON:
 {
@@ -52,10 +88,29 @@ Output JSON:
   ],
   "verdict": "accept|retry|escalate",
   "feedback": "what to fix if retry"
-}"#;
+}
+
+Example:
+Contract criteria: ["Function correctly computes the nth term", "Handles n=0 boundary"]
+Result: "def fib(n): return n if n <= 1 else fib(n-1) + fib(n-2)"
+Output: {
+  "passed": true,
+  "score": 1.0,
+  "criteria_results": [
+    {"criterion": "correctly computes nth term", "met": true, "evidence": "recursive formula implements Fibonacci"},
+    {"criterion": "handles n=0 boundary", "met": true, "evidence": "n <= 1 returns n"}
+  ],
+  "verdict": "accept",
+  "feedback": ""
+}
+
+If you cannot find evidence for a criterion, mark it as not met. If the result is empty or unreadable, set score=0.0."#;
 
 const DRIFT_SYSTEM: &str = r#"You are an execution drift sensor.
 Given the original task contract and current execution state, detect if the work is drifting off target.
+
+Compare the current execution state against the original task_summary and acceptance_criteria.
+If the current state addresses different goals than defined in the contract, that is drift.
 
 Output JSON:
 {
@@ -63,7 +118,19 @@ Output JSON:
   "drift_score": 0.0-1.0,
   "drift_description": "what went off track",
   "correction": "how to get back on track"
-}"#;
+}
+
+Example:
+Original contract: {"task_summary": "Implement Fibonacci function", "acceptance_criteria": ["correctly computes nth term"]}
+Current state: "Started implementing a sorting algorithm instead"
+Output: {
+  "on_track": false,
+  "drift_score": 0.8,
+  "drift_description": "Implementation switched from Fibonacci to sorting algorithm",
+  "correction": "Redirect focus back to Fibonacci function per contract"
+}
+
+If you are not sure about the drift degree, set a low score (< 0.3) and describe what information is missing."#;
 
 // ── Data structures ──
 
@@ -123,7 +190,7 @@ impl Engine {
     /// Sensor P0: 将任务编译为结构化契约
     pub async fn compile_contract(&self, task: &str) -> Result<TaskContract> {
         info!("Compiling task contract...");
-        let raw = ai::chat_json(
+        let raw = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             CONTRACT_SYSTEM, task,
         ).await?;
@@ -156,7 +223,7 @@ impl Engine {
             serde_json::to_string_pretty(contract)?,
             context,
         );
-        let raw = ai::chat_json(
+        let raw = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             SUFFICIENCY_SYSTEM, &prompt,
         ).await?;
@@ -179,7 +246,7 @@ impl Engine {
             serde_json::to_string_pretty(contract)?,
             result,
         );
-        let raw = ai::chat_json(
+        let raw = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             VERIFY_SYSTEM, &prompt,
         ).await?;
@@ -207,7 +274,7 @@ impl Engine {
             serde_json::to_string_pretty(contract)?,
             current_state,
         );
-        let raw = ai::chat_json(
+        let raw = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             DRIFT_SYSTEM, &prompt,
         ).await?;

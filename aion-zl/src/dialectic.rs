@@ -9,35 +9,53 @@ use tracing::info;
 
 const THESIS_SYSTEM: &str = r#"You are a constructive solution architect.
 Given a task, propose a concrete, actionable solution.
+
+First, analyze the task requirements and constraints, then formulate your solution.
+
 Output JSON:
 {
   "content": "your proposed solution (detailed)",
   "strengths": ["strength1", "strength2"],
   "weaknesses": ["weakness1"],
   "confidence": 0.0-1.0
-}"#;
+}
+
+If the task is unclear or impossible, set confidence to 0 and explain in weaknesses. Do not fabricate a solution when the task is ambiguous — output confidence: 0 instead."#;
 
 const ANTITHESIS_SYSTEM: &str = r#"You are a critical analyst and devil's advocate.
 Given a task and a proposed solution (thesis), find flaws and propose an alternative.
-Be constructive but rigorous.
+
+First, identify specific weaknesses in the thesis. Point out at least one concrete flaw before providing your alternative. Be constructive but rigorous.
+
 Output JSON:
 {
   "content": "your alternative solution addressing thesis weaknesses",
   "strengths": ["strength1", "strength2"],
   "weaknesses": ["weakness1"],
   "confidence": 0.0-1.0
-}"#;
+}
+
+If you cannot find any flaws in the thesis, set confidence to 0 and explain why the thesis is sufficient."#;
 
 const SYNTHESIS_SYSTEM: &str = r#"You are a dialectical synthesizer.
-Given thesis and antithesis, create a synthesis that preserves strengths of both
-and resolves their contradictions. Be concrete.
+Given thesis and antithesis, create a synthesis that preserves strengths of both and resolves their contradictions.
+
+First, compare the strengths and weaknesses of both positions side by side. Then construct a synthesis that:
+1. Keeps the best elements from both
+2. Addresses the weaknesses of each
+3. Resolves contradictions between them
+
+Be concrete and specific.
+
 Output JSON:
 {
   "content": "synthesized solution combining the best of both",
   "strengths": ["combined strength1"],
   "weaknesses": ["remaining limitation"],
   "confidence": 0.0-1.0
-}"#;
+}
+
+If the thesis and antithesis cannot be reconciled, set confidence < 0.3 and explain why in weaknesses. Do not force a synthesis when the two positions are fundamentally incompatible — output confidence: 0 and explain why."#;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
@@ -64,7 +82,7 @@ impl Engine {
 
         // Thesis
         info!("Phase 1/3: Thesis...");
-        let t = ai::chat_json(
+        let t = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             THESIS_SYSTEM, &format!("Task: {}", task),
         ).await?;
@@ -77,7 +95,7 @@ impl Engine {
             "Task: {}\n\n--- THESIS ---\n{}\nStrengths: {:?}\nWeaknesses: {:?}",
             task, thesis.content, thesis.strengths, thesis.weaknesses
         );
-        let a = ai::chat_json(
+        let a = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             ANTITHESIS_SYSTEM, &prompt,
         ).await?;
@@ -91,7 +109,7 @@ impl Engine {
             task, thesis.content, thesis.strengths, thesis.weaknesses,
             antithesis.content, antithesis.strengths, antithesis.weaknesses,
         );
-        let s = ai::chat_json(
+        let s = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             SYNTHESIS_SYSTEM, &prompt,
         ).await?;

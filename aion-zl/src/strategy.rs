@@ -8,6 +8,8 @@ use tracing::info;
 
 const SYSTEM: &str = r#"You are a strategic planner using the "protracted war" framework.
 
+First, assess how much information is available about the task. If information is scarce, you are likely in defense. If you have moderate information and can iterate, stalemate. Only if the path is clear and you have sufficient resources should you choose offense.
+
 Three phases:
 1. DEFENSE: Info scarce. Lightweight probing (echo, discovery_search, web_search, memory_recall).
 2. STALEMATE: Iterate small wins (code_generate, code_lint, text_summarize, json_parse).
@@ -23,7 +25,9 @@ Output JSON:
   "steps": [
     { "name": "...", "phase": "...", "action": "...", "capability": "...", "resource_weight": 0.0-1.0 }
   ]
-}"#;
+}
+
+If you are uncertain about the current phase, default to "defense"."#;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StrategicStep {
@@ -55,7 +59,7 @@ impl Engine {
             format!("\n\nPrior experience:\n{}", summaries.join("\n"))
         };
 
-        let raw = ai::chat_json(
+        let raw = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             SYSTEM, &format!("Task:\n{}{}", task, mem_ctx),
         ).await?;

@@ -9,16 +9,21 @@ use tracing::{info, warn};
 
 const ROOT_CAUSE_SYSTEM: &str = r#"You are an expert at root cause analysis.
 Given a task, strategy used, and error, analyze:
-1. Root cause (not just symptoms)
-2. Lesson learned
-3. Alternative strategy to try next
+
+First, distinguish symptoms from root cause. Symptoms are surface-level manifestations; root cause is the underlying reason.
+Then:
+1. Identify the root cause (not just symptoms)
+2. Extract a lesson learned
+3. Propose an alternative strategy to try next
 
 Output JSON:
 {
   "root_cause": "...",
   "lesson": "...",
   "next_strategy": "concrete alternative approach"
-}"#;
+}
+
+If you cannot determine the root cause with confidence, set root_cause to "unknown"."#;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetryAttempt {
@@ -110,7 +115,7 @@ impl Engine {
 
         let prompt = format!("Task: {}\nStrategy: {}\nError: {}{}", task, strategy, error, mem_hint);
 
-        match ai::chat_json(
+        match ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             ROOT_CAUSE_SYSTEM, &prompt,
         ).await {

@@ -3,6 +3,7 @@
 use anyhow::Result;
 use serde_json::json;
 
+/// Creative/exploratory variant — allows moderate output variance.
 pub async fn chat(
     http: &reqwest::Client,
     base_url: &str,
@@ -22,10 +23,43 @@ pub async fn chat(
         "max_tokens": 4096,
     });
 
+    chat_inner(http, &url, &body, api_key).await
+}
+
+/// Deterministic variant for structured tasks (contract, sensor, classification).
+/// Uses low temperature to minimize output variance.
+pub async fn chat_deterministic(
+    http: &reqwest::Client,
+    base_url: &str,
+    api_key: &str,
+    model: &str,
+    system_prompt: &str,
+    user_prompt: &str,
+) -> Result<String> {
+    let url = format!("{}/chat/completions", base_url);
+    let body = json!({
+        "model": model,
+        "messages": [
+            { "role": "system", "content": system_prompt },
+            { "role": "user", "content": user_prompt },
+        ],
+        "temperature": 0.2,
+        "max_tokens": 4096,
+    });
+
+    chat_inner(http, &url, &body, api_key).await
+}
+
+async fn chat_inner(
+    http: &reqwest::Client,
+    url: &str,
+    body: &serde_json::Value,
+    api_key: &str,
+) -> Result<String> {
     let resp = http
-        .post(&url)
+        .post(url)
         .header("Authorization", format!("Bearer {}", api_key))
-        .json(&body)
+        .json(body)
         .send()
         .await?;
 
@@ -43,6 +77,7 @@ pub async fn chat(
     Ok(content)
 }
 
+/// Creative variant for JSON tasks.
 pub async fn chat_json(
     http: &reqwest::Client,
     base_url: &str,
@@ -52,6 +87,24 @@ pub async fn chat_json(
     user_prompt: &str,
 ) -> Result<serde_json::Value> {
     let raw = chat(http, base_url, api_key, model, system_prompt, user_prompt).await?;
+    extract_json(&raw)
+}
+
+/// Deterministic variant for structured JSON tasks.
+pub async fn chat_json_deterministic(
+    http: &reqwest::Client,
+    base_url: &str,
+    api_key: &str,
+    model: &str,
+    system_prompt: &str,
+    user_prompt: &str,
+) -> Result<serde_json::Value> {
+    let raw = chat_deterministic(http, base_url, api_key, model, system_prompt, user_prompt).await?;
+    extract_json(&raw)
+}
+
+/// Extract JSON object/array from raw text (strips surrounding text).
+fn extract_json(raw: &str) -> Result<serde_json::Value> {
     let json_str = if let Some(start) = raw.find('{') {
         let end = raw.rfind('}').unwrap_or(raw.len() - 1);
         &raw[start..=end]
@@ -59,7 +112,7 @@ pub async fn chat_json(
         let end = raw.rfind(']').unwrap_or(raw.len() - 1);
         &raw[start..=end]
     } else {
-        &raw
+        raw
     };
     let parsed = serde_json::from_str(json_str)?;
     Ok(parsed)

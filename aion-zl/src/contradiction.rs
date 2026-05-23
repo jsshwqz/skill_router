@@ -10,6 +10,9 @@ use tracing::info;
 const SYSTEM: &str = r#"You are an expert task analyst using contradiction analysis.
 Given a complex task, decompose it and identify contradictions (bottlenecks, tensions).
 
+First, break down the task into steps. Then, for each step, identify potential contradictions.
+List ALL contradictions you can find first, then determine which ONE is the principal (main blocker).
+
 For each contradiction:
 - description, is_principal (only ONE true), affected_step, severity (1-10), resolution
 
@@ -24,7 +27,9 @@ Output JSON:
   "principal_contradiction": "...",
   "recommended_focus": "...",
   "resource_allocation": { "step1": 0.5, "step2": 0.3, "step3": 0.2 }
-}"#;
+}
+
+If you find no contradictions, output an empty contradictions array and set principal_contradiction to "none"."#;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Contradiction {
@@ -47,7 +52,7 @@ pub struct ContradictionReport {
 impl Engine {
     pub async fn contradiction_analyze(&self, task: &str) -> Result<ContradictionReport> {
         info!("Analyzing contradictions...");
-        let raw = ai::chat_json(
+        let raw = ai::chat_json_deterministic(
             &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
             SYSTEM, &format!("Task to analyze:\n{}", task),
         ).await?;
