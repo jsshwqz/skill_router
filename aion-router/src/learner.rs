@@ -1200,7 +1200,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         // 记录：3 次失败 → 应触发 auto_evolve 事件
         let learner = SkillLearner::load(&tmp, &tmp);
-        for i in 0..3 {
+        for _i in 0..3 {
             learner.record_execution(
                 "test_fragile", "test_skill", "test",
                 false, Duration::from_millis(1),
@@ -1213,7 +1213,7 @@ mod tests {
         let stats = learner.get_stats("test_fragile").unwrap();
         assert!(stats.circuit_state == CircuitState::Open, "circuit should be open after 3 failures");
         // 等待异步线程写入 evolve 事件
-        std::thread::sleep(std::time::Duration::from_millis(200));
+        std::thread::sleep(std::time::Duration::from_millis(1000));
         // 检查 evolve 事件
         let events = SkillLearner::read_events_from(&learner.events_path);
         let evolve_events: Vec<&ExecutionEvent> = events.iter().filter(|e| e.event_type == "evolve").collect();

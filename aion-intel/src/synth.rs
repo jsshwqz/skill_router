@@ -181,7 +181,14 @@ impl Synthesizer {
             None
         } else {
             Some(format!(
-                "你是一个改进后的 {} 工具。\n已知失败模式：{}。\n在实现中需参考失败原因规避这些问题。",
+                "你是一个改进后的 {} 工具。\n\
+                 已知失败模式：{}。\n\
+                 在实现中需参考失败原因规避这些问题。\n\n\
+                 ## 约束\n\
+                 - 不得超过 15KB 输出\n\
+                 - 必须返回有效 JSON（若输出为结构化数据）\n\
+                 - 不确定时输出 UNKNOWN，不要猜测\n\
+                 - 优先使用本地能力，不要假设外部服务可用",
                 capability, failure_context
             ))
         };
@@ -198,8 +205,60 @@ impl Synthesizer {
             root_dir,
             source: SkillSource::Generated,
         };
+
+        // 约束门禁：验证生成的 skill definition 是否有效
+        if let Err(e) = Self::validate_evolved(&definition) {
+            tracing::warn!("evolve_with_failures: constraint gate failed for {}: {}", capability, e);
+            // 仍然写入，但降级为 basic instruction（去掉失败上下文，避免错误传导）
+            let fallback = SkillDefinition {
+                metadata: SkillMetadata {
+                    instruction: Some(format!(
+                        "你是一个改进后的 {} 工具。注意以下已知问题：{}。",
+                        capability, failure_context
+                    )),
+                    ..definition.metadata.clone()
+                },
+                ..definition
+            };
+            Self::persist_definition(&fallback)?;
+            return Ok(fallback);
+        }
+
         Self::persist_definition(&definition)?;
+
+        tracing::info!(
+            "evolve_with_failures: created {} → {}",
+            capability, definition.metadata.name
+        );
+
         Ok(definition)
+    }
+
+    /// 约束门禁：验证进化后的 skill 是否满足基本要求
+    fn validate_evolved(def: &SkillDefinition) -> Result<()> {
+        // 1. 名称不能为空
+        if def.metadata.name.is_empty() {
+            anyhow::bail!("skill name is empty");
+        }
+        // 2. instruction 不能为空（ai_task builtin 依赖它）
+        if def.metadata.instruction.as_ref().map_or(true, |i| i.is_empty()) {
+            anyhow::bail!("ai_task builtin requires non-empty instruction");
+        }
+        // 3. instruction 不能超过 15KB
+        if let Some(instr) = &def.metadata.instruction {
+            if instr.len() > 15_000 {
+                anyhow::bail!("instruction exceeds 15KB size limit (got {} bytes)", instr.len());
+            }
+        }
+        // 4. entrypoint 必须是已知格式
+        if !def.metadata.entrypoint.starts_with("builtin:") && def.metadata.entrypoint != "main.rs" {
+            anyhow::bail!("entrypoint must be builtin:xxx or main.rs");
+        }
+        // 5. capabilities 不能为空
+        if def.metadata.capabilities.is_empty() {
+            anyhow::bail!("capabilities list is empty");
+        }
+        Ok(())
     }
 
     fn persist_definition(definition: &SkillDefinition) -> Result<()> {

@@ -4,6 +4,7 @@ use anyhow::Result;
 use serde_json::json;
 
 /// Creative/exploratory variant — allows moderate output variance.
+#[allow(dead_code)]
 pub async fn chat(
     http: &reqwest::Client,
     base_url: &str,
@@ -78,6 +79,7 @@ async fn chat_inner(
 }
 
 /// Creative variant for JSON tasks.
+#[allow(dead_code)]
 pub async fn chat_json(
     http: &reqwest::Client,
     base_url: &str,

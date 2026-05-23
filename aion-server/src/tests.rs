@@ -286,12 +286,12 @@ async fn agent_delegate_missing_target_returns_400() {
     let payload = serde_json::json!({
         "intent": "test_intent",
         "parameters": {},
-        "priority": "Normal",
+        "priority": "normal",
         "metadata": {
             "agent_id": "test-agent",
             "session_id": "test-session",
             "timestamp": 0,
-            "backend": "Ollama",
+            "backend": "ollama",
             "model": ""
         },
         "delegation_chain": []

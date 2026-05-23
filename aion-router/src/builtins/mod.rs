@@ -20,6 +20,9 @@ pub mod health_check;
 pub mod zl;
 pub mod evolver;
 pub mod haoojiang;
+pub mod market;
+pub mod skill_format;
+pub mod autonomous_agent;
 
 use std::collections::HashMap;
 
@@ -174,6 +177,15 @@ impl BuiltinRegistry {
         reg.register(Box::new(orchestrator::Brainstorm));
         reg.register(Box::new(orchestrator::Compare));
         reg.register(Box::new(orchestrator::Discuss));
+
+        // 市场技能检索
+        reg.register(Box::new(market::MarketSearch));
+
+        // 技能格式转换 (SKILL.md ↔ skill.json)
+        reg.register(Box::new(skill_format::SkillConvert));
+
+        // 自主智能体 (目标驱动 autonomous agent)
+        reg.register(Box::new(autonomous_agent::AutonomousAgent));
 
         reg
     }

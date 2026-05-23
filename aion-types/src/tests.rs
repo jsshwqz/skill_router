@@ -56,7 +56,11 @@ mod tests {
     #[test]
     fn test_ai_backend_defaults() {
         let ollama = AiBackend::Ollama;
-        assert!(ollama.base_url().contains("11434"));
+        let url = ollama.base_url();
+        // 环境变量 AI_BASE_URL 会覆盖默认 URL，只在未设置时检查默认值
+        if std::env::var("AI_BASE_URL").is_err() {
+            assert!(url.contains("11434"), "expected default Ollama URL, got: {}", url);
+        }
 
         let openai = AiBackend::OpenAi;
         assert!(openai.base_url().contains("openai.com"));

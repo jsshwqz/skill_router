@@ -967,6 +967,30 @@ impl CapabilityRegistry {
                 parameters_schema: serde_json::json!({"type":"object","properties":{"topic":{"type":"string"}},"required":["topic"]}),
                 examples: vec![],
             },
+            CapabilityDefinition {
+                name: "market_search".to_string(),
+                description: "Search for skills and capabilities from external markets (npx skills, GitHub, web). Three-tier fallback: npx → discovery_search → broad search.".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["candidates".to_string(), "sources_tried".to_string(), "summary".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string","description":"Skill or capability name to search for"}},"required":["task"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "skill_convert".to_string(),
+                description: "Convert between SKILL.md (community standard) and forge skill.json formats. Supports both directions: SKILL.md→forge and forge→SKILL.md.".to_string(),
+                inputs: vec!["source".to_string()],
+                outputs: vec!["status".to_string(), "name".to_string(), "skill_path".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"source":{"type":"string","description":"SKILL.md content or file path, or forge skill.json content"}},"required":["source"]}),
+                examples: vec![],
+            },
+            CapabilityDefinition {
+                name: "autonomous_agent".to_string(),
+                description: "Autonomous goal-driven agent: receives a high-level goal, plans steps, executes them iteratively, adapts on failure, and delivers a structured report.".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["status".to_string(), "total_iterations".to_string(), "log".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string","description":"High-level goal to accomplish"}},"required":["task"]}),
+                examples: vec![],
+            },
         ] {
             registry
                 .definitions
