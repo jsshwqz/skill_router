@@ -924,6 +924,15 @@ impl CapabilityRegistry {
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"},"max_attempts":{"type":"integer"}},"required":["task"]}),
                 examples: vec![],
             },
+            // ── 治理中间件 (forge-evolver) ──────────────────────────────────────
+            CapabilityDefinition {
+                name: "evolver_governance".to_string(),
+                description: "Front-door governance: classify task clarity, assess risk level, recommend simplest capability.".to_string(),
+                inputs: vec!["task".to_string()],
+                outputs: vec!["clarity".to_string(), "risk".to_string(), "recommended_capability".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
+                examples: vec![],
+            },
         ] {
             registry
                 .definitions

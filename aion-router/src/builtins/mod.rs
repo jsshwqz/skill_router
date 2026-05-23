@@ -18,6 +18,7 @@ pub mod spec_driven;
 pub mod task_router;
 pub mod health_check;
 pub mod zl;
+pub mod evolver;
 
 use std::collections::HashMap;
 
@@ -161,6 +162,9 @@ impl BuiltinRegistry {
         reg.register(Box::new(zl::ZLVerifyResult));
         reg.register(Box::new(zl::ZLDetectDrift));
         reg.register(Box::new(zl::ZLDialecticalRetry));
+
+        // 治理中间件 (forge-evolver)
+        reg.register(Box::new(evolver::EvolverGovernance));
 
         reg
     }
