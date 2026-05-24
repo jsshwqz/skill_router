@@ -139,10 +139,28 @@ impl SandboxedExecutor {
         if let Ok(sys_root) = std::env::var("SystemRoot") {
             process.env("SystemRoot", sys_root);
         }
+        #[cfg(target_os = "linux")]
+        if let Ok(ld_path) = std::env::var("LD_LIBRARY_PATH") {
+            process.env("LD_LIBRARY_PATH", ld_path);
+        }
+        #[cfg(target_os = "macos")]
+        if let Ok(dyld_path) = std::env::var("DYLD_LIBRARY_PATH") {
+            process.env("DYLD_LIBRARY_PATH", dyld_path);
+        }
         for (k, v) in limits.filtered_env() {
             process.env(&k, &v);
         }
+        // extra_env：允许用户传入额外环境变量，但禁止覆盖系统关键变量
+        let blocked_extra_keys: &[&str] = &[
+            "PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH",
+            #[cfg(target_os = "windows")]
+            "SystemRoot", "WINDIR", "COMSPEC",
+        ];
         for (k, v) in &cmd.extra_env {
+            if blocked_extra_keys.contains(&k.as_str()) {
+                tracing::warn!("sandbox: ignoring extra_env '{}' (reserved system variable)", k);
+                continue;
+            }
             process.env(k, v);
         }
 

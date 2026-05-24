@@ -1,5 +1,46 @@
 {
   "skills": {
+    "ai_code_generate_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1778312738879,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778312933860,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778313009852,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778316992177,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778317120392,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778317141869,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778317273535,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778317574879,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778317634714,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1778317634714
+    },
     "ai_parallel_solve_placeholder": {
       "executions": [
         {
@@ -9,9 +50,253 @@
         {
           "epoch_ms": 1774506706582,
           "success": true
+        },
+        {
+          "epoch_ms": 1779553829429,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1774506706582
+      "last_used_epoch_ms": 1779553829429
+    },
+    "ai_research_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1778256935800,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1778256935800
+    },
+    "ai_smart_collaborate_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1778256584482,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1778256584482
+    },
+    "ai_triple_vote_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1778258919243,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1778258919243
+    },
+    "async_task_query_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1778256600707,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256615786,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256630338,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256647254,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256659814,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256674261,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256688595,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256704335,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256718323,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256733637,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256745583,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256759535,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256774596,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256787580,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256802140,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256820804,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256831765,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256843306,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256858345,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256873602,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256950808,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256968317,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256979847,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778256994801,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257007993,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257023471,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257036949,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257050077,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257068358,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257083233,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257102453,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257118561,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553841395,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553850756,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553859840,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553869754,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553880935,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553892861,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553901591,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553910389,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553920455,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553930145,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553940823,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553949857,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553959195,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553967937,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553977131,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553988001,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779553997167,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779554005727,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779554016618,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779554027864,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779554027864
     },
     "echo_placeholder": {
       "executions": [
@@ -30,14 +315,124 @@
       ],
       "last_used_epoch_ms": 1774402587178
     },
+    "evolution_report_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1778250557563,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778250964328,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778251088252,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778251157975,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778252731279,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778252867108,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778253113049,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778253371888,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778253850962,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778255004632,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778260058459,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1778260058459
+    },
     "health_check_placeholder": {
       "executions": [
         {
           "epoch_ms": 1775127604670,
           "success": true
+        },
+        {
+          "epoch_ms": 1778250455869,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778251157154,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778252852859,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257036447,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257131372,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1775127604670
+      "last_used_epoch_ms": 1778257131372
+    },
+    "http_fetch_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779551937712,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779551995882,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779552136432,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779552179880,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779559018140,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779559020957,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779559030084,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779559032508,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779559035475,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779559035475
     },
     "json_parse_placeholder": {
       "executions": [
@@ -71,9 +466,61 @@
         {
           "epoch_ms": 1775109399947,
           "success": true
+        },
+        {
+          "epoch_ms": 1778253103577,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778260131626,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778317727329,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778333047396,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778333747243,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779505920159,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779505922177,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779545381267,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779546943721,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779549797127,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779551551021,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779555017705,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779582262444,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1775109399947
+      "last_used_epoch_ms": 1779582262444
     },
     "rag_query_placeholder": {
       "executions": [
@@ -83,6 +530,32 @@
         }
       ],
       "last_used_epoch_ms": 1775109441556
+    },
+    "record_change_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779499354122,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499728472,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779499728472
+    },
+    "record_decision_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779499356787,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499731071,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779499731071
     },
     "regex_match_placeholder": {
       "executions": [
@@ -110,9 +583,87 @@
         {
           "epoch_ms": 1775127493344,
           "success": true
+        },
+        {
+          "epoch_ms": 1778257140429,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1775127493344
+      "last_used_epoch_ms": 1778257140429
+    },
+    "session_report_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779497717219,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499345803,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499359426,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499367512,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499375076,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499377721,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499385552,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779499393696,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779500175829,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779500599289,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779500599289
+    },
+    "skill_report_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1778250558305,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778250964669,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778251067226,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778251161066,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778252879375,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778253122144,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1778253122144
     },
     "spec_driven_placeholder": {
       "executions": [
@@ -127,27 +678,108 @@
         {
           "epoch_ms": 1774526658308,
           "success": true
+        },
+        {
+          "epoch_ms": 1779495531568,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495546857,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495562950,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495567458,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495576857,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495665286,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495670744,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495678079,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495684455,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495686558,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495688633,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495691483,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495693520,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779495745036,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1774526658308
+      "last_used_epoch_ms": 1779495745036
     },
     "text_diff_placeholder": {
       "executions": [
         {
           "epoch_ms": 1775109410401,
           "success": true
+        },
+        {
+          "epoch_ms": 1779499314341,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1775109410401
+      "last_used_epoch_ms": 1779499314341
     },
     "text_wordcount_placeholder": {
       "executions": [
         {
           "epoch_ms": 1775127438899,
           "success": true
+        },
+        {
+          "epoch_ms": 1778253365271,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778254662595,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778254816525,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1775127438899
+      "last_used_epoch_ms": 1778254816525
+    },
+    "web_search_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779551922543,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779551922543
     },
     "yaml_parse_placeholder": {
       "executions": [
@@ -158,9 +790,81 @@
         {
           "epoch_ms": 1775109407193,
           "success": true
+        },
+        {
+          "epoch_ms": 1778257510283,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778257882240,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258190856,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258265928,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258276407,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258282469,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258288248,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258294092,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258349844,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258357057,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258369463,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258374842,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258385992,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258393625,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258403953,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258411710,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258419502,
+          "success": true
+        },
+        {
+          "epoch_ms": 1778258426262,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1775109407193
+      "last_used_epoch_ms": 1778258426262
     }
   }
 }

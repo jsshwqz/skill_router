@@ -1,0 +1,7 @@
+interface:
+  display_name: "Designer"
+  short_description: "Design artifacts with context, variants, and browser checks."
+  default_prompt: "Use $designer to turn this UI brief into a high-fidelity prototype with variations and browser verification."
+
+policy:
+  allow_implicit_invocation: true

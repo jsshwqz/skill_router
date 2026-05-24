@@ -23,6 +23,8 @@ pub mod haoojiang;
 pub mod market;
 pub mod skill_format;
 pub mod autonomous_agent;
+pub mod image;
+pub mod trending;
 
 use std::collections::HashMap;
 
@@ -186,6 +188,12 @@ impl BuiltinRegistry {
 
         // 自主智能体 (目标驱动 autonomous agent)
         reg.register(Box::new(autonomous_agent::AutonomousAgent));
+
+        // 图像分析
+        reg.register(Box::new(image::ImageDescribe));
+
+        // GitHub 趋势监控
+        reg.register(Box::new(trending::GithubTrending));
 
         reg
     }

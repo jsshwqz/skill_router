@@ -267,9 +267,21 @@ fn build_ai_fallback_instruction(task: &str, rules: &[RouteRule]) -> Value {
     json!({
         "type": "passthrough",
         "instruction": format!(
-            "关键词匹配未命中。请根据任务描述，从以下规则中选择最匹配的 rule_id。\n\
-             如果都不匹配，返回 \"none\"。只返回 rule_id 字符串。\n\n\
-             用户任务：{}", task
+            "你是任务路由分析器。关键词匹配未命中规则，请判断任务属于哪个类别。
+
+规则说明：
+{}
+
+判断步骤：
+1. 先理解用户任务的核心意图
+2. 对比每条规则的 category 和 keywords_hint
+3. 选最匹配的 rule_id
+
+如果都不匹配，返回 \"none\"。只返回 rule_id 字符串，不要任何额外输出。
+
+<user_task>{}</user_task>",
+            serde_json::to_string_pretty(&rule_list).unwrap_or_default(),
+            task
         ),
         "available_rules": rule_list,
         "expected_response": "rule_id string or 'none'"

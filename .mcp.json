@@ -1,13 +1,13 @@
 {
   "mcpServers": {
     "aion-forge": {
-      "command": "D:/test/aionui/config/skills/aion-forge/bin/aion-cli.exe",
+      "command": "D:/test/aionui/deploy/forge/aion-cli.exe",
       "args": ["mcp-server"],
       "env": {
         "AI_PASSTHROUGH": "true",
-        "CLAUDE_CLI": "D:/test/aionui/skill/新建文件夹/aion_forge_handoff_v2.1/scripts/ai-cli/claude_aion.cmd",
+        "CLAUDE_CLI": "D:/test/aionui/deploy/forge/ai-cli/claude_aion.cmd",
         "CODEX_CLI": "C:/Users/Administrator/AppData/Roaming/npm/codex.cmd",
-        "GEMINI_CLI": "D:/test/aionui/skill/新建文件夹/aion_forge_handoff_v2.1/scripts/ai-cli/gemini_aion.cmd",
+        "GEMINI_CLI": "D:/test/aionui/deploy/forge/ai-cli/gemini_aion.cmd",
         "HTTP_PROXY": "http://127.0.0.1:10808",
         "HTTPS_PROXY": "http://127.0.0.1:10808",
         "NO_PROXY": "localhost,127.0.0.1,::1",
@@ -15,6 +15,7 @@
         "REQUEST_TIMEOUT": "120",
         "AION_ORCH_WAIT_SECS": "130",
         "AI_PROVIDERS_DISABLED": "ollama-local",
+        "AI_SECURITY_FAIL_POLICY": "off",
         "AI_BASE_URL": "https://open.bigmodel.cn/api/paas/v4",
         "AI_API_KEY": "ecdf37c7e3b34a769f949238f52f3b0a.BQ07jsSjKi0HO8E5",
         "AI_MODEL": "glm-4.7-flash",

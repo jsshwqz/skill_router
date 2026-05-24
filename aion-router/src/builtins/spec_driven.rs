@@ -276,7 +276,7 @@ fn handle_analyze(ctx: &ExecutionContext) -> Result<Value> {
             "workflow": "spec_driven",
             "action": "analyze",
             "project_id": project_id,
-            "instruction": "请扫描工作区代码库，针对以下目标进行深度分析。输出 JSON 包含 files_scanned(数量), dependency_graph(模块依赖), risk_areas(数组,含area/severity/description/mitigation), complexity_estimate(low/medium/high)。分析完成后调用 spec_driven 工具：action=analyze, project_id=此ID, analysis_result=你的分析JSON。",
+            "instruction": "你是一个代码库架构分析师。请扫描工作区代码库，针对以下目标进行深度分析。\n输出 JSON 必须包含以下字段：\n- files_scanned: 扫描的文件数量（数字）\n- dependency_graph: 模块依赖关系描述\n- risk_areas: 风险区域数组，每项含 area(区域名), severity(low/medium/high), description(描述), mitigation(缓解措施)\n- complexity_estimate: 复杂度评级 low/medium/high\n\n先理解整体架构，再逐个分析风险点，最后给出评估。\n\n分析完成后调用 spec_driven 工具：action=analyze, project_id=<此ID>, analysis_result=<你的分析JSON>。",
             "input": ctx.context.get("goal").unwrap_or(&json!("")),
         }))
     } else {
@@ -344,7 +344,7 @@ fn handle_decompose(ctx: &ExecutionContext) -> Result<Value> {
             "workflow": "spec_driven",
             "action": "decompose",
             "project_id": pid,
-            "instruction": "基于以下分析结果，将项目目标分解为有序子任务列表。每个任务是一个 JSON 对象，包含：id(T1/T2/...), title, description, depends_on(前置任务ID数组), test_strategy, rollback_plan。注意依赖顺序。完成后调用 spec_driven：action=decompose, project_id=此ID, tasks=[你的任务列表JSON数组]。",
+            "instruction": "你是一个项目分解专家。基于分析结果，将项目目标分解为有序子任务。\n每个任务 JSON 包含：id(T1/T2/...), title, description, depends_on(前置ID数组), test_strategy, rollback_plan。\n先识别可并行执行的任务，再确定依赖顺序。\n\n完成后调用 spec_driven：action=decompose, project_id=<此ID>, tasks=<你的任务JSON数组>。",
             "input": { "goal": goal, "analysis": analysis_output },
         }))
     } else {
@@ -418,7 +418,7 @@ fn handle_plan(ctx: &ExecutionContext) -> Result<Value> {
             "workflow": "spec_driven",
             "action": "plan",
             "project_id": pid,
-            "instruction": "为以下子任务列表生成执行计划。1) 确定执行顺序（拓扑排序）。2) 为每个任务定义 gate_check（进入条件）。3) 设置 rollback_strategy。输出 JSON：{execution_order: [\"T1\",\"T2\",...], gate_checks: {T1: \"...\", T2: \"...\"}, rollback_strategy: \"...\"}。完成后调用 spec_driven：action=plan, project_id=此ID, plan_result=你的计划JSON。",
+            "instruction": "你是一个执行计划编排专家。为以下子任务列表生成可执行计划。\n1) 确定执行顺序（拓扑排序，前置任务先执行）。\n2) 为每个任务定义 gate_check（进入条件）。\n3) 设置 rollback_strategy（回滚策略）。\n\n输出 JSON 格式：\n{\n  \"execution_order\": [\"T1\", \"T2\", ...],\n  \"gate_checks\": {\"T1\": \"条件描述\", \"T2\": \"条件描述\"},\n  \"rollback_strategy\": \"回滚策略描述\"\n}\n\n完成后调用 spec_driven：action=plan, project_id=<此ID>, plan_result=<你的计划JSON>。",
             "input": { "goal": goal, "tasks": tasks_json },
         }))
     } else {
@@ -532,7 +532,7 @@ fn handle_execute(ctx: &ExecutionContext) -> Result<Value> {
                     "action": "execute",
                     "project_id": pid,
                     "instruction": format!(
-                        "执行以下子任务。完成后调用 spec_driven：action=execute, project_id={}, task_id={}, task_result=你的执行结果。如果失败传 task_error。",
+                        "你是一个任务执行工程师。请执行指定的子任务，确保输出完整可落地。\n完成后调用 spec_driven：action=execute, project_id={}, task_id={}, task_result=<你的执行结果>。\n如果执行失败，传 task_error=<失败原因>。",
                         pid, task.id
                     ),
                     "task": {

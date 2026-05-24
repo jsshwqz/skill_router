@@ -433,3 +433,67 @@ impl BuiltinSkill for EvolutionReport {
         }
     }
 }
+
+// ── session_report ────────────────────────────────────────────────────
+
+/// 会话报告：汇总本次 session 的变更、决策、执行统计和推荐。
+/// 每次 AI 工作结束时调用，方便下个 AI 快速了解上下文。
+pub struct SessionReport;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for SessionReport {
+    fn name(&self) -> &'static str { "session_report" }
+
+    async fn execute(&self, _skill: &SkillDefinition, _context: &ExecutionContext) -> Result<Value> {
+        match crate::learner::learner() {
+            Some(learner) => Ok(learner.session_report()),
+            None => Ok(json!({"error": "学习引擎未初始化"})),
+        }
+    }
+}
+
+// ── record_change ────────────────────────────────────────────────────
+
+/// 记录代码变更事件（供自进化协议使用）
+pub struct RecordChange;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for RecordChange {
+    fn name(&self) -> &'static str { "record_change" }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let kind = context.context.get("kind").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let file = context.context.get("file").and_then(|v| v.as_str()).unwrap_or("");
+        let summary = context.context.get("summary").and_then(|v| v.as_str()).unwrap_or("");
+        match crate::learner::learner() {
+            Some(learner) => {
+                learner.record_change(kind, file, summary);
+                Ok(json!({"status": "ok", "kind": kind, "file": file}))
+            }
+            None => Ok(json!({"error": "学习引擎未初始化"})),
+        }
+    }
+}
+
+// ── record_decision ──────────────────────────────────────────────────
+
+/// 记录架构/设计决策事件（供自进化协议使用）
+pub struct RecordDecision;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for RecordDecision {
+    fn name(&self) -> &'static str { "record_decision" }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let ctx = context.context.get("context").and_then(|v| v.as_str()).unwrap_or("");
+        let choice = context.context.get("choice").and_then(|v| v.as_str()).unwrap_or("");
+        let rationale = context.context.get("rationale").and_then(|v| v.as_str()).unwrap_or("");
+        match crate::learner::learner() {
+            Some(learner) => {
+                learner.record_decision(ctx, choice, rationale);
+                Ok(json!({"status": "ok", "context": ctx, "choice": choice}))
+            }
+            None => Ok(json!({"error": "学习引擎未初始化"})),
+        }
+    }
+}

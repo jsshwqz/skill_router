@@ -991,6 +991,14 @@ impl CapabilityRegistry {
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string","description":"High-level goal to accomplish"}},"required":["task"]}),
                 examples: vec![],
             },
+            CapabilityDefinition {
+                name: "github_trending".to_string(),
+                description: "Query GitHub trending repositories by period (daily/weekly/monthly/all_time). Automatically filters AI-related projects and returns structured results with relevance tags.".to_string(),
+                inputs: vec!["period".to_string()],
+                outputs: vec!["period".to_string(), "ai_related".to_string(), "summary".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"period":{"type":"string","enum":["daily","weekly","monthly","all_time"],"description":"Time period for trending"},"limit":{"type":"integer","description":"Max repos to return (default 10, max 25)"}},"required":["period"]}),
+                examples: vec![],
+            },
         ] {
             registry
                 .definitions

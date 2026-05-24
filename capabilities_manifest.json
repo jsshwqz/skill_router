@@ -256,8 +256,25 @@
           },
           "type": "array"
         },
+        "force_triple_execute": {
+          "description": "Force all three engines to execute after discussion",
+          "type": "boolean"
+        },
         "problem": {
           "description": "Problem description",
+          "type": "string"
+        },
+        "risk_level": {
+          "description": "Risk level for execution strategy (default: medium)",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "type": "string"
+        },
+        "task": {
+          "description": "Alias of problem for natural language callers",
           "type": "string"
         }
       },
@@ -359,6 +376,19 @@
           "description": "Execute when disagreement (default: true)",
           "type": "boolean"
         },
+        "force_triple_execute": {
+          "description": "Force all three engines to execute after discussion",
+          "type": "boolean"
+        },
+        "risk_level": {
+          "description": "Risk level for execution strategy (default: medium)",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "type": "string"
+        },
         "task": {
           "description": "Task description, as detailed as possible",
           "type": "string"
@@ -410,6 +440,10 @@
     ],
     "parameters_schema": {
       "properties": {
+        "force_triple_execute": {
+          "description": "Force all three engines to execute after discussion",
+          "type": "boolean"
+        },
         "options": {
           "description": "Predefined options (optional)",
           "items": {
@@ -419,6 +453,19 @@
         },
         "problem": {
           "description": "Problem description",
+          "type": "string"
+        },
+        "risk_level": {
+          "description": "Risk level for arbitration strategy (default: medium)",
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "type": "string"
+        },
+        "task": {
+          "description": "Alias of problem for natural language callers",
           "type": "string"
         }
       },
@@ -559,6 +606,48 @@
       "required": [
         "text"
       ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "evolution_report",
+    "description": "Generate self-evolution diagnostics from execution events: source breakdown, error taxonomy, latest failures, and actionable recommendations.",
+    "inputs": [
+      "limit"
+    ],
+    "outputs": [
+      "summary",
+      "errors",
+      "recommendations"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "limit": {
+          "description": "How many recent failures to include (default: 10)",
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "health_check",
+    "description": "Check the health status of all AI engines (claude, openai, gemini) and return the server version",
+    "inputs": [],
+    "outputs": [
+      "overall_status",
+      "engines",
+      "server_version"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "workspace": {
+          "description": "Workspace root path (optional, defaults to current directory)",
+          "type": "string"
+        }
+      },
       "type": "object"
     },
     "examples": []
@@ -898,6 +987,66 @@
     "examples": []
   },
   {
+    "name": "record_change",
+    "description": "Record a code change event for the self-evolution protocol. kind: feature|fix|refactor|prompt|doc|config|test.",
+    "inputs": [
+      "kind",
+      "file",
+      "summary"
+    ],
+    "outputs": [
+      "status"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "file": {
+          "description": "File path changed",
+          "type": "string"
+        },
+        "kind": {
+          "description": "feature|fix|refactor|prompt|doc|config|test",
+          "type": "string"
+        },
+        "summary": {
+          "description": "Brief description of the change",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "record_decision",
+    "description": "Record an architecture/design decision for the self-evolution protocol.",
+    "inputs": [
+      "context",
+      "choice",
+      "rationale"
+    ],
+    "outputs": [
+      "status"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "choice": {
+          "description": "What was chosen",
+          "type": "string"
+        },
+        "context": {
+          "description": "Decision context / topic",
+          "type": "string"
+        },
+        "rationale": {
+          "description": "Why this choice",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
     "name": "regex_match",
     "description": "Match text against a regular expression pattern with find_all, is_match, or captures mode",
     "inputs": [
@@ -937,6 +1086,90 @@
     "examples": []
   },
   {
+    "name": "route_task",
+    "description": "分析原子任务，路由到最合适的 AI 引擎，返回可直接执行的 aion-forge 工具调用参数",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "rule_id",
+      "aion_tool",
+      "aion_params"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "hints": {
+          "properties": {
+            "doc_size_pages": {
+              "description": "文档页数，超过 80 页触发大文档规则",
+              "type": "integer"
+            },
+            "has_code": {
+              "description": "是否含代码上下文",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "task": {
+          "description": "原子任务自然语言描述",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": [
+      {
+        "intent": "route_task",
+        "parameters": {
+          "task": "重构这个大型代码库的认证模块"
+        }
+      },
+      {
+        "intent": "route_task",
+        "parameters": {
+          "hints": {
+            "doc_size_pages": 150
+          },
+          "task": "分析这份150页的合同"
+        }
+      }
+    ]
+  },
+  {
+    "name": "session_report",
+    "description": "Generate a session summary report: code changes, decisions made, execution stats, and recommendations.",
+    "inputs": [],
+    "outputs": [
+      "changes",
+      "decisions",
+      "execution_stats",
+      "recommendations"
+    ],
+    "parameters_schema": {
+      "properties": {},
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "skill_report",
+    "description": "Generate a report of skill usage statistics from the learning engine",
+    "inputs": [],
+    "outputs": [
+      "report"
+    ],
+    "parameters_schema": {
+      "properties": {},
+      "required": [],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
     "name": "space_navigation",
     "description": "Navigate to interstellar destinations (experimental)",
     "inputs": [
@@ -953,6 +1186,73 @@
       },
       "required": [
         "destination"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "spec_driven",
+    "description": "Structured 5-phase pipeline for large-scale code transformations: analyze, decompose, plan, execute, learn. Forces disciplined approach instead of immediate coding.",
+    "inputs": [
+      "action"
+    ],
+    "outputs": [
+      "project_id",
+      "status"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "action": {
+          "description": "Pipeline phase to invoke",
+          "enum": [
+            "analyze",
+            "decompose",
+            "plan",
+            "execute",
+            "status"
+          ],
+          "type": "string"
+        },
+        "analysis_result": {
+          "description": "Analysis output (for analyze callback)",
+          "type": "object"
+        },
+        "goal": {
+          "description": "Project goal (required for analyze)",
+          "type": "string"
+        },
+        "plan_result": {
+          "description": "Plan output (for plan callback)",
+          "type": "object"
+        },
+        "project_id": {
+          "description": "Project ID (required for decompose/plan/execute/status)",
+          "type": "string"
+        },
+        "task_error": {
+          "description": "Report task failure (for execute)",
+          "type": "string"
+        },
+        "task_id": {
+          "description": "Sub-task ID (for execute)",
+          "type": "string"
+        },
+        "task_result": {
+          "description": "Submit execution result (for execute)",
+          "type": "string"
+        },
+        "tasks": {
+          "description": "Task list (for decompose callback)",
+          "type": "array"
+        },
+        "workspace": {
+          "description": "Workspace root path (optional)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action"
       ],
       "type": "object"
     },
@@ -1164,6 +1464,38 @@
       "type": "object"
     },
     "examples": []
+  },
+  {
+    "name": "text_wordcount",
+    "description": "Count the number of words, characters, and lines in input text",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "word_count",
+      "char_count",
+      "line_count"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "description": "The text to count words, characters, and lines in",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": [
+      {
+        "intent": "text_wordcount",
+        "parameters": {
+          "text": "Hello world\nThis is a test"
+        }
+      }
+    ]
   },
   {
     "name": "toml_parse",

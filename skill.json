@@ -1,418 +1,1361 @@
 {
-  "name": "aion-router-universal",
-  "version": "0.4.0",
-  "capabilities": [
-    "complex_automation",
-    "auto_solution_generation",
-    "parallel_execution",
-    "code_generate",
-    "code_lint",
-    "code_test",
-    "yaml_parse",
-    "json_parse",
-    "toml_parse",
-    "csv_parse",
-    "pdf_parse",
-    "text_summarize",
-    "text_translate",
-    "text_classify",
-    "text_extract",
-    "text_diff",
-    "discovery_search",
-    "web_search",
-    "http_fetch",
-    "memory_remember",
-    "memory_recall",
-    "memory_distill"
-  ],
-  "description": "Unified AI Agent Framework - Skill Router Workspace. Support for memory management, planning, and parallel task execution.",
-  "entrypoint": "aion-cli",
-  "entrypoint_dev": "cargo run -p aion-cli --",
-  "safety_manifest": "safety-manifest.json",
-  "permissions": {
-    "network": true,
-    "filesystem_read": true,
-    "filesystem_write": true,
-    "process_exec": false
-  },
   "api_schema": {
     "tools": [
       {
-        "name": "code_generate",
-        "description": "Generate new code files or snippets based on precise requirements. Provide detailed text descriptions of what needs to be implemented.",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "code_lint",
-        "description": "Review Rust code for issues and suggest fixes using AI",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "code_test",
-        "description": "Write Rust unit tests for given code using AI",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "csv_parse",
-        "description": "Parse CSV or spreadsheet text into rows and columns",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "discovery_search",
-        "description": "Cascade search across Google, HTTP fallback, and local trusted sources",
-        "parameters": {
-          "properties": {
-            "query": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "query"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "echo",
-        "description": "Simply echo back the input task for testing",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "http_fetch",
-        "description": "Fetch the body of an HTTPS URL",
-        "parameters": {
-          "properties": {
-            "url": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "url"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "image_describe",
-        "description": "Describe an image at a given path or URL using AI",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "json_parse",
-        "description": "Parse and validate JSON text into structured data",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "markdown_render",
-        "description": "Parse Markdown text into structured sections",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "memory_distill",
-        "description": "Distill and compact the memory store by removing duplicates and decaying old entries",
-        "parameters": {
-          "type": "object"
-        }
-      },
-      {
-        "name": "memory_recall",
-        "description": "Recall relevant memories by keyword search from long-term store",
-        "parameters": {
-          "properties": {
-            "query": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "query"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "memory_remember",
-        "description": "Persist a memory entry (decision, lesson, error, preference, etc.) to long-term store",
-        "parameters": {
-          "properties": {
-            "category": {
-              "type": "string"
+        "function": {
+          "description": "Broadcast a message to all registered Agents on the message bus",
+          "name": "agent_broadcast",
+          "parameters": {
+            "properties": {
+              "message": {
+                "description": "Message content to broadcast",
+                "type": "string"
+              }
             },
-            "content": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "content"
-          ],
-          "type": "object"
-        }
+            "required": [
+              "message"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "pdf_parse",
-        "description": "Extract and structure text content from a PDF file path",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "space_navigation",
-        "description": "Navigate to interstellar destinations (experimental)",
-        "parameters": {
-          "properties": {
-            "destination": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "destination"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "text_classify",
-        "description": "Classify or categorize text into a label using AI",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
-      },
-      {
-        "name": "text_diff",
-        "description": "Compute a line-level diff between two text inputs",
-        "parameters": {
-          "properties": {
-            "a": {
-              "type": "string"
+        "function": {
+          "description": "Delegate a task to a specific Agent by ID via the message bus",
+          "name": "agent_delegate",
+          "parameters": {
+            "properties": {
+              "capability": {
+                "description": "Capability to invoke on target",
+                "type": "string"
+              },
+              "target_agent_id": {
+                "description": "Target Agent ID",
+                "type": "string"
+              },
+              "task": {
+                "description": "The task to delegate",
+                "type": "string"
+              }
             },
-            "b": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "a",
-            "b"
-          ],
-          "type": "object"
-        }
+            "required": [
+              "task",
+              "target_agent_id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "text_embed",
-        "description": "Compute a term-frequency bag-of-words vector for text",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
+        "function": {
+          "description": "Send a query to multiple Agents and aggregate all responses",
+          "name": "agent_gather",
+          "parameters": {
+            "properties": {
+              "agent_ids": {
+                "description": "Target Agent IDs",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "query": {
+                "description": "Query to send to Agents",
+                "type": "string"
+              },
+              "timeout_secs": {
+                "default": 10,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "text_extract",
-        "description": "Extract key entities and information from text using AI",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
+        "function": {
+          "description": "Query the status of all registered Agents or a specific Agent",
+          "name": "agent_status",
+          "parameters": {
+            "properties": {
+              "agent_id": {
+                "description": "Optional specific Agent ID to query",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "text_summarize",
-        "description": "Summarize text using AI into a concise output",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
+        "function": {
+          "description": "Generate code with one AI engine and review with another using AI",
+          "name": "ai_code_generate",
+          "parameters": {
+            "properties": {
+              "language": {
+                "description": "Programming language (default: python)",
+                "type": "string"
+              },
+              "primary": {
+                "description": "Primary generator",
+                "enum": [
+                  "claude",
+                  "openai",
+                  "gemini"
+                ],
+                "type": "string"
+              },
+              "reviewer": {
+                "description": "Code reviewer",
+                "enum": [
+                  "claude",
+                  "openai",
+                  "gemini"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "description": "Code requirement",
+                "type": "string"
+              }
+            },
+            "required": [
+              "task"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "text_translate",
-        "description": "Translate text from one language to another using AI",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
+        "function": {
+          "description": "Two AI engines cross-review code, merge opinions using AI",
+          "name": "ai_cross_review",
+          "parameters": {
+            "properties": {
+              "code": {
+                "description": "Code to review",
+                "type": "string"
+              },
+              "engines": {
+                "description": "Two engines (default: [claude, openai])",
+                "items": {
+                  "enum": [
+                    "claude",
+                    "openai",
+                    "gemini"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "toml_parse",
-        "description": "Parse TOML configuration text into structured data",
-        "parameters": {
-          "properties": {
-            "text": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
+        "function": {
+          "description": "Process long content with Gemini's ultra-long context, optionally verify with other AI",
+          "name": "ai_long_context",
+          "parameters": {
+            "properties": {
+              "content": {
+                "description": "Long text content",
+                "type": "string"
+              },
+              "task": {
+                "description": "Processing task",
+                "type": "string"
+              },
+              "verify_with": {
+                "description": "Verification engines (optional)",
+                "items": {
+                  "enum": [
+                    "claude",
+                    "openai"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "content",
+              "task"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "web_search",
-        "description": "Search the web via SerpAPI and return organic results",
-        "parameters": {
-          "properties": {
-            "query": {
-              "type": "string"
-            }
-          },
-          "required": [
-            "query"
-          ],
-          "type": "object"
-        }
+        "function": {
+          "description": "Multiple AI engines solve a problem in parallel, compare and pick best using AI",
+          "name": "ai_parallel_solve",
+          "parameters": {
+            "properties": {
+              "engines": {
+                "description": "Engines to use (default: all)",
+                "items": {
+                  "enum": [
+                    "claude",
+                    "openai",
+                    "gemini"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "force_triple_execute": {
+                "description": "Force all three engines to execute after discussion",
+                "type": "boolean"
+              },
+              "problem": {
+                "description": "Problem description",
+                "type": "string"
+              },
+              "risk_level": {
+                "description": "Risk level for execution strategy (default: medium)",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "description": "Alias of problem for natural language callers",
+                "type": "string"
+              }
+            },
+            "required": [
+              "problem"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "yaml_parse",
-        "description": "Parse YAML text into structured JSON data",
-        "parameters": {
-          "properties": {
-            "text": {
-              "description": "The YAML content to parse",
-              "type": "string"
-            }
-          },
-          "required": [
-            "text"
-          ],
-          "type": "object"
-        }
+        "function": {
+          "description": "Three-engine multi-perspective research: Claude theory, OpenAI practice, Gemini trends using AI",
+          "name": "ai_research",
+          "parameters": {
+            "properties": {
+              "depth": {
+                "description": "Research depth",
+                "enum": [
+                  "quick",
+                  "comprehensive",
+                  "deep"
+                ],
+                "type": "string"
+              },
+              "topic": {
+                "description": "Research topic",
+                "type": "string"
+              }
+            },
+            "required": [
+              "topic"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       },
       {
-        "name": "complex_automation",
-        "description": "Perform a multi-step complex automation task autonomously. Useful for open-ended requests that require planning, searching, file reading/writing, and reasoning.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "task": {
-              "type": "string",
-              "description": "The complex task description or objective."
-            }
-          },
-          "required": [
-            "task"
-          ]
-        }
+        "function": {
+          "description": "Configurable AI pipeline to optimize code: analyze, optimize, verify using AI",
+          "name": "ai_serial_optimize",
+          "parameters": {
+            "properties": {
+              "code": {
+                "description": "Code to optimize",
+                "type": "string"
+              },
+              "goals": {
+                "description": "Optimization goals",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "pipeline": {
+                "description": "AI execution order [analyzer, optimizer, verifier]",
+                "items": {
+                  "enum": [
+                    "claude",
+                    "openai",
+                    "gemini"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Let OpenAI, Claude, Gemini collaborate on a task: discuss, detect consensus, merge or pick best using AI",
+          "name": "ai_smart_collaborate",
+          "parameters": {
+            "properties": {
+              "execute_on_disagreement": {
+                "description": "Execute when disagreement (default: true)",
+                "type": "boolean"
+              },
+              "force_triple_execute": {
+                "description": "Force all three engines to execute after discussion",
+                "type": "boolean"
+              },
+              "risk_level": {
+                "description": "Risk level for execution strategy (default: medium)",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "description": "Task description, as detailed as possible",
+                "type": "string"
+              }
+            },
+            "required": [
+              "task"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Three AI engines review code simultaneously, merge opinions with confidence using AI",
+          "name": "ai_triangle_review",
+          "parameters": {
+            "properties": {
+              "code": {
+                "description": "Code to review",
+                "type": "string"
+              },
+              "context": {
+                "description": "Optional code background",
+                "type": "string"
+              }
+            },
+            "required": [
+              "code"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Three AI engines independently vote on a problem, pick the best using AI",
+          "name": "ai_triple_vote",
+          "parameters": {
+            "properties": {
+              "force_triple_execute": {
+                "description": "Force all three engines to execute after discussion",
+                "type": "boolean"
+              },
+              "options": {
+                "description": "Predefined options (optional)",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "problem": {
+                "description": "Problem description",
+                "type": "string"
+              },
+              "risk_level": {
+                "description": "Risk level for arbitration strategy (default: medium)",
+                "enum": [
+                  "low",
+                  "medium",
+                  "high"
+                ],
+                "type": "string"
+              },
+              "task": {
+                "description": "Alias of problem for natural language callers",
+                "type": "string"
+              }
+            },
+            "required": [
+              "problem"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Generate Rust code for a given requirement using AI",
+          "name": "code_generate",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Review Rust code for issues and suggest fixes using AI",
+          "name": "code_lint",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Write Rust unit tests for given code using AI",
+          "name": "code_test",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Parse CSV or spreadsheet text into rows and columns",
+          "name": "csv_parse",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Cascade search across Google, HTTP fallback, and local trusted sources",
+          "name": "discovery_search",
+          "parameters": {
+            "properties": {
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Simply echo back the input task for testing",
+          "name": "echo",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Generate self-evolution diagnostics from execution events: source breakdown, error taxonomy, latest failures, and actionable recommendations.",
+          "name": "evolution_report",
+          "parameters": {
+            "properties": {
+              "limit": {
+                "description": "How many recent failures to include (default: 10)",
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Check the health status of all AI engines (claude, openai, gemini) and return the server version",
+          "name": "health_check",
+          "parameters": {
+            "properties": {
+              "workspace": {
+                "description": "Workspace root path (optional, defaults to current directory)",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Fetch the body of an HTTPS URL",
+          "name": "http_fetch",
+          "parameters": {
+            "properties": {
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "url"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Describe an image at a given path or URL using AI",
+          "name": "image_describe",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Parse and validate JSON text into structured data",
+          "name": "json_parse",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Query JSON data using JSONPath-like expressions ($.key.subkey[0])",
+          "name": "json_query",
+          "parameters": {
+            "properties": {
+              "data": {
+                "description": "JSON string to query",
+                "type": "string"
+              },
+              "path": {
+                "description": "JSONPath expression (e.g. $.store.book[0].title)",
+                "type": "string"
+              }
+            },
+            "required": [
+              "data",
+              "path"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Parse Markdown text into structured sections",
+          "name": "markdown_render",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Call an external tool via MCP (Model Context Protocol) server",
+          "name": "mcp_call",
+          "parameters": {
+            "properties": {
+              "arguments": {
+                "description": "Arguments for the tool",
+                "type": "object"
+              },
+              "server": {
+                "description": "MCP server name",
+                "type": "string"
+              },
+              "tool": {
+                "description": "Tool name on the MCP server",
+                "type": "string"
+              }
+            },
+            "required": [
+              "server",
+              "tool"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Distill and compact the memory store by removing duplicates and decaying old entries",
+          "name": "memory_distill",
+          "parameters": {
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Recall relevant memories by keyword search from long-term store",
+          "name": "memory_recall",
+          "parameters": {
+            "properties": {
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Persist a memory entry (decision, lesson, error, preference, etc.) to long-term store",
+          "name": "memory_remember",
+          "parameters": {
+            "properties": {
+              "category": {
+                "type": "string"
+              },
+              "content": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "content"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Promote a private memory entry to team-shared namespace for cross-Agent access",
+          "name": "memory_team_share",
+          "parameters": {
+            "properties": {
+              "memory_id": {
+                "description": "Private memory ID to share",
+                "type": "string"
+              },
+              "team_session_id": {
+                "description": "Target team session",
+                "type": "string"
+              }
+            },
+            "required": [
+              "memory_id"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Extract and structure text content from a PDF file path",
+          "name": "pdf_parse",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Ingest a document into the RAG knowledge base for later retrieval",
+          "name": "rag_ingest",
+          "parameters": {
+            "properties": {
+              "content": {
+                "description": "Optional: document content (if not reading from file)",
+                "type": "string"
+              },
+              "source": {
+                "description": "File path or URL to ingest",
+                "type": "string"
+              }
+            },
+            "required": [
+              "source"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Query the RAG knowledge base and generate an AI-enhanced answer from retrieved documents",
+          "name": "rag_query",
+          "parameters": {
+            "properties": {
+              "query": {
+                "description": "Question to ask the knowledge base",
+                "type": "string"
+              },
+              "top_k": {
+                "description": "Number of relevant chunks to retrieve (default: 3)",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Show the current status of the RAG knowledge base (document count, chunk count, sources)",
+          "name": "rag_status",
+          "parameters": {
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Record a code change event for the self-evolution protocol. kind: feature|fix|refactor|prompt|doc|config|test.",
+          "name": "record_change",
+          "parameters": {
+            "properties": {
+              "file": {
+                "description": "File path changed",
+                "type": "string"
+              },
+              "kind": {
+                "description": "feature|fix|refactor|prompt|doc|config|test",
+                "type": "string"
+              },
+              "summary": {
+                "description": "Brief description of the change",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Record an architecture/design decision for the self-evolution protocol.",
+          "name": "record_decision",
+          "parameters": {
+            "properties": {
+              "choice": {
+                "description": "What was chosen",
+                "type": "string"
+              },
+              "context": {
+                "description": "Decision context / topic",
+                "type": "string"
+              },
+              "rationale": {
+                "description": "Why this choice",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Match text against a regular expression pattern with find_all, is_match, or captures mode",
+          "name": "regex_match",
+          "parameters": {
+            "properties": {
+              "mode": {
+                "default": "find_all",
+                "enum": [
+                  "find_all",
+                  "is_match",
+                  "captures"
+                ],
+                "type": "string"
+              },
+              "pattern": {
+                "description": "Regular expression pattern",
+                "type": "string"
+              },
+              "text": {
+                "description": "Text to search",
+                "type": "string"
+              }
+            },
+            "required": [
+              "text",
+              "pattern"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "分析原子任务，路由到最合适的 AI 引擎，返回可直接执行的 aion-forge 工具调用参数",
+          "name": "route_task",
+          "parameters": {
+            "properties": {
+              "hints": {
+                "properties": {
+                  "doc_size_pages": {
+                    "description": "文档页数，超过 80 页触发大文档规则",
+                    "type": "integer"
+                  },
+                  "has_code": {
+                    "description": "是否含代码上下文",
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              },
+              "task": {
+                "description": "原子任务自然语言描述",
+                "type": "string"
+              }
+            },
+            "required": [
+              "task"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Generate a session summary report: code changes, decisions made, execution stats, and recommendations.",
+          "name": "session_report",
+          "parameters": {
+            "properties": {},
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Generate a report of skill usage statistics from the learning engine",
+          "name": "skill_report",
+          "parameters": {
+            "properties": {},
+            "required": [],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Navigate to interstellar destinations (experimental)",
+          "name": "space_navigation",
+          "parameters": {
+            "properties": {
+              "destination": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "destination"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Structured 5-phase pipeline for large-scale code transformations: analyze, decompose, plan, execute, learn. Forces disciplined approach instead of immediate coding.",
+          "name": "spec_driven",
+          "parameters": {
+            "properties": {
+              "action": {
+                "description": "Pipeline phase to invoke",
+                "enum": [
+                  "analyze",
+                  "decompose",
+                  "plan",
+                  "execute",
+                  "status"
+                ],
+                "type": "string"
+              },
+              "analysis_result": {
+                "description": "Analysis output (for analyze callback)",
+                "type": "object"
+              },
+              "goal": {
+                "description": "Project goal (required for analyze)",
+                "type": "string"
+              },
+              "plan_result": {
+                "description": "Plan output (for plan callback)",
+                "type": "object"
+              },
+              "project_id": {
+                "description": "Project ID (required for decompose/plan/execute/status)",
+                "type": "string"
+              },
+              "task_error": {
+                "description": "Report task failure (for execute)",
+                "type": "string"
+              },
+              "task_id": {
+                "description": "Sub-task ID (for execute)",
+                "type": "string"
+              },
+              "task_result": {
+                "description": "Submit execution result (for execute)",
+                "type": "string"
+              },
+              "tasks": {
+                "description": "Task list (for decompose callback)",
+                "type": "array"
+              },
+              "workspace": {
+                "description": "Workspace root path (optional)",
+                "type": "string"
+              }
+            },
+            "required": [
+              "action"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Execute a serial pipeline of capabilities, passing each result to the next step",
+          "name": "task_pipeline",
+          "parameters": {
+            "properties": {
+              "initial_input": {
+                "description": "Input for the first step",
+                "type": "string"
+              },
+              "steps": {
+                "description": "Ordered list of capability names",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "steps",
+              "initial_input"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Race multiple Agents on the same task, return the first successful result",
+          "name": "task_race",
+          "parameters": {
+            "properties": {
+              "agent_ids": {
+                "description": "Competing Agent IDs",
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "capability": {
+                "description": "Capability to invoke",
+                "type": "string"
+              },
+              "task": {
+                "description": "Task to race",
+                "type": "string"
+              }
+            },
+            "required": [
+              "task"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Classify or categorize text into a label using AI",
+          "name": "text_classify",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Compute a line-level diff between two text inputs",
+          "name": "text_diff",
+          "parameters": {
+            "properties": {
+              "a": {
+                "type": "string"
+              },
+              "b": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "a",
+              "b"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Compute a term-frequency bag-of-words vector for text",
+          "name": "text_embed",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Extract key entities and information from text using AI",
+          "name": "text_extract",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Summarize text using AI into a concise output",
+          "name": "text_summarize",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Translate text from one language to another using AI",
+          "name": "text_translate",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Count the number of words, characters, and lines in input text",
+          "name": "text_wordcount",
+          "parameters": {
+            "properties": {
+              "text": {
+                "description": "The text to count words, characters, and lines in",
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Parse TOML configuration text into structured data",
+          "name": "toml_parse",
+          "parameters": {
+            "properties": {
+              "text": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Search the web via SerpAPI and return organic results",
+          "name": "web_search",
+          "parameters": {
+            "properties": {
+              "query": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "query"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "Parse YAML text into structured JSON data",
+          "name": "yaml_parse",
+          "parameters": {
+            "properties": {
+              "text": {
+                "description": "The YAML content to parse",
+                "type": "string"
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
       }
     ]
-  }
+  },
+  "capabilities": [
+    "agent_broadcast",
+    "agent_delegate",
+    "agent_gather",
+    "agent_status",
+    "ai_code_generate",
+    "ai_cross_review",
+    "ai_long_context",
+    "ai_parallel_solve",
+    "ai_research",
+    "ai_serial_optimize",
+    "ai_smart_collaborate",
+    "ai_triangle_review",
+    "ai_triple_vote",
+    "code_generate",
+    "code_lint",
+    "code_test",
+    "csv_parse",
+    "discovery_search",
+    "echo",
+    "evolution_report",
+    "health_check",
+    "http_fetch",
+    "image_describe",
+    "json_parse",
+    "json_query",
+    "markdown_render",
+    "mcp_call",
+    "memory_distill",
+    "memory_recall",
+    "memory_remember",
+    "memory_team_share",
+    "pdf_parse",
+    "rag_ingest",
+    "rag_query",
+    "rag_status",
+    "record_change",
+    "record_decision",
+    "regex_match",
+    "route_task",
+    "session_report",
+    "skill_report",
+    "space_navigation",
+    "spec_driven",
+    "task_pipeline",
+    "task_race",
+    "text_classify",
+    "text_diff",
+    "text_embed",
+    "text_extract",
+    "text_summarize",
+    "text_translate",
+    "text_wordcount",
+    "toml_parse",
+    "web_search",
+    "yaml_parse"
+  ],
+  "description": "Universal AI Agent Capability Router — 29+ built-in skills",
+  "entrypoint": "aion-cli",
+  "entrypoint_dev": "cargo run -p aion-cli --",
+  "name": "aion-forge",
+  "permissions": {
+    "filesystem_read": true,
+    "filesystem_write": true,
+    "network": true,
+    "process_exec": false
+  },
+  "safety_manifest": "safety-manifest.json",
+  "version": "0.6.0"
 }

@@ -1,4 +1,5 @@
 use std::fs;
+use std::path::PathBuf;
 
 use anyhow::Result;
 use serde_json::json;
@@ -167,6 +168,8 @@ impl Synthesizer {
 
     /// 带失败上下文的进化版本。`failure_context` 包含失败原因摘要，
     /// 会写入生成的 skill instruction 中，使下一版能规避已知问题。
+    ///
+    /// 借鉴 GEPA 思路：生成多个候选，评分择优，避免单一模板。
     pub fn evolve_with_failures(
         paths: &RouterPaths,
         capability: &str,
@@ -177,21 +180,20 @@ impl Synthesizer {
         let name = format!("{}_evolved", capability);
         let root_dir = paths.generated_skills_dir.join(&name);
 
-        let instruction = if failure_context.is_empty() {
-            None
-        } else {
-            Some(format!(
-                "你是一个改进后的 {} 工具。\n\
-                 已知失败模式：{}。\n\
-                 在实现中需参考失败原因规避这些问题。\n\n\
-                 ## 约束\n\
-                 - 不得超过 15KB 输出\n\
-                 - 必须返回有效 JSON（若输出为结构化数据）\n\
-                 - 不确定时输出 UNKNOWN，不要猜测\n\
-                 - 优先使用本地能力，不要假设外部服务可用",
+        if failure_context.is_empty() {
+            return Self::evolve_simple(capability, &name, &root_dir);
+        }
+
+        // 生成多个候选 instruction，评分择优
+        let candidates = Self::build_candidate_instructions(capability, failure_context);
+        let best = candidates.into_iter()
+            .max_by_key(|instr| score_instruction(instr, failure_context))
+            .unwrap_or_else(|| format!(
+                "你是一个改进后的 {} 工具。\n已知失败模式：{}。\n在实现中需参考失败原因规避这些问题。",
                 capability, failure_context
-            ))
-        };
+            ));
+
+        let instruction = Some(best);
 
         let definition = SkillDefinition {
             metadata: SkillMetadata {
@@ -206,32 +208,91 @@ impl Synthesizer {
             source: SkillSource::Generated,
         };
 
-        // 约束门禁：验证生成的 skill definition 是否有效
+        // 约束门禁
         if let Err(e) = Self::validate_evolved(&definition) {
             tracing::warn!("evolve_with_failures: constraint gate failed for {}: {}", capability, e);
-            // 仍然写入，但降级为 basic instruction（去掉失败上下文，避免错误传导）
-            let fallback = SkillDefinition {
-                metadata: SkillMetadata {
-                    instruction: Some(format!(
-                        "你是一个改进后的 {} 工具。注意以下已知问题：{}。",
-                        capability, failure_context
-                    )),
-                    ..definition.metadata.clone()
-                },
-                ..definition
-            };
+            let fallback = Self::build_fallback(capability, failure_context);
             Self::persist_definition(&fallback)?;
             return Ok(fallback);
         }
 
         Self::persist_definition(&definition)?;
-
-        tracing::info!(
-            "evolve_with_failures: created {} → {}",
-            capability, definition.metadata.name
-        );
-
+        tracing::info!("evolve_with_failures: created {} → {}", capability, definition.metadata.name);
         Ok(definition)
+    }
+
+    /// 没有失败上下文时的简单进化
+    fn evolve_simple(
+        capability: &str,
+        name: &str,
+        root_dir: &PathBuf,
+    ) -> Result<SkillDefinition> {
+        let definition = SkillDefinition {
+            metadata: SkillMetadata {
+                name: name.to_string(),
+                version: "0.1.0".to_string(),
+                capabilities: vec![capability.to_string()],
+                entrypoint: "builtin:ai_task".to_string(),
+                permissions: PermissionSet::default_deny().with_network(true),
+                instruction: None,
+            },
+            root_dir: root_dir.clone(),
+            source: SkillSource::Generated,
+        };
+        Self::persist_definition(&definition)?;
+        Ok(definition)
+    }
+
+    /// 构建 3 个候选 instruction，采用不同策略
+    fn build_candidate_instructions(capability: &str, failure_context: &str) -> Vec<String> {
+        vec![
+            // 候选 1：精简直接（最小干预）
+            format!(
+                "你是一个改进后的 {} 工具。\n避免已知问题：{}。\n不确定时输出 UNKNOWN。",
+                capability, failure_context
+            ),
+            // 候选 2：详细约束（Hermes 风格）
+            format!(
+                "你是一个改进后的 {} 工具。\n\
+                 已知失败模式：{}\n\n\
+                 ## 约束\n\
+                 - 不超过 15KB 输出\n\
+                 - 输出必须为有效 JSON（若要求结构化输出）\n\
+                 - 不确定时输出 UNKNOWN，不要猜测\n\
+                 - 优先使用本地能力\n\
+                 - 必须参考失败原因规避这些问题",
+                capability, failure_context
+            ),
+            // 候选 3：带示例（Few-shot 风格）
+            format!(
+                "你是一个改进后的 {} 工具。\n\n\
+                 已知问题：{}\n请避免以上问题。\n\n\
+                 输出要求：\n\
+                 1. 如果输入不明确，输出 UNKNOWN\n\
+                 2. 保持输出简洁（不超过 15KB）\n\
+                 3. 优先本地处理，不依赖外部服务\n\
+                 4. 不确定时不要猜测",
+                capability, failure_context
+            ),
+        ]
+    }
+
+    /// 约束门禁降级处理
+    fn build_fallback(capability: &str, failure_context: &str) -> SkillDefinition {
+        SkillDefinition {
+            metadata: SkillMetadata {
+                name: format!("{}_evolved", capability),
+                version: "0.2.0".to_string(),
+                capabilities: vec![capability.to_string()],
+                entrypoint: "builtin:ai_task".to_string(),
+                permissions: PermissionSet::default_deny().with_network(true),
+                instruction: Some(format!(
+                    "你是一个改进后的 {} 工具。注意已知问题：{}。", capability, failure_context
+                )),
+            },
+            root_dir: PathBuf::new(),
+            source: SkillSource::Generated,
+        }
     }
 
     /// 约束门禁：验证进化后的 skill 是否满足基本要求
@@ -278,4 +339,31 @@ impl Synthesizer {
         )?;
         Ok(())
     }
+}
+
+/// 对候选 instruction 进行评分（GEPA 启发：长度惩罚 + 失败上下文覆盖率）
+/// 分数越高越好。用于多候选择优。
+fn score_instruction(instruction: &str, failure_context: &str) -> i64 {
+    let mut score: i64 = 100; // 基础分
+
+    // 长度惩罚：instruction 超过 1000 字开始扣分，每 100 字扣 1 分
+    let len_penalty = (instruction.len() as i64).saturating_sub(1000) / 100;
+    score = score.saturating_sub(len_penalty);
+
+    // 失败上下文覆盖率：instruction 中包含的 failure_context 关键词越多越好
+    for keyword in failure_context.split(|c: char| c.is_whitespace() || c == ',') {
+        let kw = keyword.trim().trim_matches(|c: char| c == '[' || c == ']');
+        if kw.len() > 2 && instruction.contains(kw) {
+            score += 5; // 每个命中关键词 +5 分
+        }
+    }
+
+    // 加分项：包含约束关键字表示 instruction 更健壮
+    for signal in &["UNKNOWN", "15KB", "约束", "不要猜测"] {
+        if instruction.contains(signal) {
+            score += 3;
+        }
+    }
+
+    score
 }
