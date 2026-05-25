@@ -278,6 +278,15 @@ impl CapabilityRegistry {
                 }),
                 examples: vec![],
             },
+            // ── Prompt 工程质量审计 ──────────────────────────────────────────
+            CapabilityDefinition {
+                name: "prompt_audit".to_string(),
+                description: "Evaluate a prompt against the 8-step framework and return compliance score with improvement suggestions.".to_string(),
+                inputs: vec!["prompt".to_string(), "model".to_string()],
+                outputs: vec!["score".to_string(), "framework".to_string(), "summary".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"},"model":{"type":"string"}},"required":["prompt"]}),
+                examples: vec![],
+            },
             CapabilityDefinition {
                 name: "code_generate".to_string(),
                 description: "Generate Rust code for a given requirement using AI".to_string(),
@@ -989,14 +998,6 @@ impl CapabilityRegistry {
                 inputs: vec!["task".to_string()],
                 outputs: vec!["status".to_string(), "total_iterations".to_string(), "log".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string","description":"High-level goal to accomplish"}},"required":["task"]}),
-                examples: vec![],
-            },
-            CapabilityDefinition {
-                name: "github_trending".to_string(),
-                description: "Query GitHub trending repositories by period (daily/weekly/monthly/all_time). Automatically filters AI-related projects and returns structured results with relevance tags.".to_string(),
-                inputs: vec!["period".to_string()],
-                outputs: vec!["period".to_string(), "ai_related".to_string(), "summary".to_string()],
-                parameters_schema: serde_json::json!({"type":"object","properties":{"period":{"type":"string","enum":["daily","weekly","monthly","all_time"],"description":"Time period for trending"},"limit":{"type":"integer","description":"Max repos to return (default 10, max 25)"}},"required":["period"]}),
                 examples: vec![],
             },
         ] {

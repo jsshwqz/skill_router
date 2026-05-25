@@ -18,13 +18,13 @@ pub mod spec_driven;
 pub mod task_router;
 pub mod health_check;
 pub mod zl;
+pub mod prompt_audit;
 pub mod evolver;
 pub mod haoojiang;
 pub mod market;
 pub mod skill_format;
 pub mod autonomous_agent;
 pub mod image;
-pub mod trending;
 
 use std::collections::HashMap;
 
@@ -192,8 +192,8 @@ impl BuiltinRegistry {
         // 图像分析
         reg.register(Box::new(image::ImageDescribe));
 
-        // GitHub 趋势监控
-        reg.register(Box::new(trending::GithubTrending));
+        // Prompt 工程质量审计
+        reg.register(Box::new(prompt_audit::PromptAudit));
 
         reg
     }

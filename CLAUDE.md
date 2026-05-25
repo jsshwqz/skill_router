@@ -130,3 +130,53 @@ aion-server  — HTTP REST API（纯 Rust，axum）
 - 如果本次没有代码变更（纯分析/咨询），只做第 2 步和第 3 步
 - 记录要简洁，不需要描述细节，只需要让下个 AI 知道"发生了什么"和"为什么"
 - 记住：你自己也是这个协议的使用者——你依赖上个 AI 的记录，下个 AI 依赖你的记录
+
+---
+
+## 八、MCP 注入规则（Agent 间协作）
+
+aion-forge 以 MCP 服务器形式暴露 40+ 内置能力。在 Team/Agent 模式下，确保所有 agent 能调用这些工具：
+
+### 如何注入 MCP 到 Agent
+
+**方法一（推荐 — aionui 一键注入）**：
+在 `aion_create_team` 创建团队后，通过以下 MCP 配置让每个 agent 自动获得 aion-forge 能力：
+
+```json
+{
+  "mcpServers": {
+    "aion-forge": {
+      "command": "D:/test/aionui/forge/aion-cli.exe",
+      "args": ["mcp-server"],
+      "env": {
+        "AI_SECURITY_FAIL_POLICY": "open",
+        "AI_BASE_URL": "...",
+        "AI_API_KEY": "...",
+        "AI_MODEL": "..."
+      }
+    }
+  }
+}
+```
+
+**方法二（手工注入）**：
+使用 `team_spawn_agent` 创建 agent 时，宿主环境的 MCP 会自动传递。如果未传递，在 agent 的 `.mcp.json` 或 settings 中手动添加上述配置。
+
+### Agent 使用 MCP 的规则
+
+1. **技能加载优先走 MCP**：需要能力时，优先调用 `mcp__aion-forge__*` 工具，而非自己实现
+2. **prompt_audit**：发出 prompt 前，调用 `prompt_audit` 检查是否符合 8 步框架
+3. **task_router**：不确定用哪个能力时，先调用 `route_task` 做路由
+4. **MCP 不可用时降级**：如果 MCP 调用超时或失败，回退到本地能力
+
+### 当前已注册的 MCP 工具
+
+参见 `mcp__aion-forge__*` 前缀的工具列表。核心类别：
+- 代码: `code_generate`, `code_lint`, `code_test`
+- 文本: `text_summarize`, `text_translate`, `text_classify`, `text_extract`
+- 搜索: `web_search`, `http_fetch`, `discovery_search`
+- 辩证: `strategic_plan`, `task_dialectic`, `compile_contract`
+- 协作: `brainstorm`, `compare`, `discuss`
+- 审计: `prompt_audit`, `haoojiang_review`, `evolver_governance`
+- 记忆: `memory_remember`, `memory_recall`, `memory_distill`
+- 编排: `ai_parallel_solve`, `ai_smart_collaborate`, `ai_triple_vote`
