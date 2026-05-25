@@ -64,6 +64,11 @@ impl Synthesizer {
             "ai_code_generate", "ai_smart_collaborate", "ai_research",
             "ai_serial_optimize", "ai_long_context", "ai_cross_review",
             "code_lint", "code_test", "pdf_parse", "spec_driven",
+            "prompt_audit", "haoojiang_review", "evolver_governance",
+            "strategic_plan", "task_dialectic", "contradiction_analyze",
+            "compile_contract", "check_sufficiency", "verify_result",
+            "detect_drift", "dialectical_retry",
+            "brainstorm", "compare", "discuss",
         ];
 
         let (entrypoint, instruction) = if DEDICATED_AI_BUILTINS.contains(&capability) {
