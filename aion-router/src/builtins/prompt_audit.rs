@@ -110,3 +110,57 @@ impl BuiltinSkill for PromptAudit {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aion_types::types::ExecutionContext;
+
+    #[tokio::test]
+    async fn test_prompt_audit_degradation() {
+        // Verify graceful degradation when AI is unavailable
+        let skill = SkillDefinition {
+            metadata: aion_types::types::SkillMetadata {
+                name: "prompt_audit".into(),
+                version: "0.1.0".into(),
+                capabilities: vec!["prompt_audit".into()],
+                entrypoint: "builtin:prompt_audit".into(),
+                permissions: aion_types::types::PermissionSet::default_deny(),
+                instruction: None,
+            },
+            root_dir: std::env::temp_dir().join("test_prompt_audit"),
+            source: aion_types::types::SkillSource::Generated,
+        };
+
+        let ctx = ExecutionContext {
+            task: "Test prompt".into(),
+            capability: "prompt_audit".into(),
+            context: serde_json::json!({
+                "prompt": "Write a function in Python.",
+                "model": "claude"
+            }),
+            artifacts: serde_json::json!({}),
+        };
+
+        let result = PromptAudit.execute(&skill, &ctx).await;
+        assert!(result.is_ok(), "execute should not panic: {:?}", result.err());
+
+        let val = result.unwrap();
+        assert!(val.get("target_model").is_some(), "should include target_model");
+        assert!(val.get("prompt_chars").is_some(), "should include prompt_chars");
+
+        // Check either audit result or graceful degradation
+        let audit = val.get("audit");
+        assert!(audit.is_some(), "should include audit field");
+        let audit = audit.unwrap();
+        let score = audit.get("score").and_then(|s| s.as_f64()).unwrap_or(-1.0);
+        assert!(score >= 0.0, "score should be >= 0, got {}", score);
+
+        println!("=== prompt_audit E2E ===");
+        println!("target_model: {:?}", val.get("target_model"));
+        println!("score: {}", score);
+        println!("summary: {:?}", audit.get("summary"));
+        println!("adaptation_hint: {:?}", val.get("adaptation_hint"));
+        println!("=========================");
+    }
+}
