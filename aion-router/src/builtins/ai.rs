@@ -1,5 +1,6 @@
 //! AI task builtin skill: ai_task
 //! Supports fallback chain: host Anthropic proxy -> configured AI providers -> Ollama local
+//! 当 AI_TOON_ENABLED=true 时，自动将输入中的 JSON 数据转为 TOON 格式，节省 token。
 
 use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Value};
@@ -7,7 +8,15 @@ use serde_json::{json, Value};
 use crate::config::{candidate_ai_endpoints, AiEndpoint, AiProtocol};
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
+use super::format;
 use super::BuiltinSkill;
+
+/// 是否启用 TOON 自动转换（环境变量控制）
+fn toon_enabled() -> bool {
+    std::env::var("AI_TOON_ENABLED")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
+}
 
 /// 从当前工作目录的 CLAUDE.md 或 FORGE_PROJECT_RULES 环境变量加载项目规约，
 /// 作为 AI 指令的后缀，使生成/审查的代码符合项目约定。
@@ -81,6 +90,13 @@ impl BuiltinSkill for AiTask {
             .unwrap_or(&context.task)
             .to_string();
 
+        // AI_TOON_ENABLED 时，自动将 JSON 数据转 TOON 格式节省 token
+        let text = if toon_enabled() {
+            maybe_toon(&text)
+        } else {
+            text
+        };
+
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(60))
             .build()?;
@@ -118,6 +134,28 @@ impl BuiltinSkill for AiTask {
     }
 }
 
+/// 尝试将 JSON 文本转换为 TOON 格式，失败则返回原文
+fn maybe_toon(text: &str) -> String {
+    // 只对明显是 JSON 的文本做转换（以 { 或 [ 开头）
+    let trimmed = text.trim();
+    if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+        return text.to_string();
+    }
+    match serde_json::from_str::<Value>(trimmed) {
+        Ok(val) => {
+            let toon = format::json_to_toon(&val, 0);
+            let chars_saved = trimmed.len().saturating_sub(toon.len());
+            if chars_saved > 0 {
+                tracing::info!("TOON: saved ~{} chars ({:.0}%)", chars_saved,
+                    chars_saved as f64 / trimmed.len() as f64 * 100.0);
+            }
+            // 如果是纯 JSON 数据（指令里套 JSON），加 TOON 格式提示
+            format!("(以下数据使用 TOON 格式，类似 YAML 但数组用 [N]{{fields}}: 表示)\n{}", toon)
+        }
+        Err(_) => text.to_string(), // 不是有效 JSON，返回原文
+    }
+}
+
 async fn run_endpoint(
     client: &reqwest::Client,
     endpoint: &AiEndpoint,
@@ -136,12 +174,21 @@ async fn run_openai_chat(
     instruction: &str,
     text: &str,
 ) -> Result<String> {
+    // 系统指令：开启 prompt caching 支持（OpenRouter 兼容）
+    // 缓存后重复调用仅收 10% 费用
+    let sys_msg = json!({
+        "role": "system",
+        "content": instruction,
+        "cache_control": {"type": "ephemeral"}
+    });
+
     let body = json!({
         "model": endpoint.model,
         "messages": [
-            {"role": "system", "content": instruction},
+            sys_msg,
             {"role": "user", "content": text}
         ],
+        "max_tokens": 512,
         "temperature": 0.3
     });
 
@@ -162,7 +209,7 @@ async fn run_anthropic_messages(
 ) -> Result<String> {
     let body = json!({
         "model": endpoint.model,
-        "system": instruction,
+        "system": [{"type": "text", "text": instruction, "cache_control": {"type": "ephemeral"}}],
         "max_tokens": 2048,
         "messages": [{"role": "user", "content": text}],
         "stream": false
@@ -172,6 +219,7 @@ async fn run_anthropic_messages(
         .post(endpoint.anthropic_messages_url())
         .header("x-api-key", &endpoint.api_key)
         .header("anthropic-version", "2023-06-01")
+        .header("anthropic-beta", "prompt-caching-2024-07-31")
         .json(&body)
         .send()
         .await?;

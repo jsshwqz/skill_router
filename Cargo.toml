@@ -8,7 +8,7 @@ members = [
     "aion-server",
     "aion-sandbox",
     "aion-cli-gen",
-    "aion-zl",
+    "aion-zl", "aion-forge-cli",
 ]
 resolver = "2"
 

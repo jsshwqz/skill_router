@@ -1,54 +1,110 @@
 # 🚀 AionUI 技能集成指南
 
-要把这个基于 Rust 的强大引擎 (`aion_forge`) 集成到你的 **AionUI** Agent 中，请遵循以下步骤。
+要把 Aion Forge 集成到 **AionUI** 中，有两种方式：
 
 ---
 
-## 1. 准备工作 (编译引擎)
-在 AionUI 运行这些技能之前，建议先在本地编译好，以确保运行速度。
+## 方式 A：ACP 扩展自动识别（推荐）— 2026-05-27 更新
 
-1. 打开终端，进入项目根目录。
-2. 运行编译命令：
+Aion Forge 作为 AionUI 的 **ACP 扩展**，通过扩展系统自动识别，无需手动添加。
+
+### 前置条件
+- AionUI v2.1.3+
+- Aion Forge v0.7.0+（包含 `aion-forge-cli.exe` 和 `aionext-forge/` 扩展目录）
+
+### 部署步骤
+
+1. **编译 ACP 服务器**
    ```bash
-   cargo build --release
+   cargo build --release -p aion-forge-cli
    ```
 
+2. **确保扩展文件完整**
+   扩展目录 `aionext-forge/` 必须包含：
+   ```
+   aionext-forge/
+   ├── aion-extension.json     # engines.aionui: "^2.0.0"
+   ├── assets/
+   │   └── forge-icon.svg
+   └── contributes/
+       ├── acp-adapters.json
+       ├── assistants.json
+       └── assistants/
+           └── forge-context.md
+   ```
+
+3. **配置 API Key**
+   在与 `aion-forge-cli.exe` 同级的 `.env` 文件中：
+   ```
+   AI_BASE_URL=https://openrouter.ai/api/v1
+   AI_API_KEY=sk-or-v1-xxx
+   AI_MODEL=inclusionai/ring-2.6-1t
+   ```
+
+4. **将扩展部署到 AionUI**
+   将 `aionext-forge/` 整个目录复制到 AionUI 用户数据目录下的 `extensions/` 中。
+   常见位置：`C:\Users\{用户名}\AppData\Local\AionUI\extensions\aionext-forge\`
+
+5. **重启 AionUI**
+   扩展应在启动时自动识别，在助手列表中可见。
+
+6. **在 AionUI 中配置 AI 引擎**
+   若 AI 引擎显示"无大模型可用"，需在 AionUI 设置中配置 API Key，或在 `.env` 中设置。
+
+### 自动识别机制
+- AionUI 启动时 aioncore 扫描 `extensions/` 目录
+- 读取每个子目录的 `aion-extension.json`
+- 检查 `engines.aionui` semver 范围是否匹配 AionUI 版本（v2.1.3 匹配 `^2.0.0`）
+- 合并 `contributes.acpAdapters` 和 `contributes.assistants`
+- 通过 `/api/extensions/acp-adapters` 和 `/api/assistants` 暴露给 UI
+
 ---
 
-## 2. 在 AionUI 中安装
-AionUI 通过读取根目录下的 `skill.json` 来识别技能。
+## 方式 B：作为 MCP 技能（传统方式）
 
-### 方法 A：通过目录挂载 (推荐)
-1. 打开 **AionUI** 客户端。
-2. 找到 **“技能管理” (Skills)** 或 **“设置 -> 插件/技能”**。
-3. 点击 **“添加本地技能” (Add Local Skill)**。
-4. 选择你解压后的目录。
-5. AionUI 会自动识别出 `skill.json` 中定义的 `complex_automation` 等能力。
+通过 AionUI 的技能系统手动添加。
 
-### 方法 B：手动移动到技能文件夹
-1. 找到 AionUI 的安装目录下的 `skills/` 文件夹。
-2. 将整个 `aion_forge` 文件夹复制进去。
-3. 重启 AionUI。
+1. 打开 **AionUI** 客户端
+2. 找到 **"技能管理" (Skills)** 或 **"设置 → 插件/技能"**
+3. 点击 **"添加本地技能" (Add Local Skill)**
+4. 选择编译后的 `aion-forge-cli.exe` 所在目录
+5. AionUI 会自动识别 `skill.json` 中定义的能力
 
 ---
 
-## 3. 配置文件说明 (`skill.json`)
-你的 `skill.json` 已经配置好了基本权限与 **AI-Native Schema (参数强校验)**：
-- **entrypoint**: `cargo run -p aion-cli --` (这会自动调用 Rust 编译器运行，如果你想更快，可以改为编译后的路径 `target/release/aion-cli`)。
-- **permissions**: 已开启网络、文件读写及进程执行权限，确保“级联搜索”和“代码生成”能正常工作。
-- **api_schema**: 自动集成了 `manifest.json` 中 25 种核心能力的 OpenAPI 格式输入定义 (如 `code_generate`, `complex_automation`)，供 AionUI 或大模型精准识别参数格式，最大程度杜绝“大模型幻觉”。
+## 配置说明
+
+### ACP 适配器配置 (`aionext-forge/contributes/acp-adapters.json`)
+```json
+{
+  "id": "aion-forge",
+  "name": "Aion Forge",
+  "connectionType": "stdio",
+  "cliCommand": "aion-forge-cli.exe",
+  "acpArgs": ["acp"],
+  "defaultCliPath": "D:\\test\\aionui\\forge\\aion-forge-cli.exe",
+  "authRequired": false
+}
+```
+
+### 助手配置 (`aionext-forge/contributes/assistants.json`)
+```json
+{
+  "id": "aion-forge-assistant",
+  "name": "Aion Forge",
+  "presetAgentType": "aion-forge",
+  "avatar": "assets/forge-icon.svg",
+  "contextFile": "contributes/assistants/forge-context.md"
+}
+```
 
 ---
 
-## 4. 如何开始使用？
-一旦安装成功，你可以在 AionUI 的对话框中直接下达指令，例如：
+## 💡 排错提示
 
-> *"帮我分析这个项目的代码并生成一个单元测试"*
-
-AionUI 会自动路由到此技能，并调用 `aion-cli` 完成任务。你可以通过查看 AionUI 的运行日志来确认它是否正确调用了 `aion_forge` 引擎。
-
----
-
-## 💡 小贴士
-- **环境变量**: 如果你使用了级联搜索功能，请确保系统环境变量中配置了 `SERPAPI_KEY`。
-- **性能**: 第一次运行 `cargo run` 会比较慢（因为需要编译），之后的运行会非常快。
+| 现象 | 可能原因 | 解决方法 |
+|------|---------|---------|
+| 扩展未自动识别 | `engines.aionui` 版本不匹配 | 确认版本范围含 `^2.0.0` |
+| 扩展未自动识别 | 扩展未部署到正确路径 | 确认 `extensions/aionext-forge/` 在 AionUI userData 目录下 |
+| "无大模型可用" | 缺少 API Key | 在 `.env` 或 AionUI 设置中配置 API Key |
+| ACP 连接失败 | `cliCommand` 找不到可执行文件 | 使用绝对路径 `defaultCliPath` |

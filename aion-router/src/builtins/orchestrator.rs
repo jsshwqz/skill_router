@@ -864,7 +864,10 @@ async fn call_http_ai_endpoint(client: &reqwest::Client, endpoint: &AiEndpoint, 
         AiProtocol::OpenAiChat => {
             let body = json!({
                 "model": endpoint.model,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": [
+                    {"role": "system", "content": "你是一个 AI 工具引擎。根据任务要求给出准确、简洁的回复。", "cache_control": {"type": "ephemeral"}},
+                    {"role": "user", "content": prompt}
+                ],
                 "temperature": 0.2
             });
             let resp = client
@@ -896,6 +899,7 @@ async fn call_http_ai_endpoint(client: &reqwest::Client, endpoint: &AiEndpoint, 
             let body = json!({
                 "model": endpoint.model,
                 "max_tokens": 4096,
+                "system": [{"type": "text", "text": "你是一个 AI 工具引擎。根据任务要求给出准确、简洁的回复。", "cache_control": {"type": "ephemeral"}}],
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": false
             });
@@ -903,6 +907,7 @@ async fn call_http_ai_endpoint(client: &reqwest::Client, endpoint: &AiEndpoint, 
                 .post(endpoint.anthropic_messages_url())
                 .header("x-api-key", &endpoint.api_key)
                 .header("anthropic-version", "2023-06-01")
+                .header("anthropic-beta", "prompt-caching-2024-07-31")
                 .json(&body)
                 .send()
                 .await?;

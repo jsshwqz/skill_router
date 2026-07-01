@@ -85,3 +85,49 @@ cat D:/test/aionui/config/skills/aion-forge/bin/VERSION.json
 1. **三引擎真实调用受 MCP 60s 超时限制** — 当前用 passthrough 模式
 2. **AI 文本工具（summarize/translate/classify/extract）依赖后端可用性**
 3. **Windows 上大规模文件扫描可能超时**
+
+---
+
+## AionUI 扩展维护规范（2026-05-27 新增）
+
+### 扩展目录
+```
+D:\test\aionui\forge\aionext-forge\  ← 扩展源文件
+```
+
+### 相关文件
+| 文件 | 用途 |
+|------|------|
+| `aion-extension.json` | 扩展清单（引擎版本、贡献点引用） |
+| `contributes/acp-adapters.json` | ACP 适配器定义（id: aion-forge） |
+| `contributes/assistants.json` | 助手定义（presetAgentType: aion-forge） |
+| `contributes/assistants/forge-context.md` | 助手上下文提示 |
+| `assets/forge-icon.svg` | 助手图标 |
+
+### ACP 服务器规范
+- 可执行文件：`aion-forge-cli.exe`
+- 启动命令：`aion-forge-cli.exe acp`
+- 监听端口：52001
+- API Key 配置：同级的 `.env` 文件
+- 编译命令：`cargo build --release -p aion-forge-cli`
+
+### 扩展部署流程
+1. 编译 `aion-forge-cli.exe`
+2. 确认 `aionext-forge/` 目录结构完整
+3. 将 `aionext-forge/` 复制到 AionUI 用户数据目录的 `extensions/` 下
+4. 重启 AionUI
+
+### 扩展排错清单
+- [ ] `aion-extension.json` 中 `engines.aionui` 版本范围正确（`^2.0.0`）
+- [ ] ACP 适配器 `cliCommand` 含 `.exe` 后缀
+- [ ] ACP 适配器 `acpArgs` 包含 `["acp"]`
+- [ ] assistant 的 `presetAgentType` 与 adapter 的 `id` 匹配
+- [ ] AionUI 扩展目录存在且文件完整
+- [ ] API Key 已配置
+
+### 已知问题
+- **扩展自动识别失败** — 配置正确但仍不识别，可能原因：
+  1. 扩展未拷贝到正确的 userData 目录
+  2. aioncore 内部对扩展的 `engines` 版本校验有额外逻辑
+  3. AionUI 需要完全重启（包括 aioncore 进程）
+- **自定义智能体"无大模型可用"** — API Key 未配置到 AionUI 设置中

@@ -25,6 +25,7 @@ pub mod market;
 pub mod skill_format;
 pub mod autonomous_agent;
 pub mod image;
+pub mod format;
 
 use std::collections::HashMap;
 
@@ -191,6 +192,9 @@ impl BuiltinRegistry {
 
         // 图像分析
         reg.register(Box::new(image::ImageDescribe));
+
+        // 数据格式转换 (JSON ↔ TOON)
+        reg.register(Box::new(format::TextToon));
 
         // Prompt 工程质量审计
         reg.register(Box::new(prompt_audit::PromptAudit));

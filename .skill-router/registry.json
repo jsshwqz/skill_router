@@ -298,6 +298,37 @@
       ],
       "last_used_epoch_ms": 1779554027864
     },
+    "check_sufficiency_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1782836216920,
+          "success": true
+        },
+        {
+          "epoch_ms": 1782851527597,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1782851527597
+    },
+    "code_generate_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1782851489738,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1782851489738
+    },
+    "discovery_search_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779702291856,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779702291856
+    },
     "echo_placeholder": {
       "executions": [
         {
@@ -311,9 +342,13 @@
         {
           "epoch_ms": 1774402587178,
           "success": true
+        },
+        {
+          "epoch_ms": 1779897745945,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1774402587178
+      "last_used_epoch_ms": 1779897745945
     },
     "evolution_report_placeholder": {
       "executions": [
@@ -430,9 +465,38 @@
         {
           "epoch_ms": 1779559035475,
           "success": true
+        },
+        {
+          "epoch_ms": 1779702265508,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779702274060,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779702285505,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779714344349,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779714636719,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1779559035475
+      "last_used_epoch_ms": 1779714636719
+    },
+    "image_describe_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779603875137,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779603875137
     },
     "json_parse_placeholder": {
       "executions": [
@@ -518,9 +582,13 @@
         {
           "epoch_ms": 1779582262444,
           "success": true
+        },
+        {
+          "epoch_ms": 1779618593660,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1779582262444
+      "last_used_epoch_ms": 1779618593660
     },
     "rag_query_placeholder": {
       "executions": [
@@ -738,6 +806,19 @@
       ],
       "last_used_epoch_ms": 1779495745036
     },
+    "text_classify_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779597918296,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779897801315,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1779897801315
+    },
     "text_diff_placeholder": {
       "executions": [
         {
@@ -750,6 +831,43 @@
         }
       ],
       "last_used_epoch_ms": 1779499314341
+    },
+    "text_summarize_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1779597957933,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779598011547,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779598037795,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779598085922,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779598214356,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779602999139,
+          "success": true
+        },
+        {
+          "epoch_ms": 1782836246820,
+          "success": true
+        },
+        {
+          "epoch_ms": 1782851460667,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1782851460667
     },
     "text_wordcount_placeholder": {
       "executions": [
@@ -768,9 +886,25 @@
         {
           "epoch_ms": 1778254816525,
           "success": true
+        },
+        {
+          "epoch_ms": 1779597857136,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779597993106,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779602501227,
+          "success": true
+        },
+        {
+          "epoch_ms": 1779710189254,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1778254816525
+      "last_used_epoch_ms": 1779710189254
     },
     "web_search_placeholder": {
       "executions": [

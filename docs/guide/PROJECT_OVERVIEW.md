@@ -286,3 +286,44 @@ echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"route_task
 | v0.4.0 | 2026-03-20 | 初版：29 工具, Multi-Agent, HTTP API, MCP |
 | v0.4.5 | 2026-03-28 | 安全修复 + 三引擎编排 + spec_driven + 48 工具 |
 | v0.5.0 | 2026-03-28 | route_task 路由器 + 动态等待 + 49 工具 |
+| v0.7.0 | 2026-05-27 | aionext-forge AionUI 扩展 + ACP 协议支持 + 73 工具 |
+
+---
+
+## 十二、AionUI 扩展集成（2026-05-27）
+
+从 v0.7.0 起，Aion Forge 可作为 **AionUI 扩展** 自动识别（而非手动添加自定义智能体）。
+
+### 扩展机制
+- 扩展目录：`aionext-forge/`，包含 `aion-extension.json` 清单
+- 接口协议：**ACP (Agent Communication Protocol)**，端口 52001
+- 注册方式：AionUI 启动时自动扫描 `{userData}/extensions/` 加载
+- 关联方式：assistant 的 `presetAgentType: "aion-forge"` 链到 ACP adapter
+
+### 扩展文件结构
+```
+aionext-forge/
+├── aion-extension.json       ← 扩展清单（engines.aionui: ^2.0.0）
+├── assets/
+│   └── forge-icon.svg         ← 助手头像
+└── contributes/
+    ├── acp-adapters.json      ← ACP 适配器配置
+    ├── assistants.json        ← 助手定义
+    └── assistants/
+        └── forge-context.md   ← 助手上下文提示
+```
+
+### ACP 服务器
+- 可执行文件：`D:\test\aionui\forge\aion-forge-cli.exe`
+- 启动命令：`aion-forge-cli.exe acp`
+- 监听端口：52001
+- 已注册工具：73 个
+- API Key 配置：通过同级 `.env` 文件（OpenRouter）
+
+### 当前状态
+| 项目 | 状态 |
+|------|------|
+| ACP 服务器运行 | ✅ 功能完整，73 工具，initialize+tools/list 正常 |
+| 扩展文件配置 | ✅ 引擎版本 `^2.0.0`，cliCommand+acpArgs 正确，presetAgentType 链结正确 |
+| 扩展自动识别 | ❌ AionUI 仍未自动识别到 forge 助手（原因待排查） |
+| AI 引擎可用性 | ⚠️ OpenRouter API Key 已配置，需确认 aioncore 侧是否接入 |

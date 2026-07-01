@@ -55,8 +55,33 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Load .env
-    dotenvy::dotenv().ok();
+    // Load .env from multiple locations: exe dir, project root, cwd
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()));
+    // project root = exe_dir/../../   (target/debug/ → forge/)
+    let project_root = exe_dir.as_ref()
+        .and_then(|d| d.parent())
+        .and_then(|d| d.parent())
+        .map(|d| d.to_path_buf());
+    let mut env_loaded = false;
+    for dir in [std::env::current_dir().ok(), exe_dir, project_root].into_iter().flatten() {
+        let env_path = dir.join(".env");
+        if env_path.exists() {
+            if dotenvy::from_path(&env_path).is_ok() {
+                env_loaded = true;
+                break;
+            }
+        }
+    }
+    if env_loaded {
+        // Use eprintln since tracing isn't initialized yet
+        eprintln!(".env loaded: AI_MODEL={}, AION_PORT={}",
+            std::env::var("AI_MODEL").unwrap_or_default(),
+            std::env::var("AION_PORT").unwrap_or_default());
+    } else {
+        eprintln!(".env not found, using existing environment");
+    }
 
     // Structured logging
     tracing_subscriber::fmt()

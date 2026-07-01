@@ -1000,6 +1000,14 @@ impl CapabilityRegistry {
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string","description":"High-level goal to accomplish"}},"required":["task"]}),
                 examples: vec![],
             },
+            CapabilityDefinition {
+                name: "text_toon".to_string(),
+                description: "Convert JSON to TOON (Token-Oriented Object Notation) — a compact, LLM-friendly data format that saves ~40% tokens compared to JSON.".to_string(),
+                inputs: vec!["text".to_string()],
+                outputs: vec!["output".to_string(), "stats".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"text":{"type":"string","description":"JSON text to convert to TOON format"}},"required":["text"]}),
+                examples: vec![],
+            },
         ] {
             registry
                 .definitions

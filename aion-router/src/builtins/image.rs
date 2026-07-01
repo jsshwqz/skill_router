@@ -58,14 +58,12 @@ impl BuiltinSkill for ImageDescribe {
             let body = json!({
                 "model": ep.model,
                 "messages": [
+                    {"role": "system", "content": "你是一个图像分析助手。", "cache_control": {"type": "ephemeral"}},
                     {
                         "role": "user",
                         "content": [
                             {"type": "text", "text": instruction},
-                            {
-                                "type": "image_url",
-                                "image_url": { "url": &url }
-                            }
+                            {"type": "image_url", "image_url": { "url": &url }}
                         ]
                     }
                 ],

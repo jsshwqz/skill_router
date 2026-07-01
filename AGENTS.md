@@ -180,3 +180,5 @@ aion-forge 以 MCP 服务器形式暴露 40+ 内置能力。在 Team/Agent 模�
 - 审计: `prompt_audit`, `haoojiang_review`, `evolver_governance`
 - 记忆: `memory_remember`, `memory_recall`, `memory_distill`
 - 编排: `ai_parallel_solve`, `ai_smart_collaborate`, `ai_triple_vote`
+
+@RTK.md

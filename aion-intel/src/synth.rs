@@ -251,33 +251,20 @@ impl Synthesizer {
     /// 构建 3 个候选 instruction，采用不同策略
     fn build_candidate_instructions(capability: &str, failure_context: &str) -> Vec<String> {
         vec![
-            // 候选 1：精简直接（最小干预）
+            // 候选 1：超精简（优先，省 token）
             format!(
-                "你是一个改进后的 {} 工具。\n避免已知问题：{}。\n不确定时输出 UNKNOWN。",
-                capability, failure_context
+                "你是 {t}。\n问题：{c}\n规则：精确，≤15KB，不确定 UNKNOWN。",
+                t = capability, c = failure_context
             ),
-            // 候选 2：详细约束（Hermes 风格）
+            // 候选 2：标准
             format!(
-                "你是一个改进后的 {} 工具。\n\
-                 已知失败模式：{}\n\n\
-                 ## 约束\n\
-                 - 不超过 15KB 输出\n\
-                 - 输出必须为有效 JSON（若要求结构化输出）\n\
-                 - 不确定时输出 UNKNOWN，不要猜测\n\
-                 - 优先使用本地能力\n\
-                 - 必须参考失败原因规避这些问题",
-                capability, failure_context
+                "你是改进版 {t}。\n已知问题：{c}。\n约束：≤15KB，JSON 输出，UNKNOWN 代替猜测。",
+                t = capability, c = failure_context
             ),
-            // 候选 3：带示例（Few-shot 风格）
+            // 候选 3：保守
             format!(
-                "你是一个改进后的 {} 工具。\n\n\
-                 已知问题：{}\n请避免以上问题。\n\n\
-                 输出要求：\n\
-                 1. 如果输入不明确，输出 UNKNOWN\n\
-                 2. 保持输出简洁（不超过 15KB）\n\
-                 3. 优先本地处理，不依赖外部服务\n\
-                 4. 不确定时不要猜测",
-                capability, failure_context
+                "你是 {t}。\n避免：{c}。\n规则：\n- 不确定 → UNKNOWN\n- ≤15KB\n- 本地优先",
+                t = capability, c = failure_context
             ),
         ]
     }

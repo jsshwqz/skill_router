@@ -477,6 +477,86 @@
     "examples": []
   },
   {
+    "name": "autonomous_agent",
+    "description": "Autonomous goal-driven agent: receives a high-level goal, plans steps, executes them iteratively, adapts on failure, and delivers a structured report.",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "status",
+      "total_iterations",
+      "log"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "task": {
+          "description": "High-level goal to accomplish",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "brainstorm",
+    "description": "Multi-engine brainstorm: generate diverse ideas around a topic.",
+    "inputs": [
+      "topic",
+      "count"
+    ],
+    "outputs": [
+      "ideas"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "topic": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "check_sufficiency",
+    "description": "P0 Sensor: Check if context is sufficient before execution. Prevents premature action.",
+    "inputs": [
+      "contract",
+      "context"
+    ],
+    "outputs": [
+      "sufficient",
+      "confidence",
+      "missing"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "context": {
+          "type": "string"
+        },
+        "contract": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract",
+        "context"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
     "name": "code_generate",
     "description": "Generate Rust code for a given requirement using AI",
     "inputs": [
@@ -543,6 +623,77 @@
     "examples": []
   },
   {
+    "name": "compare",
+    "description": "Multi-engine comparison: score options across correctness, cost, risk, maintainability.",
+    "inputs": [
+      "options"
+    ],
+    "outputs": [
+      "comparisons"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "options": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "options"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "compile_contract",
+    "description": "Compile a natural language task into a structured contract defining acceptance criteria, expected outputs, and verification method.",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "task_summary",
+      "acceptance_criteria"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "contradiction_analyze",
+    "description": "Identify principal/secondary contradictions. Find bottlenecks, recommend resource allocation.",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "principal_contradiction",
+      "recommended_focus"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
     "name": "csv_parse",
     "description": "Parse CSV or spreadsheet text into rows and columns",
     "inputs": [
@@ -566,6 +717,61 @@
     "examples": []
   },
   {
+    "name": "detect_drift",
+    "description": "P1 Sensor: Detect if execution is drifting away from original goal. Returns correction suggestions.",
+    "inputs": [
+      "contract",
+      "current_state"
+    ],
+    "outputs": [
+      "on_track",
+      "drift_score",
+      "correction"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "contract": {
+          "type": "string"
+        },
+        "current_state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract",
+        "current_state"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "dialectical_retry",
+    "description": "Execute task with learning-based retry. On failure: analyze root cause, learn, adapt, retry.",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "success",
+      "attempts"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "max_attempts": {
+          "type": "integer"
+        },
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
     "name": "discovery_search",
     "description": "Cascade search across Google, HTTP fallback, and local trusted sources",
     "inputs": [
@@ -583,6 +789,28 @@
       },
       "required": [
         "query"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "discuss",
+    "description": "Multi-engine discussion: independent analysis then consensus/disagreement detection.",
+    "inputs": [
+      "topic"
+    ],
+    "outputs": [
+      "discussions"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "topic": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic"
       ],
       "type": "object"
     },
@@ -628,6 +856,58 @@
           "type": "integer"
         }
       },
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "evolver_governance",
+    "description": "Front-door governance: classify task clarity, assess risk level, recommend simplest capability.",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "clarity",
+      "risk",
+      "recommended_capability"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "haoojiang_review",
+    "description": "Code quality gate combining AI review, correctness, safety, style, and maintainability assessment.",
+    "inputs": [
+      "code",
+      "language"
+    ],
+    "outputs": [
+      "score",
+      "verdict",
+      "issues"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "language": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
       "type": "object"
     },
     "examples": []
@@ -766,6 +1046,31 @@
       },
       "required": [
         "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "market_search",
+    "description": "Search for skills and capabilities from external markets (npx skills, GitHub, web). Three-tier fallback: npx → discovery_search → broad search.",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "candidates",
+      "sources_tried",
+      "summary"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "task": {
+          "description": "Skill or capability name to search for",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
       ],
       "type": "object"
     },
@@ -911,6 +1216,34 @@
       },
       "required": [
         "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "prompt_audit",
+    "description": "Evaluate a prompt against the 8-step framework and return compliance score with improvement suggestions.",
+    "inputs": [
+      "prompt",
+      "model"
+    ],
+    "outputs": [
+      "score",
+      "framework",
+      "summary"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "prompt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt"
       ],
       "type": "object"
     },
@@ -1156,6 +1489,31 @@
     "examples": []
   },
   {
+    "name": "skill_convert",
+    "description": "Convert between SKILL.md (community standard) and forge skill.json formats. Supports both directions: SKILL.md→forge and forge→SKILL.md.",
+    "inputs": [
+      "source"
+    ],
+    "outputs": [
+      "status",
+      "name",
+      "skill_path"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "source": {
+          "description": "SKILL.md content or file path, or forge skill.json content",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
     "name": "skill_report",
     "description": "Generate a report of skill usage statistics from the learning engine",
     "inputs": [],
@@ -1253,6 +1611,53 @@
       },
       "required": [
         "action"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "strategic_plan",
+    "description": "Three-phase strategic plan (defense/stalemate/offense) mapping to aion-forge capabilities.",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "current_phase",
+      "steps"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "task_dialectic",
+    "description": "Execute thesis-antithesis-synthesis dialectical analysis. Three AI passes: propose, critique, synthesize.",
+    "inputs": [
+      "task"
+    ],
+    "outputs": [
+      "thesis",
+      "antithesis",
+      "synthesis"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "task": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "task"
       ],
       "type": "object"
     },
@@ -1444,6 +1849,30 @@
     "examples": []
   },
   {
+    "name": "text_toon",
+    "description": "Convert JSON to TOON (Token-Oriented Object Notation) — a compact, LLM-friendly data format that saves ~40% tokens compared to JSON.",
+    "inputs": [
+      "text"
+    ],
+    "outputs": [
+      "output",
+      "stats"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "text": {
+          "description": "JSON text to convert to TOON format",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
     "name": "text_translate",
     "description": "Translate text from one language to another using AI",
     "inputs": [
@@ -1514,6 +1943,35 @@
       },
       "required": [
         "text"
+      ],
+      "type": "object"
+    },
+    "examples": []
+  },
+  {
+    "name": "verify_result",
+    "description": "P1 Sensor: Verify execution result against task contract. Checks each acceptance criterion.",
+    "inputs": [
+      "contract",
+      "result"
+    ],
+    "outputs": [
+      "passed",
+      "score",
+      "verdict"
+    ],
+    "parameters_schema": {
+      "properties": {
+        "contract": {
+          "type": "string"
+        },
+        "result": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract",
+        "result"
       ],
       "type": "object"
     },
