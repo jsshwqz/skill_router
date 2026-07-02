@@ -1,43 +1,67 @@
-# Rust build artifacts
-/target
+# Build artifacts
+target/
+target_rebuild/
+*.exe
+*aion-forge-cli*
 
-# Environment & secrets
-.env
-*.pdb
+# Logs
+*.log
+forge_debug.log
+forge_startup.log
+server.log
+server_out.log
 
-# Backup files
-*.bak
-*.old
-*.orig
+# Test files
+test*.ps1
+test*.py
+test*.json
+final-test-*.json
+health-call.json
+acp_init.json
+acp_test.json
+test_input.json
 
-# OS artifacts
+# Temporary scripts
+*_configs.ps1
+check-all*.ps1
+check-all.bat
+check_env.ps1
+register_agent.ps1
+run_forge*.bat
+run_forge*.ps1
+start*.ps1
+start*.bat
+describe_img*.js
+update_skill.js
+test_toon.js
+agents_out2.txt
+
+# Third-party prompts and configs
+_cl4r1t4s/
+_l1b3rt4s/
+_fresh_*.json
+all-configs.txt
+
+# Embedded git repo
+deepseek-pp/
+
+# IDE and tool caches
+.aionrs/
+.codex/
+.firecrawl/
+.reasonix/
+.skill-router/executions.log
+
+# Data directory (contains runtime state)
+data/
+
+# VS Code extensions
+aionext-forge/
+adapters/
+
+# OS files
+.DS_Store
 Thumbs.db
-Desktop.ini
 
-# IDE
-.idea/
-.vscode/
-*.swp
-
-# Runtime state (regenerated on startup)
-/\.claude/
-/.claude/settings.local.json
-/.claude/scheduled_tasks.lock
-/work_dir/
-/learning/
-/memory_store.json
-/aion-cli/.git.bak/
-/.skill-router/generated-skills/
-/.skill-router/cli_health.json
-/.skill-router/engine_result_cache.json
-/.skill-router/orchestration_trace.jsonl
-/.skill-router/security_audit.log
-/.skill-router/rag/
-/.skill-router/specs/
-/capabilities_manifest.json
-/skill.json
-
-# Release archives & binaries (build via CI)
-/dist/
-/aion-cli.exe
-/aion-server.exe
+# RTK
+RTK.md
