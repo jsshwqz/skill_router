@@ -52,7 +52,6 @@ memory_store.json
 
 # Temporary images
 img*.b64
-.skill-router/executions.log
 
 # Data directory (contains runtime state)
 data/
@@ -60,6 +59,24 @@ data/
 # VS Code extensions
 aionext-forge/
 adapters/
+
+# IDE and tool caches
+.aionrs/
+.codex/
+.firecrawl/
+.reasonix/
+
+# Third-party prompts and configs
+_cl4r1t4s/
+_l1b3rt4s/
+_fresh_*.json
+all-configs.txt
+
+# Embedded git repo
+deepseek-pp/
+
+# Backup files
+*.bak/
 
 # OS files
 .DS_Store
