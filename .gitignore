@@ -36,20 +36,22 @@ update_skill.js
 test_toon.js
 agents_out2.txt
 
-# Third-party prompts and configs
-_cl4r1t4s/
-_l1b3rt4s/
-_fresh_*.json
-all-configs.txt
+# Runtime data and caches
+memory_store.json
+.env
 
-# Embedded git repo
-deepseek-pp/
+# Skill router runtime
+.skill-router/cli_health.json
+.skill-router/engine_result_cache.json
+.skill-router/orchestration_trace.jsonl
+.skill-router/executions.log
+.skill-router/generated-skills/
 
-# IDE and tool caches
-.aionrs/
-.codex/
-.firecrawl/
-.reasonix/
+# Claude tools
+.claude/
+
+# Temporary images
+img*.b64
 .skill-router/executions.log
 
 # Data directory (contains runtime state)
