@@ -118,12 +118,27 @@ impl ExecutionContext {
     }
 }
 
+/// Token 用量统计 — AI API 调用返回的 usage 字段
+///
+/// 由 AI 调用方（如 `ai_task` builtin）从 OpenAI/Anthropic 响应中解析并填充。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TokenUsage {
+    pub prompt_tokens: u64,
+    pub completion_tokens: u64,
+    pub total_tokens: u64,
+    #[serde(default)]
+    pub cached_tokens: u64,  // Anthropic prompt caching
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionResponse {
     pub status: String,
     pub result: Value,
     pub artifacts: Value,
     pub error: Option<String>,
+    /// AI 调用的 Token 用量（由 ai_task builtin 填充）
+    #[serde(default)]
+    pub token_usage: Option<TokenUsage>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

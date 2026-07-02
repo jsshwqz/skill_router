@@ -1,6 +1,7 @@
-#[cfg(test)]
+﻿#[cfg(test)]
 mod tests {
     use crate::parallel_executor::ParallelExecutor;
+    use aion_intel::immunity::ImmunitySystem;
     use aion_types::capability_registry::CapabilityRegistry;
     use aion_types::types::RouterPaths;
     use aion_types::parallel::{ParallelInstruction, TaskGraph};
@@ -142,6 +143,7 @@ mod tests {
                 result,
                 artifacts: Value::Object(Default::default()),
                 error: None,
+                token_usage: None,
             }
         }
 
@@ -554,6 +556,47 @@ mod tests {
 
             let result = ExpertOpinion::majority_result(&[]);
             assert!(result.is_none());
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ImmunitySystem 测试（glitch token 防御）
+    // ══════════════════════════════════════════════════════════════════════════
+
+    #[cfg(test)]
+    mod immunity_tests {
+        use aion_intel::immunity::ImmunitySystem;
+
+        #[test]
+        fn test_control_character_flood_blocks_excessive_cr() {
+            // 少于限制的 \r 应该通过
+            let safe_input = "a".repeat(50) + &"\r".repeat(50) + "b";
+            let result = ImmunitySystem::check_control_character_flood(&safe_input);
+            assert!(result.is_ok(), "50 \\r should pass: {:?}", result.err());
+
+            // 超过限制的 \r 应该被拦截
+            let flood_input = "a".repeat(50) + &"\r".repeat(150) + "b";
+            let result = ImmunitySystem::check_control_character_flood(&flood_input);
+            assert!(result.is_err(), "150 \\r should be blocked");
+
+            // 0 个 \r 应该通过
+            let no_cr = "Hello world, this is a normal input without carriage returns.";
+            let result = ImmunitySystem::check_control_character_flood(no_cr);
+            assert!(result.is_ok());
+        }
+
+        #[test]
+        fn test_sanitize_instruction_replaces_ampersand_and() {
+            let mut input = "run build && deploy".to_string();
+            ImmunitySystem::sanitize_instruction(&mut input);
+            // Should contain space semicolon space instead of space ampersand-and space
+            assert!(!input.contains(" && "), "should replace && connector");
+        }
+
+        #[test]
+        fn test_pre_check_command_rejects_powershell_and() {
+            let result = ImmunitySystem::pre_check_command("command1 && command2");
+            assert!(result.is_err(), "PowerShell && should be rejected");
         }
     }
 }

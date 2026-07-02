@@ -199,6 +199,19 @@ fn check_access(rule: &RouteRule, config: &RouterConfig) -> bool {
 
 // ─── 构建 RouteDecision ───
 
+fn execution_mode_for(rule: &RouteRule) -> String {
+    // 分析类任务 → plan 模式（只读，无 side-effect）
+    if rule.id.starts_with("analysis-") || rule.id.starts_with("search-") {
+        return "plan".to_string();
+    }
+    // 简单的日常/格式化任务 → yolo 模式
+    if rule.id.starts_with("code-daily") || rule.id.contains("format") || rule.id.contains("quick") {
+        return "yolo".to_string();
+    }
+    // 默认 agent 模式
+    "agent".to_string()
+}
+
 fn build_decision(
     rule: &RouteRule,
     task: &str,
@@ -225,6 +238,7 @@ fn build_decision(
         fallback_chain: rule.fallback_chain.clone(),
         access_ok: check_access(rule, config),
         conflict_note,
+        execution_mode: execution_mode_for(rule),
     }
 }
 
@@ -245,6 +259,7 @@ fn default_fallback(task: &str) -> RouteDecision {
         fallback_chain: vec!["openai".to_string(), "gemini".to_string()],
         access_ok: true,
         conflict_note: Some("未匹配任何规则，使用默认 fallback".to_string()),
+        execution_mode: "agent".to_string(),
     }
 }
 

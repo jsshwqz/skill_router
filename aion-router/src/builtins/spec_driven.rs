@@ -109,6 +109,21 @@ fn render_master_md(p: &SpecProject) -> String {
         }
     }
 
+    // S.U.P.E.R Architecture Health
+    if !p.super_scores.is_empty() {
+        md.push_str("\n## S.U.P.E.R Architecture Health\n\n");
+        md.push_str("| Module | S🟢 | U🟢 | P🟢 | E🟢 | R🟢 | Summary |\n");
+        md.push_str("|--------|------|------|------|------|------|---------|\n");
+        for s in &p.super_scores {
+            md.push_str(&format!(
+                "| {} | {} | {} | {} | {} | {} | {} |\n",
+                s.module, s.single_purpose, s.unidirectional_flow,
+                s.ports_over_impl, s.environment_agnostic, s.replaceable_parts,
+                s.summary,
+            ));
+        }
+    }
+
     // Risks
     if !p.risks.is_empty() {
         md.push_str("\n## Risk Assessment\n\n");
@@ -259,6 +274,14 @@ fn handle_analyze(ctx: &ExecutionContext) -> Result<Value> {
                 });
             }
         }
+        // 提取 S.U.P.E.R 评分
+        if let Some(scores) = result.get("super_scores").and_then(|v| v.as_array()) {
+            for s in scores {
+                if let Ok(score) = serde_json::from_value::<SpecSuperScore>(s.clone()) {
+                    project.super_scores.push(score);
+                }
+            }
+        }
     }
 
     project.touch();
@@ -276,7 +299,24 @@ fn handle_analyze(ctx: &ExecutionContext) -> Result<Value> {
             "workflow": "spec_driven",
             "action": "analyze",
             "project_id": project_id,
-            "instruction": "你是一个代码库架构分析师。请扫描工作区代码库，针对以下目标进行深度分析。\n输出 JSON 必须包含以下字段：\n- files_scanned: 扫描的文件数量（数字）\n- dependency_graph: 模块依赖关系描述\n- risk_areas: 风险区域数组，每项含 area(区域名), severity(low/medium/high), description(描述), mitigation(缓解措施)\n- complexity_estimate: 复杂度评级 low/medium/high\n\n先理解整体架构，再逐个分析风险点，最后给出评估。\n\n分析完成后调用 spec_driven 工具：action=analyze, project_id=<此ID>, analysis_result=<你的分析JSON>。",
+            "instruction": concat!(
+                "你是一个代码库架构分析师。请扫描工作区代码库，针对以下目标进行深度分析。\n",
+                "输出 JSON 必须包含以下字段：\n",
+                "- files_scanned: 扫描的文件数量（数字）\n",
+                "- dependency_graph: 模块依赖关系描述\n",
+                "- risk_areas: 风险区域数组，每项含 area(区域名), severity(low/medium/high), description(描述), mitigation(缓解措施)\n",
+                "- complexity_estimate: 复杂度评级 low/medium/high\n",
+                "- super_scores: **【S.U.P.E.R 架构健康评分】** 对每个主要模块给出 5 维度评分（0-100）：\n",
+                "  - single_purpose: 单一职责 — 模块是否只做一件事\n",
+                "  - unidirectional_flow: 单向依赖 — 依赖是否单向无循环\n",
+                "  - ports_over_impl: 接口先行 — I/O 是否 schema 定义\n",
+                "  - environment_agnostic: 环境无关 — 有无硬编码\n",
+                "  - replaceable_parts: 可替换部件 — 替换是否级联改动\n",
+                "  - summary: 该模块的架构健康摘要\n",
+                "  示例：{\"module\":\"auth\",\"single_purpose\":85,\"unidirectional_flow\":90,\"ports_over_impl\":70,\"environment_agnostic\":95,\"replaceable_parts\":80,\"summary\":\"职责清晰但缺接口层\"}\n\n",
+                "先理解整体架构，再逐个分析风险点，最后给出 S.U.P.E.R 评估。\n\n",
+                "分析完成后调用 spec_driven 工具：action=analyze, project_id=<此ID>, analysis_result=<你的分析JSON>。"
+            ),
             "input": ctx.context.get("goal").unwrap_or(&json!("")),
         }))
     } else {

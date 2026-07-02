@@ -19,7 +19,7 @@ use crate::builtins::BuiltinRegistry;
 use crate::security::{AiSecurityReviewer, Security, Verdict};
 use aion_intel::immunity::ImmunitySystem;
 use aion_sandbox::{SandboxedCommand, SandboxedExecutor, SandboxPolicy};
-use aion_types::types::{ExecutionContext, ExecutionResponse, RouterPaths, SkillDefinition};
+use aion_types::types::{ExecutionContext, ExecutionResponse, RouterPaths, SkillDefinition, TokenUsage};
 
 /// 全局 builtin 注册表（进程生命周期内只初始化一次）
 fn builtin_registry() -> &'static BuiltinRegistry {
@@ -60,6 +60,7 @@ impl Executor {
                     result: governance,
                     artifacts: serde_json::json!({}),
                     error: Some("task requires clarification before execution".into()),
+                    token_usage: None,
                 });
             }
         }
@@ -76,6 +77,9 @@ impl Executor {
         let mut sanitized_task = context.task.clone();
         ImmunitySystem::sanitize_instruction(&mut sanitized_task);
         ImmunitySystem::pre_check_command(&sanitized_task)?;
+
+        // CONTROL_CHARACTER_FLOOD 防御：检查 \r 控制字符数量
+        ImmunitySystem::check_control_character_flood(&sanitized_task)?;
 
         let start = std::time::Instant::now();
 
@@ -98,6 +102,21 @@ impl Executor {
             success,
             duration,
         );
+
+        // 记录 Token 消耗（从 ExecutionResponse 的 token_usage 字段提取）
+        if let Ok(ref resp) = response {
+            if let Some(token_usage) = &resp.token_usage {
+                let provider = resp.result.get("provider")
+                    .and_then(|p| p.as_str())
+                    .unwrap_or("unknown");
+                crate::metrics::record_token_usage(
+                    &skill.metadata.name,
+                    &context.capability,
+                    provider,
+                    token_usage,
+                );
+            }
+        }
 
         // 学习引擎：持久化记录执行结果（含来源与失败分类）
         if let Some(learner) = crate::learner::learner() {
@@ -158,6 +177,7 @@ impl Executor {
                 }),
                 artifacts: Value::Object(Default::default()),
                 error: None,
+                token_usage: None,
             });
         }
 
@@ -172,11 +192,16 @@ impl Executor {
 
         let result = builtin_impl.execute(skill, context).await?;
 
+        // 从 result 中提取 token_usage（ai_task builtin 会附带）
+        let token_usage = result.get("token_usage")
+            .and_then(|v| serde_json::from_value::<TokenUsage>(v.clone()).ok());
+
         Ok(ExecutionResponse {
             status: "ok".to_string(),
             result,
             artifacts: Value::Object(Default::default()),
             error: None,
+            token_usage,
         })
     }
 
@@ -268,6 +293,7 @@ impl Executor {
             } else {
                 None
             },
+            token_usage: None,
         })
     }
 

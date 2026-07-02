@@ -24,6 +24,7 @@ uuid = { version = "1", features = ["v4"] }
 dotenvy = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+thiserror = "2"
 async-nats = "0.38"
 futures-util = "0.3"
 axum = "0.7"
@@ -34,6 +35,7 @@ metrics = "0.24"
 flate2 = "1"
 metrics-exporter-prometheus = "0.16"
 indicatif = "0.17"
+jsonschema = "0.18"
 
 [workspace.lints.clippy]
 all = "warn"

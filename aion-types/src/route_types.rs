@@ -79,6 +79,8 @@ pub struct RouteDecision {
     pub model: String,
     pub requires_external: bool,
     #[serde(default)]
+    pub execution_mode: String,
+    #[serde(default)]
     pub aion_tool: Option<String>,
     #[serde(default)]
     pub aion_params: Option<Value>,

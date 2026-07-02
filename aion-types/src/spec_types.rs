@@ -71,6 +71,26 @@ pub struct SpecTask {
     pub error: Option<String>,
 }
 
+/// S.U.P.E.R 架构健康评分（每模块单一评分）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecSuperScore {
+    /// 被评分的模块名
+    pub module: String,
+    /// S — Single Purpose: 单一职责评分 0-100
+    pub single_purpose: u8,
+    /// U — Unidirectional Flow: 单向依赖评分 0-100
+    pub unidirectional_flow: u8,
+    /// P — Ports over Implementation: 接口先行评分 0-100
+    pub ports_over_impl: u8,
+    /// E — Environment-Agnostic: 环境无关评分 0-100
+    pub environment_agnostic: u8,
+    /// R — Replaceable Parts: 可替换部件评分 0-100
+    pub replaceable_parts: u8,
+    /// 整体架构健康摘要
+    #[serde(default)]
+    pub summary: String,
+}
+
 /// 风险评估条目
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecRisk {
@@ -126,6 +146,9 @@ pub struct SpecProject {
     pub risks: Vec<SpecRisk>,
     #[serde(default)]
     pub lessons: Vec<SpecLesson>,
+    /// S.U.P.E.R 架构健康评分列表
+    #[serde(default)]
+    pub super_scores: Vec<SpecSuperScore>,
 }
 
 impl SpecProject {
@@ -154,6 +177,7 @@ impl SpecProject {
             tasks: Vec::new(),
             risks: Vec::new(),
             lessons: Vec::new(),
+            super_scores: Vec::new(),
         }
     }
 

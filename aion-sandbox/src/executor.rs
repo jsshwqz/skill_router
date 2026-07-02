@@ -270,18 +270,36 @@ mod tests {
     use crate::policy::{CommandRule, WorkDirPolicy};
     use std::collections::BTreeMap;
 
-    fn test_policy() -> SandboxPolicy {
+    fn test_echo_command() -> (&'static str, Vec<String>) {
+        if cfg!(windows) {
+            // cmd /c echo hello sandbox
+            ("cmd", vec!["/c".into(), "echo".into(), "hello".into(), "sandbox".into()])
+        } else {
+            ("echo", vec!["hello".into(), "sandbox".into()])
+        }
+    }
+
+    fn test_sleep_command(secs: u64) -> (&'static str, Vec<String>) {
+        if cfg!(windows) {
+            // powershell -Command "Start-Sleep -Seconds <secs>"
+            ("powershell", vec!["-Command".into(), format!("Start-Sleep -Seconds {}", secs)])
+        } else {
+            ("sleep", vec![secs.to_string()])
+        }
+    }
+
+    fn test_policy(cmd_name: &str, timeout_secs: u64) -> SandboxPolicy {
         let mut commands = BTreeMap::new();
         commands.insert(
-            "echo".to_string(),
+            cmd_name.to_string(),
             CommandRule {
                 allowed_args_patterns: vec![],
                 blocked_args_patterns: vec![],
-                timeout_secs: 5,
+                timeout_secs,
                 max_output_bytes: 4096,
                 allowed_env_vars: vec![],
                 work_dir_policy: WorkDirPolicy::TempDir,
-                description: "echo for testing".to_string(),
+                description: format!("{} for testing", cmd_name),
             },
         );
         SandboxPolicy {
@@ -295,13 +313,15 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_allowed_command() {
+        let (cmd_name, args) = test_echo_command();
+
         let tmp = std::env::temp_dir().join("aion-sandbox-exec-test");
         let _ = std::fs::create_dir_all(&tmp);
 
-        let executor = SandboxedExecutor::new(test_policy(), &tmp);
+        let executor = SandboxedExecutor::new(test_policy(cmd_name, 5), &tmp);
         let cmd = SandboxedCommand {
-            command: "echo".to_string(),
-            args: vec!["hello".to_string(), "sandbox".to_string()],
+            command: cmd_name.to_string(),
+            args,
             extra_env: Default::default(),
             work_dir: None,
         };
@@ -320,7 +340,7 @@ mod tests {
         let tmp = std::env::temp_dir().join("aion-sandbox-blocked-test");
         let _ = std::fs::create_dir_all(&tmp);
 
-        let executor = SandboxedExecutor::new(test_policy(), &tmp);
+        let executor = SandboxedExecutor::new(test_policy("echo", 5), &tmp);
         let cmd = SandboxedCommand {
             command: "rm".to_string(),
             args: vec!["-rf".to_string(), "/".to_string()],
@@ -337,9 +357,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_execute_timeout() {
+        let (cmd_name, args) = test_sleep_command(10);
+
         let mut commands = BTreeMap::new();
         commands.insert(
-            "sleep".to_string(),
+            cmd_name.to_string(),
             CommandRule {
                 allowed_args_patterns: vec![],
                 blocked_args_patterns: vec![],
@@ -347,7 +369,7 @@ mod tests {
                 max_output_bytes: 1024,
                 allowed_env_vars: vec![],
                 work_dir_policy: WorkDirPolicy::TempDir,
-                description: "sleep for timeout test".to_string(),
+                description: format!("{} for timeout test", cmd_name),
             },
         );
         let policy = SandboxPolicy {
@@ -363,15 +385,16 @@ mod tests {
 
         let executor = SandboxedExecutor::new(policy, &tmp);
         let cmd = SandboxedCommand {
-            command: "sleep".to_string(),
-            args: vec!["10".to_string()],
+            command: cmd_name.to_string(),
+            args,
             extra_env: Default::default(),
             work_dir: None,
         };
 
         let result = executor.execute(&cmd).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("timed out"));
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("timed out"), "expected 'timed out', got: {}", err);
 
         let _ = std::fs::remove_dir_all(&tmp);
     }

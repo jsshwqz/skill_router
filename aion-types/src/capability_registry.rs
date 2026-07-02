@@ -48,6 +48,10 @@ pub struct CapabilityDefinition {
     pub parameters_schema: Value,
     #[serde(default)]
     pub examples: Vec<Value>,
+    #[serde(default)]
+    pub requires_approval: bool,
+    #[serde(default)]
+    pub category: String,
 }
 
 impl CapabilityDefinition {
@@ -92,7 +96,9 @@ impl CapabilityRegistry {
                     "intent": "yaml_parse",
                     "parameters": { "text": "foo: bar\nlist:\n  - 1\n  - 2" }
                 })],
-            },
+            requires_approval: false,
+            category: "parse".to_string(),
+        },
             CapabilityDefinition {
                 name: "json_parse".to_string(),
                 description: "Parse and validate JSON text into structured data".to_string(),
@@ -104,7 +110,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "parse".to_string(),
+        },
             CapabilityDefinition {
                 name: "toml_parse".to_string(),
                 description: "Parse TOML configuration text into structured data".to_string(),
@@ -116,7 +124,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "parse".to_string(),
+        },
             CapabilityDefinition {
                 name: "csv_parse".to_string(),
                 description: "Parse CSV or spreadsheet text into rows and columns".to_string(),
@@ -128,7 +138,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "parse".to_string(),
+        },
             CapabilityDefinition {
                 name: "pdf_parse".to_string(),
                 description: "Extract and structure text content from a PDF file path".to_string(),
@@ -140,7 +152,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "parse".to_string(),
+        },
             CapabilityDefinition {
                 name: "markdown_render".to_string(),
                 description: "Parse Markdown text into structured sections".to_string(),
@@ -152,7 +166,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "text".to_string(),
+        },
             CapabilityDefinition {
                 name: "text_summarize".to_string(),
                 description: "Summarize text using AI into a concise output".to_string(),
@@ -164,7 +180,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "text".to_string(),
+        },
             CapabilityDefinition {
                 name: "text_translate".to_string(),
                 description: "Translate text from one language to another using AI".to_string(),
@@ -176,7 +194,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "text".to_string(),
+        },
             CapabilityDefinition {
                 name: "text_classify".to_string(),
                 description: "Classify or categorize text into a label using AI".to_string(),
@@ -188,7 +208,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "text".to_string(),
+        },
             CapabilityDefinition {
                 name: "text_extract".to_string(),
                 description: "Extract key entities and information from text using AI".to_string(),
@@ -200,7 +222,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "text".to_string(),
+        },
             CapabilityDefinition {
                 name: "text_diff".to_string(),
                 description: "Compute a line-level diff between two text inputs".to_string(),
@@ -212,7 +236,9 @@ impl CapabilityRegistry {
                     "required": ["a", "b"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "text".to_string(),
+        },
             CapabilityDefinition {
                 name: "text_embed".to_string(),
                 description: "Compute a term-frequency bag-of-words vector for text".to_string(),
@@ -224,7 +250,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "text".to_string(),
+        },
             CapabilityDefinition {
                 name: "text_wordcount".to_string(),
                 description: "Count the number of words, characters, and lines in input text".to_string(),
@@ -241,7 +269,9 @@ impl CapabilityRegistry {
                     "intent": "text_wordcount",
                     "parameters": { "text": "Hello world\nThis is a test" }
                 })],
-            },
+            requires_approval: false,
+            category: "text".to_string(),
+        },
             CapabilityDefinition {
                 name: "web_search".to_string(),
                 description: "Search the web via SerpAPI and return organic results".to_string(),
@@ -253,7 +283,9 @@ impl CapabilityRegistry {
                     "required": ["query"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "web".to_string(),
+        },
             CapabilityDefinition {
                 name: "http_fetch".to_string(),
                 description: "Fetch the body of an HTTPS URL".to_string(),
@@ -265,7 +297,9 @@ impl CapabilityRegistry {
                     "required": ["url"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "web".to_string(),
+        },
             CapabilityDefinition {
                 name: "image_describe".to_string(),
                 description: "Describe an image at a given path or URL using AI".to_string(),
@@ -277,7 +311,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── Prompt 工程质量审计 ──────────────────────────────────────────
             CapabilityDefinition {
                 name: "prompt_audit".to_string(),
@@ -286,7 +322,9 @@ impl CapabilityRegistry {
                 outputs: vec!["score".to_string(), "framework".to_string(), "summary".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"prompt":{"type":"string"},"model":{"type":"string"}},"required":["prompt"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "code_generate".to_string(),
                 description: "Generate Rust code for a given requirement using AI".to_string(),
@@ -298,7 +336,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "code".to_string(),
+        },
             CapabilityDefinition {
                 name: "code_test".to_string(),
                 description: "Write Rust unit tests for given code using AI".to_string(),
@@ -310,7 +350,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "code".to_string(),
+        },
             CapabilityDefinition {
                 name: "code_lint".to_string(),
                 description: "Review Rust code for issues and suggest fixes using AI".to_string(),
@@ -322,7 +364,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "code".to_string(),
+        },
             CapabilityDefinition {
                 name: "discovery_search".to_string(),
                 description: "Cascade search across Google, HTTP fallback, and local trusted sources".to_string(),
@@ -334,7 +378,9 @@ impl CapabilityRegistry {
                     "required": ["query"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "web".to_string(),
+        },
             CapabilityDefinition {
                 name: "memory_remember".to_string(),
                 description: "Persist a memory entry (decision, lesson, error, preference, etc.) to long-term store".to_string(),
@@ -346,7 +392,9 @@ impl CapabilityRegistry {
                     "required": ["content"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "memory".to_string(),
+        },
             CapabilityDefinition {
                 name: "memory_recall".to_string(),
                 description: "Recall relevant memories by keyword search from long-term store".to_string(),
@@ -358,7 +406,9 @@ impl CapabilityRegistry {
                     "required": ["query"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "memory".to_string(),
+        },
             CapabilityDefinition {
                 name: "memory_distill".to_string(),
                 description: "Distill and compact the memory store by removing duplicates and decaying old entries".to_string(),
@@ -366,7 +416,9 @@ impl CapabilityRegistry {
                 outputs: vec!["removed".to_string(), "merged".to_string()],
                 parameters_schema: serde_json::json!({ "type": "object" }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "memory".to_string(),
+        },
             CapabilityDefinition {
                 name: "echo".to_string(),
                 description: "Simply echo back the input task for testing".to_string(),
@@ -378,7 +430,9 @@ impl CapabilityRegistry {
                     "required": ["text"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "space_navigation".to_string(),
                 description: "Navigate to interstellar destinations (experimental)".to_string(),
@@ -390,7 +444,9 @@ impl CapabilityRegistry {
                     "required": ["destination"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "".to_string(),
+        },
             // ── Spec-Driven 规格驱动开发 ─────────────────────────────────────
             CapabilityDefinition {
                 name: "spec_driven".to_string(),
@@ -414,7 +470,9 @@ impl CapabilityRegistry {
                     "required": ["action"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── Agent 专项能力（MA4）──────────────────────────────────────────
             CapabilityDefinition {
                 name: "agent_delegate".to_string(),
@@ -431,7 +489,9 @@ impl CapabilityRegistry {
                     "required": ["task", "target_agent_id"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "agent".to_string(),
+        },
             CapabilityDefinition {
                 name: "agent_broadcast".to_string(),
                 description: "Broadcast a message to all registered Agents on the message bus".to_string(),
@@ -445,7 +505,9 @@ impl CapabilityRegistry {
                     "required": ["message"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "agent".to_string(),
+        },
             CapabilityDefinition {
                 name: "agent_gather".to_string(),
                 description: "Send a query to multiple Agents and aggregate all responses".to_string(),
@@ -461,7 +523,9 @@ impl CapabilityRegistry {
                     "required": ["query"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "agent".to_string(),
+        },
             CapabilityDefinition {
                 name: "agent_status".to_string(),
                 description: "Query the status of all registered Agents or a specific Agent".to_string(),
@@ -474,7 +538,9 @@ impl CapabilityRegistry {
                     }
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "agent".to_string(),
+        },
             CapabilityDefinition {
                 name: "task_pipeline".to_string(),
                 description: "Execute a serial pipeline of capabilities, passing each result to the next step".to_string(),
@@ -489,7 +555,9 @@ impl CapabilityRegistry {
                     "required": ["steps", "initial_input"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "pipeline".to_string(),
+        },
             CapabilityDefinition {
                 name: "task_race".to_string(),
                 description: "Race multiple Agents on the same task, return the first successful result".to_string(),
@@ -505,7 +573,9 @@ impl CapabilityRegistry {
                     "required": ["task"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "pipeline".to_string(),
+        },
             CapabilityDefinition {
                 name: "memory_team_share".to_string(),
                 description: "Promote a private memory entry to team-shared namespace for cross-Agent access".to_string(),
@@ -520,7 +590,9 @@ impl CapabilityRegistry {
                     "required": ["memory_id"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "memory".to_string(),
+        },
             // ── F12: 新增技能 ───────────────────────────────────────────
             CapabilityDefinition {
                 name: "json_query".to_string(),
@@ -536,7 +608,9 @@ impl CapabilityRegistry {
                     "required": ["data", "path"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "regex_match".to_string(),
                 description: "Match text against a regular expression pattern with find_all, is_match, or captures mode".to_string(),
@@ -552,7 +626,9 @@ impl CapabilityRegistry {
                     "required": ["text", "pattern"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "".to_string(),
+        },
             // ── MCP Client ───────────────────────────────────────────────
             CapabilityDefinition {
                 name: "mcp_call".to_string(),
@@ -569,7 +645,9 @@ impl CapabilityRegistry {
                     "required": ["server", "tool"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── RAG 检索增强 ─────────────────────────────────────────────
             CapabilityDefinition {
                 name: "rag_ingest".to_string(),
@@ -585,7 +663,9 @@ impl CapabilityRegistry {
                     "required": ["source"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "rag".to_string(),
+        },
             CapabilityDefinition {
                 name: "rag_query".to_string(),
                 description: "Query the RAG knowledge base and generate an AI-enhanced answer from retrieved documents".to_string(),
@@ -600,7 +680,9 @@ impl CapabilityRegistry {
                     "required": ["query"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "rag".to_string(),
+        },
             CapabilityDefinition {
                 name: "rag_status".to_string(),
                 description: "Show the current status of the RAG knowledge base (document count, chunk count, sources)".to_string(),
@@ -611,7 +693,9 @@ impl CapabilityRegistry {
                     "properties": {}
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "rag".to_string(),
+        },
             // ── 多模型编排 ──
             CapabilityDefinition {
                 name: "ai_smart_collaborate".to_string(),
@@ -629,7 +713,9 @@ impl CapabilityRegistry {
                     "required": ["task"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "ai_code_generate".to_string(),
                 description: "Generate code with one AI engine and review with another using AI".to_string(),
@@ -646,7 +732,9 @@ impl CapabilityRegistry {
                     "required": ["task"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "ai_triangle_review".to_string(),
                 description: "Three AI engines review code simultaneously, merge opinions with confidence using AI".to_string(),
@@ -661,7 +749,9 @@ impl CapabilityRegistry {
                     "required": ["code"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "ai_triple_vote".to_string(),
                 description: "Three AI engines independently vote on a problem, pick the best using AI".to_string(),
@@ -679,7 +769,9 @@ impl CapabilityRegistry {
                     "required": ["problem"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "ai_parallel_solve".to_string(),
                 description: "Multiple AI engines solve a problem in parallel, compare and pick best using AI".to_string(),
@@ -697,7 +789,9 @@ impl CapabilityRegistry {
                     "required": ["problem"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "ai_serial_optimize".to_string(),
                 description: "Configurable AI pipeline to optimize code: analyze, optimize, verify using AI".to_string(),
@@ -713,7 +807,9 @@ impl CapabilityRegistry {
                     "required": ["code"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "ai_research".to_string(),
                 description: "Three-engine multi-perspective research: Claude theory, OpenAI practice, Gemini trends using AI".to_string(),
@@ -728,7 +824,9 @@ impl CapabilityRegistry {
                     "required": ["topic"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "ai_long_context".to_string(),
                 description: "Process long content with Gemini's ultra-long context, optionally verify with other AI".to_string(),
@@ -744,7 +842,9 @@ impl CapabilityRegistry {
                     "required": ["content", "task"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "ai_cross_review".to_string(),
                 description: "Two AI engines cross-review code, merge opinions using AI".to_string(),
@@ -759,7 +859,9 @@ impl CapabilityRegistry {
                     "required": ["code"]
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── AI 任务路由器 ─────────────────────────────────────────────
             CapabilityDefinition {
                 name: "route_task".to_string(),
@@ -790,7 +892,9 @@ impl CapabilityRegistry {
                         "parameters": { "task": "分析这份150页的合同", "hints": { "doc_size_pages": 150 } }
                     }),
                 ],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "skill_report".to_string(),
                 description: "Generate a report of skill usage statistics from the learning engine".to_string(),
@@ -802,7 +906,9 @@ impl CapabilityRegistry {
                     "required": []
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "evolution_report".to_string(),
                 description: "Generate self-evolution diagnostics from execution events: source breakdown, error taxonomy, latest failures, and actionable recommendations.".to_string(),
@@ -815,7 +921,9 @@ impl CapabilityRegistry {
                     }
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "session_report".to_string(),
                 description: "Generate a session summary report: code changes, decisions made, execution stats, and recommendations.".to_string(),
@@ -823,7 +931,9 @@ impl CapabilityRegistry {
                 outputs: vec!["changes".to_string(), "decisions".to_string(), "execution_stats".to_string(), "recommendations".to_string()],
                 parameters_schema: serde_json::json!({ "type": "object", "properties": {} }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "record_change".to_string(),
                 description: "Record a code change event for the self-evolution protocol. kind: feature|fix|refactor|prompt|doc|config|test.".to_string(),
@@ -838,7 +948,9 @@ impl CapabilityRegistry {
                     }
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "record_decision".to_string(),
                 description: "Record an architecture/design decision for the self-evolution protocol.".to_string(),
@@ -853,7 +965,9 @@ impl CapabilityRegistry {
                     }
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── Health Check ─────────────────────────────────────────────────
             CapabilityDefinition {
                 name: "health_check".to_string(),
@@ -867,7 +981,9 @@ impl CapabilityRegistry {
                     }
                 }),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── 辩证/战略工具 (aion-zl) ────────────────────────────────────────
             CapabilityDefinition {
                 name: "strategic_plan".to_string(),
@@ -876,7 +992,9 @@ impl CapabilityRegistry {
                 outputs: vec!["current_phase".to_string(), "steps".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "task_dialectic".to_string(),
                 description: "Execute thesis-antithesis-synthesis dialectical analysis. Three AI passes: propose, critique, synthesize.".to_string(),
@@ -884,7 +1002,9 @@ impl CapabilityRegistry {
                 outputs: vec!["thesis".to_string(), "antithesis".to_string(), "synthesis".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "contradiction_analyze".to_string(),
                 description: "Identify principal/secondary contradictions. Find bottlenecks, recommend resource allocation.".to_string(),
@@ -892,7 +1012,9 @@ impl CapabilityRegistry {
                 outputs: vec!["principal_contradiction".to_string(), "recommended_focus".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "compile_contract".to_string(),
                 description: "Compile a natural language task into a structured contract defining acceptance criteria, expected outputs, and verification method.".to_string(),
@@ -900,7 +1022,9 @@ impl CapabilityRegistry {
                 outputs: vec!["task_summary".to_string(), "acceptance_criteria".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "check_sufficiency".to_string(),
                 description: "P0 Sensor: Check if context is sufficient before execution. Prevents premature action.".to_string(),
@@ -908,7 +1032,9 @@ impl CapabilityRegistry {
                 outputs: vec!["sufficient".to_string(), "confidence".to_string(), "missing".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"contract":{"type":"string"},"context":{"type":"string"}},"required":["contract","context"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "verify_result".to_string(),
                 description: "P1 Sensor: Verify execution result against task contract. Checks each acceptance criterion.".to_string(),
@@ -916,7 +1042,9 @@ impl CapabilityRegistry {
                 outputs: vec!["passed".to_string(), "score".to_string(), "verdict".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"contract":{"type":"string"},"result":{"type":"string"}},"required":["contract","result"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "detect_drift".to_string(),
                 description: "P1 Sensor: Detect if execution is drifting away from original goal. Returns correction suggestions.".to_string(),
@@ -924,7 +1052,9 @@ impl CapabilityRegistry {
                 outputs: vec!["on_track".to_string(), "drift_score".to_string(), "correction".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"contract":{"type":"string"},"current_state":{"type":"string"}},"required":["contract","current_state"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "dialectical_retry".to_string(),
                 description: "Execute task with learning-based retry. On failure: analyze root cause, learn, adapt, retry.".to_string(),
@@ -932,7 +1062,9 @@ impl CapabilityRegistry {
                 outputs: vec!["success".to_string(), "attempts".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"},"max_attempts":{"type":"integer"}},"required":["task"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── 治理中间件 (forge-evolver) ──────────────────────────────────────
             CapabilityDefinition {
                 name: "evolver_governance".to_string(),
@@ -941,7 +1073,9 @@ impl CapabilityRegistry {
                 outputs: vec!["clarity".to_string(), "risk".to_string(), "recommended_capability".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string"}},"required":["task"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── 郝匠代码质量门禁 ──────────────────────────────────────────────
             CapabilityDefinition {
                 name: "haoojiang_review".to_string(),
@@ -950,7 +1084,9 @@ impl CapabilityRegistry {
                 outputs: vec!["score".to_string(), "verdict".to_string(), "issues".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"code":{"type":"string"},"language":{"type":"string"}},"required":["code"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             // ── 朝堂颗粒协作工具 ──────────────────────────────────────────────
             CapabilityDefinition {
                 name: "brainstorm".to_string(),
@@ -959,7 +1095,9 @@ impl CapabilityRegistry {
                 outputs: vec!["ideas".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"topic":{"type":"string"},"count":{"type":"integer"}},"required":["topic"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "compare".to_string(),
                 description: "Multi-engine comparison: score options across correctness, cost, risk, maintainability.".to_string(),
@@ -967,7 +1105,9 @@ impl CapabilityRegistry {
                 outputs: vec!["comparisons".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"options":{"type":"array","items":{"type":"string"}}},"required":["options"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "discuss".to_string(),
                 description: "Multi-engine discussion: independent analysis then consensus/disagreement detection.".to_string(),
@@ -975,7 +1115,9 @@ impl CapabilityRegistry {
                 outputs: vec!["discussions".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"topic":{"type":"string"}},"required":["topic"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "market_search".to_string(),
                 description: "Search for skills and capabilities from external markets (npx skills, GitHub, web). Three-tier fallback: npx → discovery_search → broad search.".to_string(),
@@ -983,7 +1125,9 @@ impl CapabilityRegistry {
                 outputs: vec!["candidates".to_string(), "sources_tried".to_string(), "summary".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string","description":"Skill or capability name to search for"}},"required":["task"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "skill_convert".to_string(),
                 description: "Convert between SKILL.md (community standard) and forge skill.json formats. Supports both directions: SKILL.md→forge and forge→SKILL.md.".to_string(),
@@ -991,7 +1135,9 @@ impl CapabilityRegistry {
                 outputs: vec!["status".to_string(), "name".to_string(), "skill_path".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"source":{"type":"string","description":"SKILL.md content or file path, or forge skill.json content"}},"required":["source"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "autonomous_agent".to_string(),
                 description: "Autonomous goal-driven agent: receives a high-level goal, plans steps, executes them iteratively, adapts on failure, and delivers a structured report.".to_string(),
@@ -999,7 +1145,9 @@ impl CapabilityRegistry {
                 outputs: vec!["status".to_string(), "total_iterations".to_string(), "log".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"task":{"type":"string","description":"High-level goal to accomplish"}},"required":["task"]}),
                 examples: vec![],
-            },
+            requires_approval: true,
+            category: "".to_string(),
+        },
             CapabilityDefinition {
                 name: "text_toon".to_string(),
                 description: "Convert JSON to TOON (Token-Oriented Object Notation) — a compact, LLM-friendly data format that saves ~40% tokens compared to JSON.".to_string(),
@@ -1007,7 +1155,9 @@ impl CapabilityRegistry {
                 outputs: vec!["output".to_string(), "stats".to_string()],
                 parameters_schema: serde_json::json!({"type":"object","properties":{"text":{"type":"string","description":"JSON text to convert to TOON format"}},"required":["text"]}),
                 examples: vec![],
-            },
+            requires_approval: false,
+            category: "text".to_string(),
+        },
         ] {
             registry
                 .definitions
@@ -1116,6 +1266,8 @@ impl CapabilityRegistry {
                 }
             }),
             examples: vec![],
+            requires_approval: true,
+            category: "utility".to_string(),
         };
         std::fs::write(
             capabilities_dir.join(format!("{}.json", name)),

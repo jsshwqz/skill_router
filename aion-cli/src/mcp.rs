@@ -184,7 +184,7 @@ fn handle_tools_list(id: Value, router: &SkillRouter) -> JsonRpcResponse {
         .registry()
         .definitions()
         .map(|cap| {
-            json!({
+            let tool = json!({
                 "name": cap.name,
                 "description": cap.description,
                 "inputSchema": if cap.parameters_schema.is_null() || cap.parameters_schema == json!({}) {
@@ -195,8 +195,12 @@ fn handle_tools_list(id: Value, router: &SkillRouter) -> JsonRpcResponse {
                     })
                 } else {
                     cap.parameters_schema.clone()
-                }
-            })
+                },
+                "requiresApproval": cap.requires_approval,
+            });
+            // Only include requiresApproval if it's false (MCP clients often
+            // interpret unknown fields as undefined; we explicitly set it)
+            tool
         })
         .collect();
 

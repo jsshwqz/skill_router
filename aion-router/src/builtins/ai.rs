@@ -6,7 +6,7 @@ use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Value};
 
 use crate::config::{candidate_ai_endpoints, AiEndpoint, AiProtocol};
-use aion_types::types::{ExecutionContext, SkillDefinition};
+use aion_types::types::{ExecutionContext, SkillDefinition, TokenUsage};
 
 use super::format;
 use super::BuiltinSkill;
@@ -108,14 +108,28 @@ impl BuiltinSkill for AiTask {
             tracing::info!("ai_task trying [{}] {} model={}", ep.label, ep.base_url, ep.model);
 
             match run_endpoint(&client, ep, &instruction, &text).await {
-                Ok(content) => {
-                    tracing::info!("ai_task [{}] success, output len={}", ep.label, content.len());
-                    return Ok(json!({
+                Ok((content, usage)) => {
+                    tracing::info!(
+                        "ai_task [{}] success, output len={}, tokens={}",
+                        ep.label,
+                        content.len(),
+                        usage.as_ref().map(|u| u.total_tokens).unwrap_or(0)
+                    );
+                    let mut output = json!({
                         "task": context.task,
                         "capability": context.capability,
                         "output": content,
                         "provider": ep.label,
-                    }));
+                    });
+                    if let Some(usage) = usage {
+                        output["token_usage"] = json!({
+                            "prompt_tokens": usage.prompt_tokens,
+                            "completion_tokens": usage.completion_tokens,
+                            "total_tokens": usage.total_tokens,
+                            "cached_tokens": usage.cached_tokens,
+                        });
+                    }
+                    return Ok(output);
                 }
                 Err(e) => {
                     last_error = format!("[{}] {}", ep.label, e);
@@ -161,7 +175,7 @@ async fn run_endpoint(
     endpoint: &AiEndpoint,
     instruction: &str,
     text: &str,
-) -> Result<String> {
+) -> Result<(String, Option<TokenUsage>)> {
     match endpoint.protocol {
         AiProtocol::OpenAiChat => run_openai_chat(client, endpoint, instruction, text).await,
         AiProtocol::AnthropicMessages => run_anthropic_messages(client, endpoint, instruction, text).await,
@@ -173,7 +187,7 @@ async fn run_openai_chat(
     endpoint: &AiEndpoint,
     instruction: &str,
     text: &str,
-) -> Result<String> {
+) -> Result<(String, Option<TokenUsage>)> {
     // 系统指令：开启 prompt caching 支持（OpenRouter 兼容）
     // 缓存后重复调用仅收 10% 费用
     let sys_msg = json!({
@@ -206,7 +220,7 @@ async fn run_anthropic_messages(
     endpoint: &AiEndpoint,
     instruction: &str,
     text: &str,
-) -> Result<String> {
+) -> Result<(String, Option<TokenUsage>)> {
     let body = json!({
         "model": endpoint.model,
         "system": [{"type": "text", "text": instruction, "cache_control": {"type": "ephemeral"}}],
@@ -226,7 +240,7 @@ async fn run_anthropic_messages(
     parse_anthropic_response(resp).await
 }
 
-async fn parse_openai_response(resp: reqwest::Response) -> Result<String> {
+async fn parse_openai_response(resp: reqwest::Response) -> Result<(String, Option<TokenUsage>)> {
     let status = resp.status();
     let raw = resp.text().await.unwrap_or_default();
     let parsed: Value = serde_json::from_str(&raw).unwrap_or_default();
@@ -244,10 +258,12 @@ async fn parse_openai_response(resp: reqwest::Response) -> Result<String> {
         .unwrap_or("")
         .trim()
         .to_string();
-    validate_content(content)
+    validate_content(&content)?;
+    let usage = parse_openai_usage(&parsed);
+    Ok((content, usage))
 }
 
-async fn parse_anthropic_response(resp: reqwest::Response) -> Result<String> {
+async fn parse_anthropic_response(resp: reqwest::Response) -> Result<(String, Option<TokenUsage>)> {
     let status = resp.status();
     let raw = resp.text().await.unwrap_or_default();
     let parsed: Value = serde_json::from_str(&raw).unwrap_or_default();
@@ -259,15 +275,57 @@ async fn parse_anthropic_response(resp: reqwest::Response) -> Result<String> {
         bail!("{err_msg}");
     }
     let content = parsed["content"][0]["text"].as_str().unwrap_or("").trim().to_string();
-    validate_content(content)
+    validate_content(&content)?;
+    let usage = parse_anthropic_usage(&parsed);
+    Ok((content, usage))
 }
 
-fn validate_content(content: String) -> Result<String> {
+fn validate_content(content: &str) -> Result<()> {
     if content.is_empty() {
         bail!("AI backend returned empty content");
     }
-    if matches!(content.as_str(), "参数错误" | "Invalid API key.") {
+    if matches!(content, "参数错误" | "Invalid API key.") {
         bail!("AI backend returned provider error text: {content}");
     }
-    Ok(content)
+    Ok(())
+}
+
+/// 从 OpenAI 兼容响应中提取 TokenUsage
+fn parse_openai_usage(parsed: &Value) -> Option<TokenUsage> {
+    let usage = parsed.get("usage")?;
+    let prompt_tokens = usage.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let completion_tokens = usage.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let total_tokens = usage.get("total_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let cached_tokens = usage
+        .get("prompt_tokens_details")
+        .and_then(|d| d.get("cached_tokens").and_then(|v| v.as_u64()))
+        .or_else(|| {
+            // 一些 OpenAI 兼容端点用 cached_tokens 顶层字段
+            usage.get("cached_tokens").and_then(|v| v.as_u64())
+        })
+        .unwrap_or(0);
+    Some(TokenUsage {
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        cached_tokens,
+    })
+}
+
+/// 从 Anthropic Messages 响应中提取 TokenUsage
+fn parse_anthropic_usage(parsed: &Value) -> Option<TokenUsage> {
+    let usage = parsed.get("usage")?;
+    let prompt_tokens = usage.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let completion_tokens = usage.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let total_tokens = usage.get("total_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let cached_tokens = usage
+        .get("input_tokens_details")
+        .and_then(|d| d.get("cache_read_input_tokens").and_then(|v| v.as_u64()))
+        .unwrap_or(0);
+    Some(TokenUsage {
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        cached_tokens,
+    })
 }

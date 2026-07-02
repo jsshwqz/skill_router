@@ -205,6 +205,7 @@ mod tests {
                 result: Value::Null,
                 artifacts: Value::Null,
                 error: None,
+                token_usage: None,
             },
             undo_action: UndoAction::None,
         }

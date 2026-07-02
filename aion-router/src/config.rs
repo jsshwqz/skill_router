@@ -167,6 +167,15 @@ pub fn candidate_ai_endpoints() -> Vec<AiEndpoint> {
     );
     push_openai_endpoint(
         &mut endpoints,
+        "deepseek",
+        env_value("DEEPSEEK_BASE_URL")
+            .or_else(|| Some("https://api.deepseek.com/v1".to_string())),
+        env_value("DEEPSEEK_API_KEY"),
+        env_value("DEEPSEEK_MODEL"),
+        "deepseek-chat",
+    );
+    push_openai_endpoint(
+        &mut endpoints,
         "ollama-local",
         Some("http://localhost:11434/v1".to_string()),
         Some("ollama".to_string()),

@@ -26,6 +26,7 @@ async-trait = { workspace = true }
 regex = { workspace = true }
 metrics = { workspace = true }
 flate2 = { workspace = true }
+jsonschema = { workspace = true }
 
 # D1: distributed mode dependencies (feature-gated)
 async-nats = { workspace = true, optional = true }

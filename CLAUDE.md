@@ -61,18 +61,43 @@ aion-server  — HTTP REST API（纯 Rust，axum）
 - 任务 × 模型模板矩阵（8 种任务 × 4 个模型即用模板）
 - 防翻车手册和模型切换清单
 
-**当你在代码中构建 prompt 时，必须同时遵循以下 8 步框架和跨模型原则：**
+**当你在代码中构建 prompt 时，必须同时遵循以下模块化框架和跨模型原则：**
 
-### 8 步框架（适用于任何模型）
+### Prompt 构建模块（{section} 风格）
 
-1. **角色分配** — `"你是一个..."` 开头，一句话定义身份
-2. **任务上下文** — 要做什么、为什么要做
-3. **详细规则** — 边界条件、正向约束（告诉做什么，不是不做什么）
-4. **示例** — 最难的部分给 1-2 个 few-shot 示例（用 XML 标签包裹）
-5. **输入数据** — 用 XML 标签包裹：`<task>...</task>`
-6. **输出格式** — 靠近底部，越具体越好
-7. **逐步思考** — 复杂任务加 `"先一步步分析，再给出结论"`
-8. **防幻觉** — 给退路：`"如果不确定，回答 unknown"`
+使用以下标签按需组合 prompt 模块（参考 Claude Opus 4.7 的 {section} 体系）：
+
+{role}
+`"你是一个..."` 开头，一句话定义身份。决定语气和视角。
+{/role}
+
+{context}
+要做什么、为什么要做。提供背景但不包含具体规则。
+{/context}
+
+{rules}
+边界条件、正向约束（告诉做什么，不是不做什么）。多项规则用编号列表。
+{/rules}
+
+{examples}
+最难的部分给 1-2 个 few-shot 示例，用 XML 标签 `<example>...</example>` 包裹。
+{/examples}
+
+{input}
+输入数据用 `<task>...</task>` 包裹。
+{/input}
+
+{output_format}
+靠近底部，越具体越好。指定 JSON/XML/plaintext 结构。
+{/output_format}
+
+{chain_of_thought}
+复杂任务加 `"先一步步分析，再给出结论"`。
+{/chain_of_thought}
+
+{anti_hallucination}
+给退路：`"如果不确定，回答 unknown"`。
+{/anti_hallucination}
 
 ### 跨模型优化规则
 
