@@ -67,11 +67,9 @@ async fn main() -> anyhow::Result<()> {
     let mut env_loaded = false;
     for dir in [std::env::current_dir().ok(), exe_dir, project_root].into_iter().flatten() {
         let env_path = dir.join(".env");
-        if env_path.exists() {
-            if dotenvy::from_path(&env_path).is_ok() {
-                env_loaded = true;
-                break;
-            }
+        if env_path.exists() && dotenvy::from_path(&env_path).is_ok() {
+            env_loaded = true;
+            break;
         }
     }
     if env_loaded {

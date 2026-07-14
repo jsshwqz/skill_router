@@ -4,6 +4,7 @@ use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
+use glitch_filter::Sanitizer;
 
 use super::{extract_text, BuiltinSkill};
 
@@ -17,7 +18,9 @@ pub struct Echo;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for Echo {
-    fn name(&self) -> &'static str { "echo" }
+    fn name(&self) -> &'static str {
+        "echo"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = extract_text(context);
@@ -39,7 +42,9 @@ pub struct SpaceNavigation;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for SpaceNavigation {
-    fn name(&self) -> &'static str { "space_navigation" }
+    fn name(&self) -> &'static str {
+        "space_navigation"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let destination = context.context["destination"]
@@ -68,7 +73,9 @@ pub struct JsonQuery;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for JsonQuery {
-    fn name(&self) -> &'static str { "json_query" }
+    fn name(&self) -> &'static str {
+        "json_query"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let data_str = context.context["data"]
@@ -78,8 +85,7 @@ impl BuiltinSkill for JsonQuery {
             .as_str()
             .ok_or_else(|| anyhow!("json_query requires 'path' (JSONPath expression) in context"))?;
 
-        let data: Value = serde_json::from_str(data_str)
-            .map_err(|e| anyhow!("invalid JSON in 'data': {}", e))?;
+        let data: Value = serde_json::from_str(data_str).map_err(|e| anyhow!("invalid JSON in 'data': {}", e))?;
 
         // 简易 JSONPath 实现：支持 $.key.subkey[N] 格式
         let results = simple_jsonpath(&data, path);
@@ -172,7 +178,9 @@ pub struct RegexMatch;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for RegexMatch {
-    fn name(&self) -> &'static str { "regex_match" }
+    fn name(&self) -> &'static str {
+        "regex_match"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = extract_text(context);
@@ -181,8 +189,7 @@ impl BuiltinSkill for RegexMatch {
             .ok_or_else(|| anyhow!("regex_match requires 'pattern' in context"))?;
         let mode = context.context["mode"].as_str().unwrap_or("find_all");
 
-        let re = regex::Regex::new(pattern)
-            .map_err(|e| anyhow!("invalid regex '{}': {}", pattern, e))?;
+        let re = regex::Regex::new(pattern).map_err(|e| anyhow!("invalid regex '{}': {}", pattern, e))?;
 
         match mode {
             "is_match" => {
@@ -234,7 +241,9 @@ pub struct CodeLint;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for CodeLint {
-    fn name(&self) -> &'static str { "code_lint" }
+    fn name(&self) -> &'static str {
+        "code_lint"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let code = extract_text(context);
@@ -250,7 +259,14 @@ impl BuiltinSkill for CodeLint {
             }
 
             // 调试输出残留
-            for pattern in &["println!", "print!", "dbg!", "console.log", "console.error", "System.out.print"] {
+            for pattern in &[
+                "println!",
+                "print!",
+                "dbg!",
+                "console.log",
+                "console.error",
+                "System.out.print",
+            ] {
                 if trimmed.contains(pattern) && !trimmed.starts_with("//") && !trimmed.starts_with("#") {
                     issues.push(json!({"line": lineno, "severity": "warning", "rule": "debug-output", "message": format!("可能的调试输出残留: {}", pattern)}));
                 }
@@ -264,13 +280,19 @@ impl BuiltinSkill for CodeLint {
             // 硬编码密码/密钥模式
             let lower = trimmed.to_lowercase();
             for keyword in &["password", "secret", "api_key", "apikey", "token", "private_key"] {
-                if lower.contains(keyword) && (trimmed.contains("=\"") || trimmed.contains("= \"") || trimmed.contains("='")) {
+                if lower.contains(keyword)
+                    && (trimmed.contains("=\"") || trimmed.contains("= \"") || trimmed.contains("='"))
+                {
                     issues.push(json!({"line": lineno, "severity": "error", "rule": "hardcoded-secret", "message": format!("疑似硬编码 {} ", keyword)}));
                 }
             }
 
             // 空 catch/except 块
-            if trimmed == "catch {}" || trimmed == "catch (e) {}" || trimmed == "except:" || trimmed == "except Exception:" {
+            if trimmed == "catch {}"
+                || trimmed == "catch (e) {}"
+                || trimmed == "except:"
+                || trimmed == "except Exception:"
+            {
                 issues.push(json!({"line": lineno, "severity": "warning", "rule": "empty-catch", "message": "空异常处理块，可能吞没错误"}));
             }
 
@@ -283,7 +305,11 @@ impl BuiltinSkill for CodeLint {
         let errors = issues.iter().filter(|i| i["severity"] == "error").count();
         let warnings = issues.iter().filter(|i| i["severity"] == "warning").count();
         let infos = issues.iter().filter(|i| i["severity"] == "info").count();
-        let score = if issues.is_empty() { 10 } else { (10 - errors * 3 - warnings).clamp(0, 10) };
+        let score = if issues.is_empty() {
+            10
+        } else {
+            (10 - errors * 3 - warnings).clamp(0, 10)
+        };
 
         Ok(json!({
             "issues": issues,
@@ -301,7 +327,9 @@ pub struct CodeTest;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for CodeTest {
-    fn name(&self) -> &'static str { "code_test" }
+    fn name(&self) -> &'static str {
+        "code_test"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let code = extract_text(context);
@@ -314,7 +342,11 @@ impl BuiltinSkill for CodeTest {
             let trimmed = line.trim();
 
             // Rust: fn name(...)
-            if trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ") || trimmed.starts_with("pub async fn ") || trimmed.starts_with("async fn ") {
+            if trimmed.starts_with("pub fn ")
+                || trimmed.starts_with("fn ")
+                || trimmed.starts_with("pub async fn ")
+                || trimmed.starts_with("async fn ")
+            {
                 language = "rust";
                 if let Some(name) = extract_fn_name(trimmed) {
                     functions.push(json!({"name": name, "line": i + 1, "language": "rust"}));
@@ -354,7 +386,8 @@ impl BuiltinSkill for CodeTest {
 }
 
 fn extract_fn_name(line: &str) -> Option<String> {
-    let line = line.trim()
+    let line = line
+        .trim()
         .trim_start_matches("pub ")
         .trim_start_matches("async ")
         .trim_start_matches("export ")
@@ -362,14 +395,21 @@ fn extract_fn_name(line: &str) -> Option<String> {
         .trim_start_matches("def ")
         .trim_start_matches("function ");
     let name: String = line.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-    if name.is_empty() || name == "main" { None } else { Some(name) }
+    if name.is_empty() || name == "main" {
+        None
+    } else {
+        Some(name)
+    }
 }
 
 fn generate_rust_tests(functions: &[Value]) -> String {
     let mut out = String::from("#[cfg(test)]\nmod tests {\n    use super::*;\n\n");
     for f in functions {
         let name = f["name"].as_str().unwrap_or("unknown");
-        out.push_str(&format!("    #[test]\n    fn test_{}() {{\n        // TODO: 实现测试\n        todo!(\"test {}\");\n    }}\n\n", name, name));
+        out.push_str(&format!(
+            "    #[test]\n    fn test_{}() {{\n        // TODO: 实现测试\n        todo!(\"test {}\");\n    }}\n\n",
+            name, name
+        ));
     }
     out.push_str("}\n");
     out
@@ -388,7 +428,10 @@ fn generate_js_tests(functions: &[Value]) -> String {
     let mut out = String::from("describe('module', () => {\n");
     for f in functions {
         let name = f["name"].as_str().unwrap_or("unknown");
-        out.push_str(&format!("  test('{}', () => {{\n    // TODO: 实现测试\n    expect(true).toBe(true);\n  }});\n\n", name));
+        out.push_str(&format!(
+            "  test('{}', () => {{\n    // TODO: 实现测试\n    expect(true).toBe(true);\n  }});\n\n",
+            name
+        ));
     }
     out.push_str("});\n");
     out
@@ -401,7 +444,9 @@ pub struct SkillReport;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for SkillReport {
-    fn name(&self) -> &'static str { "skill_report" }
+    fn name(&self) -> &'static str {
+        "skill_report"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, _context: &ExecutionContext) -> Result<Value> {
         match crate::learner::learner() {
@@ -418,14 +463,12 @@ pub struct EvolutionReport;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for EvolutionReport {
-    fn name(&self) -> &'static str { "evolution_report" }
+    fn name(&self) -> &'static str {
+        "evolution_report"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
-        let limit = context
-            .context
-            .get("limit")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(10) as usize;
+        let limit = context.context.get("limit").and_then(|v| v.as_u64()).unwrap_or(10) as usize;
 
         match crate::learner::learner() {
             Some(learner) => Ok(learner.evolution_report(limit)),
@@ -442,7 +485,9 @@ pub struct SessionReport;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for SessionReport {
-    fn name(&self) -> &'static str { "session_report" }
+    fn name(&self) -> &'static str {
+        "session_report"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, _context: &ExecutionContext) -> Result<Value> {
         match crate::learner::learner() {
@@ -459,10 +504,16 @@ pub struct RecordChange;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for RecordChange {
-    fn name(&self) -> &'static str { "record_change" }
+    fn name(&self) -> &'static str {
+        "record_change"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
-        let kind = context.context.get("kind").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let kind = context
+            .context
+            .get("kind")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
         let file = context.context.get("file").and_then(|v| v.as_str()).unwrap_or("");
         let summary = context.context.get("summary").and_then(|v| v.as_str()).unwrap_or("");
         match crate::learner::learner() {
@@ -482,7 +533,9 @@ pub struct RecordDecision;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for RecordDecision {
-    fn name(&self) -> &'static str { "record_decision" }
+    fn name(&self) -> &'static str {
+        "record_decision"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let ctx = context.context.get("context").and_then(|v| v.as_str()).unwrap_or("");
@@ -495,5 +548,38 @@ impl BuiltinSkill for RecordDecision {
             }
             None => Ok(json!({"error": "学习引擎未初始化"})),
         }
+    }
+}
+
+// ── sanitize ─────────────────────────────────────────────────────────────────
+
+/// `builtin:sanitize` — 对输入文本执行控制字符清理和安全检测
+///
+/// context 字段：
+/// - `text` 或 `input`：待清理的文本（必填）
+///
+/// 返回清理后的文本、移除字符数、以及详细报告。
+pub struct Sanitize;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for Sanitize {
+    fn name(&self) -> &'static str {
+        "sanitize"
+    }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let text = extract_text(context);
+        let mut sanitizer = Sanitizer::new();
+        let clean = sanitizer.sanitize(&text);
+        let count = sanitizer.sanitized_count();
+        let report = sanitizer.sanitized_report();
+
+        Ok(json!({
+            "original_length": text.len(),
+            "clean_length": clean.len(),
+            "sanitized_count": count,
+            "clean_text": clean,
+            "report": report,
+        }))
     }
 }

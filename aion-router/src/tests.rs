@@ -1,7 +1,6 @@
-﻿#[cfg(test)]
-mod tests {
+#[cfg(test)]
+mod router_tests {
     use crate::parallel_executor::ParallelExecutor;
-    use aion_intel::immunity::ImmunitySystem;
     use aion_types::capability_registry::CapabilityRegistry;
     use aion_types::types::RouterPaths;
     use aion_types::parallel::{ParallelInstruction, TaskGraph};
@@ -116,6 +115,7 @@ mod tests {
                     entrypoint: entrypoint.into(),
                     permissions: PermissionSet::default(),
                     instruction: None,
+                    engine_capable: false,
                 },
                 root_dir: PathBuf::from("/tmp/test_skill"),
                 source: SkillSource::Local,

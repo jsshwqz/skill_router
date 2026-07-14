@@ -59,9 +59,13 @@
         {
           "epoch_ms": 1778317634714,
           "success": true
+        },
+        {
+          "epoch_ms": 1783093786627,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1778317634714
+      "last_used_epoch_ms": 1783093786627
     },
     "ai_parallel_solve_placeholder": {
       "executions": [
@@ -528,9 +532,61 @@
         {
           "epoch_ms": 1782925800427,
           "success": true
+        },
+        {
+          "epoch_ms": 1783093793374,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093800283,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093806196,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093816036,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093823277,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093829145,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093835560,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093842424,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093849528,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093856611,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093863276,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093871731,
+          "success": true
+        },
+        {
+          "epoch_ms": 1783093878338,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1782925800427
+      "last_used_epoch_ms": 1783093878338
     },
     "check_sufficiency_placeholder": {
       "executions": [
@@ -563,6 +619,15 @@
       ],
       "last_used_epoch_ms": 1779702291856
     },
+    "discuss_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1784016189787,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1784016189787
+    },
     "echo_placeholder": {
       "executions": [
         {
@@ -580,9 +645,13 @@
         {
           "epoch_ms": 1779897745945,
           "success": true
+        },
+        {
+          "epoch_ms": 1784005233843,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1779897745945
+      "last_used_epoch_ms": 1784005233843
     },
     "evolution_report_placeholder": {
       "executions": [
@@ -666,9 +735,61 @@
         {
           "epoch_ms": 1782985884400,
           "success": true
+        },
+        {
+          "epoch_ms": 1783091883938,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784002670528,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784003353256,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784003553324,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784005300956,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784008511593,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784009065692,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784012110568,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784012801116,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014663856,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014775172,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784016152245,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019482665,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1782985884400
+      "last_used_epoch_ms": 1784019482665
     },
     "http_fetch_placeholder": {
       "executions": [
@@ -763,9 +884,17 @@
         {
           "epoch_ms": 1775109427421,
           "success": true
+        },
+        {
+          "epoch_ms": 1784002671776,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784002719461,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1775109427421
+      "last_used_epoch_ms": 1784002719461
     },
     "memory_remember_placeholder": {
       "executions": [
@@ -856,9 +985,84 @@
         {
           "epoch_ms": 1782965689003,
           "success": true
+        },
+        {
+          "epoch_ms": 1784002887619,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784003342355,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784003585847,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784003726229,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784008768151,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784008781458,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784012916182,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014944676,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784016206810,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019517177,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019878877,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1782965689003
+      "last_used_epoch_ms": 1784019878877
+    },
+    "rag_ingest": {
+      "executions": [
+        {
+          "epoch_ms": 1784008474618,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784010345476,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1784010345476
+    },
+    "rag_ingest_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1784006117052,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1784006117052
+    },
+    "rag_query": {
+      "executions": [
+        {
+          "epoch_ms": 1784010323035,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1784010323035
     },
     "rag_query_placeholder": {
       "executions": [
@@ -869,6 +1073,68 @@
       ],
       "last_used_epoch_ms": 1775109441556
     },
+    "rag_status": {
+      "executions": [
+        {
+          "epoch_ms": 1784008347788,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784008464055,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784010320707,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784010697146,
+          "success": false
+        },
+        {
+          "epoch_ms": 1784012105650,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784012850077,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014665089,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019484146,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1784019484146
+    },
+    "rag_status_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1784002718261,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784003429389,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784003814003,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784005229559,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784007264784,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1784007264784
+    },
     "record_change_placeholder": {
       "executions": [
         {
@@ -878,9 +1144,61 @@
         {
           "epoch_ms": 1779499728472,
           "success": true
+        },
+        {
+          "epoch_ms": 1784010672986,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784010690138,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784010740896,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784012875454,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784012878778,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014911407,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014915093,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014918553,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019496321,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019500228,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019503900,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784022898995,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784022902561,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1779499728472
+      "last_used_epoch_ms": 1784022902561
     },
     "record_decision_placeholder": {
       "executions": [
@@ -891,9 +1209,37 @@
         {
           "epoch_ms": 1779499731071,
           "success": true
+        },
+        {
+          "epoch_ms": 1784010784471,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784010788971,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784012884712,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784012888396,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014922727,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019507729,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784022905864,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1779499731071
+      "last_used_epoch_ms": 1784022905864
     },
     "regex_match_placeholder": {
       "executions": [
@@ -974,9 +1320,29 @@
         {
           "epoch_ms": 1779500599289,
           "success": true
+        },
+        {
+          "epoch_ms": 1784012902948,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784014930921,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019839698,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784019997403,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784023927876,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1779500599289
+      "last_used_epoch_ms": 1784023927876
     },
     "skill_report_placeholder": {
       "executions": [
@@ -1011,9 +1377,17 @@
         {
           "epoch_ms": 1782942237958,
           "success": true
+        },
+        {
+          "epoch_ms": 1783091885038,
+          "success": true
+        },
+        {
+          "epoch_ms": 1784002669246,
+          "success": true
         }
       ],
-      "last_used_epoch_ms": 1782942237958
+      "last_used_epoch_ms": 1784002669246
     },
     "spec_driven_placeholder": {
       "executions": [
@@ -1187,6 +1561,15 @@
         }
       ],
       "last_used_epoch_ms": 1779710189254
+    },
+    "toml_parse_placeholder": {
+      "executions": [
+        {
+          "epoch_ms": 1784005855088,
+          "success": true
+        }
+      ],
+      "last_used_epoch_ms": 1784005855088
     },
     "web_search_placeholder": {
       "executions": [

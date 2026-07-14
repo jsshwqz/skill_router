@@ -46,6 +46,7 @@ memory_store.json
 .skill-router/orchestration_trace.jsonl
 .skill-router/executions.log
 .skill-router/generated-skills/
+.skill-router/rag/
 
 # Claude tools
 .claude/

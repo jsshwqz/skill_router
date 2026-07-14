@@ -11,13 +11,14 @@ use std::path::Path;
 use aion_types::types::{
     ExecutionContext, PermissionSet, RouterPaths, SkillDefinition, SkillMetadata, SkillSource,
 };
+
 use super::BuiltinSkill;
 
 /// SKILL.md frontmatter 字段
 struct SkillMdFrontmatter {
     name: String,
     description: String,
-    license: Option<String>,
+    _license: Option<String>,
     compatibility: Option<String>,
     metadata: HashMap<String, String>,
 }
@@ -85,7 +86,13 @@ fn parse_frontmatter(raw: &str) -> Result<(SkillMdFrontmatter, String)> {
     }
 
     Ok((
-        SkillMdFrontmatter { name, description, license, compatibility, metadata },
+        SkillMdFrontmatter {
+            name,
+            description,
+            _license: license,
+            compatibility,
+            metadata,
+        },
         body,
     ))
 }
@@ -122,6 +129,7 @@ fn skillmd_to_forge(raw: &str, root_dir: &Path) -> Result<SkillDefinition> {
             entrypoint: "builtin:ai_task".to_string(),
             permissions,
             instruction,
+            engine_capable: false,
         },
         root_dir: root_dir.join(&front.name),
         source: SkillSource::Generated,
@@ -191,7 +199,7 @@ impl BuiltinSkill for SkillConvert {
                     .unwrap_or_else(|_| content.clone());
                 if let Ok(json_val) = serde_json::from_str::<Value>(&skill_def) {
                         let name = json_val["name"].as_str().unwrap_or("unnamed");
-                        let capability = json_val["capabilities"]
+                        let _capability = json_val["capabilities"]
                             .as_array()
                             .and_then(|a| a[0].as_str())
                             .unwrap_or(name);

@@ -69,6 +69,10 @@ pub struct SkillMetadata {
     /// 这样提示词可被本地技能覆盖，不再硬编码在 executor.rs 中。
     #[serde(default)]
     pub instruction: Option<String>,
+    /// 标记此 skill 可作为引擎参与多引擎编排（skill-as-engine）。
+    /// 当 true 时，该 skill 会被加入 Engine::default_enabled() 候选列表。
+    #[serde(default)]
+    pub engine_capable: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

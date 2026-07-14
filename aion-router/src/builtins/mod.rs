@@ -3,29 +3,29 @@
 //! 所有 builtin 技能通过 `BuiltinSkill` trait 注册到 `BuiltinRegistry`，
 //! 替代原有 executor.rs 中的巨型 match 分支。
 
-pub mod parsing;
-pub mod text;
-pub mod web;
-pub mod memory;
-pub mod ai;
 pub mod agent;
-pub mod pipeline;
-pub mod new_skills;
+pub mod ai;
+pub mod autonomous_agent;
+pub mod evolver;
+pub mod format;
+pub mod haoojiang;
+pub mod health_check;
+pub mod image;
+pub mod market;
 pub mod mcp;
-pub mod rag;
+pub mod memory;
+pub mod new_skills;
 pub mod orchestrator;
+pub mod parsing;
+pub mod pipeline;
+pub mod prompt_audit;
+pub mod rag;
+pub mod skill_format;
 pub mod spec_driven;
 pub mod task_router;
-pub mod health_check;
+pub mod text;
+pub mod web;
 pub mod zl;
-pub mod prompt_audit;
-pub mod evolver;
-pub mod haoojiang;
-pub mod market;
-pub mod skill_format;
-pub mod autonomous_agent;
-pub mod image;
-pub mod format;
 
 use std::collections::HashMap;
 
@@ -41,11 +41,7 @@ pub trait BuiltinSkill: Send + Sync {
     fn name(&self) -> &'static str;
 
     /// 执行技能
-    async fn execute(
-        &self,
-        skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<Value>;
+    async fn execute(&self, skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value>;
 }
 
 /// Builtin 注册表
@@ -62,9 +58,7 @@ impl Default for BuiltinRegistry {
 impl BuiltinRegistry {
     /// 创建空注册表
     pub fn new() -> Self {
-        Self {
-            skills: HashMap::new(),
-        }
+        Self { skills: HashMap::new() }
     }
 
     /// 注册一个 builtin 技能
@@ -75,6 +69,13 @@ impl BuiltinRegistry {
     /// 查找 builtin 技能
     pub fn get(&self, name: &str) -> Option<&dyn BuiltinSkill> {
         self.skills.get(name).map(|b| b.as_ref())
+    }
+
+    /// 获取所有已注册技能的名称列表
+    pub fn list_skills(&self) -> Vec<&'static str> {
+        let mut names: Vec<&'static str> = self.skills.keys().copied().collect();
+        names.sort();
+        names
     }
 
     /// 创建包含所有内置技能的默认注册表
@@ -130,6 +131,7 @@ impl BuiltinRegistry {
         reg.register(Box::new(new_skills::SessionReport));
         reg.register(Box::new(new_skills::RecordChange));
         reg.register(Box::new(new_skills::RecordDecision));
+        reg.register(Box::new(new_skills::Sanitize));
 
         // MCP 调用
         reg.register(Box::new(mcp::McpCall));
@@ -247,9 +249,7 @@ pub(crate) fn urlencoding_simple(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char)
-            }
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
             b' ' => out.push('+'),
             _ => out.push_str(&format!("%{:02X}", b)),
         }

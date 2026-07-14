@@ -1139,6 +1139,16 @@ impl CapabilityRegistry {
             category: "".to_string(),
         },
             CapabilityDefinition {
+                name: "async_task_query".to_string(),
+                description: "Query asynchronous workflow status by task_id, or list all in-memory asynchronous tasks when task_id is omitted.".to_string(),
+                inputs: vec!["task_id".to_string()],
+                outputs: vec!["tasks".to_string(), "count".to_string(), "status".to_string(), "result".to_string()],
+                parameters_schema: serde_json::json!({"type":"object","properties":{"task_id":{"type":"string","description":"Optional asynchronous task identifier; omit to list tasks"}}}),
+                examples: vec![],
+                requires_approval: false,
+                category: "orchestration".to_string(),
+            },
+            CapabilityDefinition {
                 name: "autonomous_agent".to_string(),
                 description: "Autonomous goal-driven agent: receives a high-level goal, plans steps, executes them iteratively, adapts on failure, and delivers a structured report.".to_string(),
                 inputs: vec!["task".to_string()],

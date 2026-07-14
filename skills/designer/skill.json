@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "capabilities": ["designer"],
   "entrypoint": "builtin:ai_task",
+  "engine_capable": true,
   "permissions": {
     "network": true,
     "filesystem": true,

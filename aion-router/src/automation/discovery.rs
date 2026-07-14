@@ -125,6 +125,7 @@ impl DiscoveryRadar {
                     entrypoint: "entry.rs".to_string(),
                     permissions: aion_types::types::PermissionSet::default(),
                     instruction: None,
+                    engine_capable: false,
                 },
                 root_dir: PathBuf::from(".skill-router/remote-cache"), // Placeholder path
                 source: SkillSource::RemoteCandidate,

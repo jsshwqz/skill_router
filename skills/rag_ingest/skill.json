@@ -1,0 +1,12 @@
+{
+  "name": "rag_ingest",
+  "version": "0.1.0",
+  "capabilities": ["rag_ingest"],
+  "entrypoint": "builtin:rag_ingest",
+  "permissions": {
+    "network": false,
+    "filesystem_read": true,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

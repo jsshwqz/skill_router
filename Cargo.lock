@@ -75,6 +75,7 @@ dependencies = [
  "anyhow",
  "clap",
  "dotenvy",
+ "glitch-filter",
  "rusqlite",
  "serde_json",
  "tokio",
@@ -121,6 +122,7 @@ dependencies = [
  "chrono",
  "flate2",
  "futures-util",
+ "glitch-filter",
  "jsonschema",
  "metrics",
  "rayon",
@@ -1029,6 +1031,10 @@ dependencies = [
  "wasip2",
  "wasip3",
 ]
+
+[[package]]
+name = "glitch-filter"
+version = "0.1.0"
 
 [[package]]
 name = "h2"

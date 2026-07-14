@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod tests {
+mod memory_tests {
     use crate::memory::{MemoryManager, MemoryCategory};
     use std::env;
     use std::fs;

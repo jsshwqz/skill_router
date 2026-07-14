@@ -1,0 +1,12 @@
+{
+  "name": "mcp_call",
+  "version": "0.1.0",
+  "capabilities": ["mcp_call"],
+  "entrypoint": "builtin:mcp_call",
+  "permissions": {
+    "network": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": true
+  }
+}

@@ -3,7 +3,7 @@
 //! Uses `tower::ServiceExt` to drive the axum `Router` as an in-process service
 //! without binding to a TCP port.
 
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 
 use axum::body::Body;
@@ -25,7 +25,7 @@ use crate::AppState;
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /// Build an `AppState` backed by a temporary directory.
-fn test_state(tmp: &PathBuf) -> Arc<AppState> {
+fn test_state(tmp: &Path) -> Arc<AppState> {
     let paths = RouterPaths::for_workspace(tmp);
     let router = SkillRouter::new(paths.clone()).expect("SkillRouter::new");
     let memory = MemoryManager::new(tmp);
@@ -73,7 +73,7 @@ async fn json_response(app: Router, req: Request<Body>) -> (StatusCode, Value) {
 #[tokio::test]
 async fn health_returns_ok() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::get("/v1/health")
@@ -91,7 +91,7 @@ async fn health_returns_ok() {
 #[tokio::test]
 async fn capabilities_returns_array() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::get("/v1/capabilities")
@@ -107,7 +107,7 @@ async fn capabilities_returns_array() {
 #[tokio::test]
 async fn metrics_returns_text() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::get("/v1/metrics")
@@ -127,7 +127,7 @@ async fn metrics_returns_text() {
 #[tokio::test]
 async fn route_task_empty_task_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::post("/v1/route")
@@ -145,7 +145,7 @@ async fn route_task_empty_task_returns_400() {
 #[tokio::test]
 async fn route_task_whitespace_only_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::post("/v1/route")
@@ -160,7 +160,7 @@ async fn route_task_whitespace_only_returns_400() {
 #[tokio::test]
 async fn memory_recall_empty_query_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::get("/v1/memory/recall?query=")
@@ -176,7 +176,7 @@ async fn memory_recall_empty_query_returns_400() {
 #[tokio::test]
 async fn memory_recall_no_query_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::get("/v1/memory/recall")
@@ -192,7 +192,7 @@ async fn memory_recall_no_query_returns_400() {
 #[tokio::test]
 async fn memory_remember_then_recall() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
 
     // Remember
     {
@@ -230,7 +230,7 @@ async fn memory_remember_then_recall() {
 #[tokio::test]
 async fn memory_remember_empty_content_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::post("/v1/memory/remember")
@@ -248,7 +248,7 @@ async fn memory_remember_empty_content_returns_400() {
 #[tokio::test]
 async fn memory_stats_returns_ok() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::get("/v1/memory/stats")
@@ -263,7 +263,7 @@ async fn memory_stats_returns_ok() {
 #[tokio::test]
 async fn agents_info_returns_node_info() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::get("/v1/agents")
@@ -279,7 +279,7 @@ async fn agents_info_returns_node_info() {
 #[tokio::test]
 async fn agent_delegate_missing_target_returns_400() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     // AiNativePayload without target_agent_id
@@ -326,7 +326,7 @@ async fn event_bus_publish_subscribe() {
 #[tokio::test]
 async fn unknown_route_returns_404() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::get("/v1/nonexistent")
@@ -340,7 +340,7 @@ async fn unknown_route_returns_404() {
 #[tokio::test]
 async fn route_task_missing_body_returns_4xx() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state);
 
     let req = Request::post("/v1/route")
@@ -359,7 +359,7 @@ async fn route_task_missing_body_returns_4xx() {
 #[tokio::test]
 async fn memory_remember_default_importance() {
     let tmp = tempfile::tempdir().unwrap();
-    let state = test_state(&tmp.path().to_path_buf());
+    let state = test_state(tmp.path());
     let app = test_app(state.clone());
 
     // Omit importance — should default to 5

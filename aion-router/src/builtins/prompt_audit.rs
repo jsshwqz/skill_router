@@ -125,6 +125,7 @@ mod tests {
                 version: "0.1.0".into(),
                 capabilities: vec!["prompt_audit".into()],
                 entrypoint: "builtin:prompt_audit".into(),
+                engine_capable: false,
                 permissions: aion_types::types::PermissionSet::default_deny(),
                 instruction: None,
             },

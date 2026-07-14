@@ -280,14 +280,19 @@ impl RagEngine {
             .timeout(std::time::Duration::from_secs(15))
             .build()?;
 
-        let resp: Value = client
+        let resp: Value = match client
             .post(format!("{}/embeddings", base_url))
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&body)
             .send()
-            .await?
-            .json()
-            .await?;
+            .await
+        {
+            Ok(r) => match r.json().await {
+                Ok(v) => v,
+                Err(_) => return Ok(Self::fallback_embedding(text)),
+            },
+            Err(_) => return Ok(Self::fallback_embedding(text)),
+        };
 
         // OpenAI 格式
         if let Some(data) = resp["data"][0]["embedding"].as_array() {

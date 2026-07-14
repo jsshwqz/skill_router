@@ -9,6 +9,7 @@ members = [
     "aion-sandbox",
     "aion-cli-gen",
     "aion-zl", "aion-forge-cli",
+    "crates/glitch-filter",
 ]
 resolver = "2"
 
@@ -33,6 +34,7 @@ async-trait = "0.1"
 regex = "1"
 metrics = "0.24"
 flate2 = "1"
+glitch-filter = { path = "crates/glitch-filter" }
 metrics-exporter-prometheus = "0.16"
 indicatif = "0.17"
 jsonschema = "0.18"

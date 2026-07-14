@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use serde_json::json;
@@ -103,6 +103,7 @@ impl Synthesizer {
                 entrypoint,
                 permissions,
                 instruction,
+                engine_capable: false,
             },
             root_dir,
             source: SkillSource::Generated,
@@ -208,6 +209,7 @@ impl Synthesizer {
                 entrypoint: "builtin:ai_task".to_string(),
                 permissions: PermissionSet::default_deny().with_network(true),
                 instruction,
+                engine_capable: false,
             },
             root_dir,
             source: SkillSource::Generated,
@@ -230,7 +232,7 @@ impl Synthesizer {
     fn evolve_simple(
         capability: &str,
         name: &str,
-        root_dir: &PathBuf,
+        root_dir: &Path,
     ) -> Result<SkillDefinition> {
         let definition = SkillDefinition {
             metadata: SkillMetadata {
@@ -240,8 +242,9 @@ impl Synthesizer {
                 entrypoint: "builtin:ai_task".to_string(),
                 permissions: PermissionSet::default_deny().with_network(true),
                 instruction: None,
+                engine_capable: false,
             },
-            root_dir: root_dir.clone(),
+            root_dir: root_dir.to_path_buf(),
             source: SkillSource::Generated,
         };
         Self::persist_definition(&definition)?;
@@ -281,6 +284,7 @@ impl Synthesizer {
                 instruction: Some(format!(
                     "你是一个改进后的 {} 工具。注意已知问题：{}。", capability, failure_context
                 )),
+                engine_capable: false,
             },
             root_dir: PathBuf::new(),
             source: SkillSource::Generated,
@@ -294,7 +298,12 @@ impl Synthesizer {
             anyhow::bail!("skill name is empty");
         }
         // 2. instruction 不能为空（ai_task builtin 依赖它）
-        if def.metadata.instruction.as_ref().map_or(true, |i| i.is_empty()) {
+        if def
+            .metadata
+            .instruction
+            .as_ref()
+            .is_none_or(|instruction| instruction.is_empty())
+        {
             anyhow::bail!("ai_task builtin requires non-empty instruction");
         }
         // 3. instruction 不能超过 15KB

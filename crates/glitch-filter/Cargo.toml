@@ -1,0 +1,8 @@
+[package]
+name = "glitch-filter"
+version = "0.1.0"
+edition = "2024"
+description = "Glitch token detection filter — 从 L1B3RT4S _SPECIAL_TOKENS 数据提炼的 Rust 检测库"
+license = "MIT"
+
+[dependencies]

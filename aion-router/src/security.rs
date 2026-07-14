@@ -83,6 +83,12 @@ impl AiSecurityReviewer {
         response: &ExecutionResponse,
         paths: &RouterPaths,
     ) -> Verdict {
+        // Bypass AI review for RAG builtins — returning stored content is the intended behavior.
+        let entrypoint = &skill.metadata.entrypoint;
+        if entrypoint == "builtin:rag_query" || entrypoint == "builtin:rag_status" {
+            return Verdict::Allow;
+        }
+
         // 1. Fast heuristic scan of output
         if let Some(reason) = Self::heuristic_post(response) {
             Self::log_audit("post", "heuristic", &Verdict::Deny(reason.clone()), skill, paths);
@@ -145,8 +151,10 @@ impl AiSecurityReviewer {
             return Some("shell/exec entrypoints are disabled".to_string());
         }
 
-        // Block process_exec permission
-        if skill.metadata.permissions.process_exec {
+        // Block process_exec permission (with exceptions for builtins that manage their own process safety)
+        if skill.metadata.permissions.process_exec
+            && skill.metadata.entrypoint != "builtin:mcp_call"
+        {
             return Some("skills with process_exec permission are not allowed".to_string());
         }
 

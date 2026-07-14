@@ -9,6 +9,7 @@
 //! - `tools/call` → 映射为 SkillRouter 调用
 
 use std::io::{self, BufRead, Write};
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -16,7 +17,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tracing::info;
 
+use aion_router::agent_runtime::AgentRuntime;
+use aion_router::coordinator::MultiAgentCoordinator;
 use aion_router::SkillRouter;
+use aion_types::agent_message::{AgentRef, AgentRole};
 use aion_types::types::RouterPaths;
 
 /// 异步任务最大等待时间（秒）
@@ -92,7 +96,37 @@ pub async fn run_mcp_server(paths: RouterPaths) -> Result<()> {
     // 初始化学习引擎
     aion_router::learner::init_learner(&paths.workspace_root);
 
+    // 初始化全局消息总线（Agent 系统共享）
+    let global_bus = aion_router::message_bus::init_global_bus(128);
+    let bus = Arc::new(global_bus.clone());
+
     let router = SkillRouter::new(paths)?;
+
+    // ── 启动 Agent 运行时 ───────────────────────────────────────────────────
+    let mut _coordinator = MultiAgentCoordinator::new(Arc::clone(&bus));
+    let agent_configs = [
+        ("orchestrator-0", AgentRole::Orchestrator),
+        ("executor-0", AgentRole::Executor),
+        ("executor-1", AgentRole::Executor),
+    ];
+    for (id, role) in &agent_configs {
+        match AgentRuntime::new(
+            id,
+            role.clone(),
+            vec![],                   // 空 = 接受所有能力
+            router.paths().clone(),
+            Arc::clone(&bus),
+        ) {
+            Ok(runtime) => {
+                runtime.spawn();
+                _coordinator.register_agent(AgentRef::local(id, role.clone()));
+                info!("Agent [{}] ({:?}) spawned for MCP server", id, role);
+            }
+            Err(e) => {
+                tracing::warn!("Failed to spawn agent [{}]: {}", id, e);
+            }
+        }
+    }
 
     let stdin = io::stdin();
     let stdout = io::stdout();

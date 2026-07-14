@@ -1,0 +1,12 @@
+{
+  "name": "rag_status",
+  "version": "0.1.0",
+  "capabilities": ["rag_status"],
+  "entrypoint": "builtin:rag_status",
+  "permissions": {
+    "network": false,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}

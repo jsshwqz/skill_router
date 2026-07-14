@@ -24,9 +24,11 @@ use tokio::process::Command;
 use tokio::sync::{mpsc, Mutex as AsyncMutex};
 use tracing::{info, warn};
 
-use aion_types::types::{ExecutionContext, SkillDefinition};
+use aion_types::types::{ExecutionContext, RouterPaths, SkillDefinition};
 
 use crate::config::{candidate_ai_endpoints, AiEndpoint, AiProtocol};
+use crate::executor::Executor;
+use crate::loader::Loader;
 
 use super::BuiltinSkill;
 
@@ -98,7 +100,7 @@ fn strip_ansi(s: &str) -> String {
     ansi_regex().replace_all(s, "").into_owned()
 }
 
-fn is_noise_line(engine: Engine, line: &str) -> bool {
+fn is_noise_line(engine: &Engine, line: &str) -> bool {
     let trimmed = line.trim();
     if trimmed.is_empty() {
         return false;
@@ -115,10 +117,10 @@ fn is_noise_line(engine: Engine, line: &str) -> bool {
     matches!(engine, Engine::OpenAi) && trimmed.eq_ignore_ascii_case("codex")
 }
 
-fn normalize_output(engine: Engine, raw: &str) -> String {
+fn normalize_output(engine: &Engine, raw: &str) -> String {
     strip_ansi(raw)
         .lines()
-        .filter(|line| !is_noise_line(engine, line))
+        .filter(|line| !is_noise_line(&engine, line))
         .map(str::trim_end)
         .collect::<Vec<_>>()
         .join("\n")
@@ -207,20 +209,129 @@ impl BuiltinSkill for AsyncTaskQuery {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Engine {
     Claude,
     OpenAi,
     Gemini,
+    Local,
+    Skill(String),
 }
 
 impl Engine {
+    /// Parse `AION_ORCH_DISABLED_ENGINES` env var — comma-separated engine labels to skip.
+    fn disabled_set() -> Vec<String> {
+        std::env::var("AION_ORCH_DISABLED_ENGINES")
+            .map(|v| v.split(',').map(|s| s.trim().to_lowercase()).collect())
+            .unwrap_or_default()
+    }
+
+    /// Filter a slice to only disabled engines (env var override).
+    fn filter_enabled(engines: Vec<Engine>) -> Vec<Engine> {
+        let disabled = Self::disabled_set();
+        engines.into_iter().filter(|e| !disabled.contains(&e.label().to_lowercase())).collect()
+    }
+
+    /// Default CLI name for this engine (before .cmd/.exe suffix on Windows).
+    fn cli_name(&self) -> &'static str {
+        match self {
+            Engine::Claude => "claude",
+            Engine::OpenAi => "codex",
+            Engine::Gemini => "gemini",
+            Engine::Local => "local",
+            Engine::Skill(_) => "",
+        }
+    }
+
+    /// Env var that overrides the default CLI path for this engine.
+    fn cli_env_var(&self) -> &'static str {
+        match self {
+            Engine::Claude => "CLAUDE_CLI",
+            Engine::OpenAi => "CODEX_CLI",
+            Engine::Gemini => "GEMINI_CLI",
+            Engine::Local => "",
+            Engine::Skill(_) => "",
+        }
+    }
+
+    /// Check if the CLI for this engine actually exists on disk.
+    /// Matches the resolution logic in `call_engine_detailed`/`run_cli_with_stdin`.
+    fn cli_available(&self) -> bool {
+        match self {
+            Engine::Local => true, // HTTP-based, no CLI needed
+            Engine::Skill(_) => true, // skill definition is already loaded from disk
+            _ => {
+                let base = std::env::var(self.cli_env_var())
+                    .unwrap_or_else(|_| self.cli_name().to_string());
+                let resolved = if cfg!(windows)
+                    && !base.contains('\\')
+                    && !base.ends_with(".exe")
+                    && !base.ends_with(".cmd")
+                {
+                    format!("{}.cmd", base)
+                } else {
+                    base.clone()
+                };
+                if resolved.contains('\\') || resolved.contains('/') {
+                    std::path::Path::new(&resolved).exists()
+                } else {
+                    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+                        .any(|dir| dir.join(&resolved).exists())
+                }
+            }
+        }
+    }
+
+    /// Available engines respecting both `AION_ORCH_DISABLED_ENGINES` and CLI detection.
+    /// Includes `engine_capable` skills discovered from the skills/ directory.
+    /// `Engine::Local` is always included as the last entry (HTTP fallback, no CLI needed).
+    fn default_enabled() -> Vec<Engine> {
+        let disabled = Self::disabled_set();
+        let manual = Self::filter_enabled(vec![Engine::Claude, Engine::OpenAi, Engine::Gemini]);
+        let mut enabled: Vec<Engine> = manual.into_iter().filter(|e| e.cli_available()).collect();
+        // Add engine_capable skills (discovered lazily via OnceLock)
+        for skill_engine in Self::discover_skill_engines() {
+            if !disabled.iter().any(|d| d == skill_engine.label()) {
+                enabled.push(skill_engine.clone());
+            }
+        }
+        // Local HTTP fallback always available at the end (unless explicitly disabled)
+        if !disabled.iter().any(|d| d == "local") {
+            enabled.push(Engine::Local);
+        }
+        enabled
+    }
+
+    /// Pick the Nth enabled engine, wrapping around to the first if N is out of range.
+    /// Returns `None` when no engines are available at all.
+    fn nth_enabled(n: usize) -> Option<Engine> {
+        let enabled = Self::default_enabled();
+        let len = enabled.len();
+        if len == 0 { None } else { enabled.get(n % len).cloned() }
+    }
+
+    /// First available engine, or `None` if all are unavailable/disabled.
+    fn first_available() -> Option<Engine> {
+        Self::default_enabled().into_iter().next()
+    }
+
+    /// Cycle through available engines to fill `n` slots.
+    /// E.g. available=[Claude, Local], n=3 → [Claude, Local, Claude]
+    fn cycle_to_fill(available: &[Engine], n: usize) -> Vec<Engine> {
+        if available.is_empty() {
+            return Vec::new();
+        }
+        (0..n).map(|i| available[i % available.len()].clone()).collect()
+    }
+
     fn label(&self) -> &'static str {
         match self {
             Engine::Claude => "claude",
             Engine::OpenAi => "openai",
             Engine::Gemini => "gemini",
+            Engine::Local => "local",
+            Engine::Skill(_) => "skill",
         }
     }
 
@@ -229,8 +340,39 @@ impl Engine {
             "claude" => Some(Self::Claude),
             "openai" => Some(Self::OpenAi),
             "gemini" => Some(Self::Gemini),
-            _ => None,
+            "local" => Some(Self::Local),
+            "skill" => Some(Self::Skill("skill".to_string())),
+            _ => {
+                // Support "skill:name" format for named skills
+                if let Some(name) = label.strip_prefix("skill:") {
+                    Some(Self::Skill(name.to_string()))
+                } else {
+                    None
+                }
+            }
         }
+    }
+
+    /// Lazily discover engine_capable skills from the skills/ directory.
+    /// Results are cached in a OnceLock — IO happens at most once per process lifetime.
+    fn discover_skill_engines() -> &'static Vec<Engine> {
+        static SKILL_ENGINES: OnceLock<Vec<Engine>> = OnceLock::new();
+        SKILL_ENGINES.get_or_init(|| {
+            let paths = RouterPaths::for_workspace(&workspace_root());
+            let reg = match aion_types::capability_registry::CapabilityRegistry::load_or_builtin(&paths) {
+                Ok(r) => r,
+                Err(_) => return Vec::new(),
+            };
+            let skills = match Loader::load_local_skills(&paths, &reg) {
+                Ok(s) => s,
+                Err(_) => return Vec::new(),
+            };
+            skills
+                .into_iter()
+                .filter(|s| s.metadata.engine_capable)
+                .map(|s| Engine::Skill(s.metadata.name))
+                .collect()
+        })
     }
 }
 
@@ -337,7 +479,7 @@ fn phase_grace_window_secs() -> u64 {
         .unwrap_or(3)
 }
 
-fn cache_key(engine: Engine, phase: &str, prompt: &str, cfg: &OrchestratorConfig) -> String {
+fn cache_key(engine: &Engine, phase: &str, prompt: &str, cfg: &OrchestratorConfig) -> String {
     let mut hasher = DefaultHasher::new();
     engine.hash(&mut hasher);
     phase.hash(&mut hasher);
@@ -348,13 +490,13 @@ fn cache_key(engine: Engine, phase: &str, prompt: &str, cfg: &OrchestratorConfig
 }
 
 fn cached_success_report(
-    engine: Engine,
+    engine: &Engine,
     phase: &str,
     prompt: &str,
     cfg: &OrchestratorConfig,
     status_before: &str,
 ) -> Option<EngineCallReport> {
-    let key = cache_key(engine, phase, prompt, cfg);
+    let key = cache_key(&engine, phase, prompt, cfg);
     let now = now_secs();
     let mut store = load_engine_cache();
     store
@@ -382,14 +524,14 @@ fn cached_success_report(
 }
 
 fn persist_success_cache(
-    engine: Engine,
+    engine: &Engine,
     phase: &str,
     prompt: &str,
     cfg: &OrchestratorConfig,
     output: &str,
     duration_ms: u64,
 ) {
-    let key = cache_key(engine, phase, prompt, cfg);
+    let key = cache_key(&engine, phase, prompt, cfg);
     let now = now_secs();
     let mut store = load_engine_cache();
     store
@@ -409,7 +551,7 @@ fn persist_success_cache(
     save_engine_cache(&store);
 }
 
-fn engine_state(engine: Engine) -> EngineHealthState {
+fn engine_state(engine: &Engine) -> EngineHealthState {
     load_cli_health()
         .engines
         .get(engine.label())
@@ -417,14 +559,17 @@ fn engine_state(engine: Engine) -> EngineHealthState {
         .unwrap_or_default()
 }
 
-fn engine_lock(engine: Engine) -> &'static AsyncMutex<()> {
+fn engine_lock(engine: &Engine) -> &'static AsyncMutex<()> {
     static CLAUDE_LOCK: OnceLock<AsyncMutex<()>> = OnceLock::new();
     static OPENAI_LOCK: OnceLock<AsyncMutex<()>> = OnceLock::new();
     static GEMINI_LOCK: OnceLock<AsyncMutex<()>> = OnceLock::new();
+    static LOCAL_LOCK: OnceLock<AsyncMutex<()>> = OnceLock::new();
     match engine {
         Engine::Claude => CLAUDE_LOCK.get_or_init(|| AsyncMutex::new(())),
         Engine::OpenAi => OPENAI_LOCK.get_or_init(|| AsyncMutex::new(())),
         Engine::Gemini => GEMINI_LOCK.get_or_init(|| AsyncMutex::new(())),
+        Engine::Local => LOCAL_LOCK.get_or_init(|| AsyncMutex::new(())),
+        Engine::Skill(_) => LOCAL_LOCK.get_or_init(|| AsyncMutex::new(())),
     }
 }
 
@@ -596,8 +741,8 @@ fn update_engine_health(report: &EngineCallReport) {
     save_cli_health(&store);
 }
 
-fn engine_in_cooldown(engine: Engine) -> Option<String> {
-    let state = engine_state(engine);
+fn engine_in_cooldown(engine: &Engine) -> Option<String> {
+    let state = engine_state(&engine);
     match state.cooldown_until {
         Some(until) if until > now_secs() => Some(format!("{} in cooldown until {}", engine.label(), until)),
         _ => None,
@@ -664,18 +809,19 @@ async fn run_cli_with_stdin(cli: &str, args: &[&str], stdin_data: &str, timeout:
 }
 
 async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorConfig, phase: &str) -> EngineCallReport {
-    let status_before = match engine_state(engine).status {
+    let engine = engine; // shadow — keep owned for the rest of function
+    let status_before = match engine_state(&engine).status {
         HealthStatus::Healthy => "healthy",
         HealthStatus::Degraded => "degraded",
         HealthStatus::Down => "down",
     }
     .to_string();
 
-    if let Some(report) = cached_success_report(engine, phase, prompt, cfg, &status_before) {
+    if let Some(report) = cached_success_report(&engine, phase, prompt, cfg, &status_before) {
         return report;
     }
 
-    if let Some(reason) = engine_in_cooldown(engine) {
+    if let Some(reason) = engine_in_cooldown(&engine) {
         let report = EngineCallReport {
             engine: engine.label().to_string(),
             phase: phase.to_string(),
@@ -706,6 +852,19 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
         }
     };
 
+        // Local engine uses HTTP AI endpoints instead of CLI subprocess
+    if engine == Engine::Local {
+        let mut report = call_http_ai_fallback(prompt, phase).await;
+        report.engine = engine.label().to_string();
+        update_engine_health(&report);
+        return report;
+    }
+
+    // Skill engine: execute via the skill system (Loader + Executor)
+    if let Engine::Skill(ref skill_name) = engine {
+        return call_skill_engine(skill_name, prompt, phase, &status_before).await;
+    }
+
     let (cli, args): (String, Vec<String>) = match engine {
         Engine::Claude => (
             cli_path(&cfg.claude_cli),
@@ -731,9 +890,11 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
             ],
         ),
         Engine::Gemini => (cli_path(&cfg.gemini_cli), vec!["-p".to_string(), "-".to_string()]),
+        Engine::Local => unreachable!("Local engine handled earlier via HTTP fallback"),
+        Engine::Skill(_) => unreachable!("Skill engine handled earlier via skill execution"),
     };
 
-    let _guard = engine_lock(engine).lock().await;
+    let _guard = engine_lock(&engine).lock().await;
     let args_ref: Vec<&str> = args.iter().map(String::as_str).collect();
     let report = match run_cli_with_stdin(&cli, &args_ref, prompt, cfg.timeout).await {
         Ok(CliRunOutcome::Completed {
@@ -743,9 +904,9 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
             exit_code,
             duration_ms,
         }) => {
-            let normalized_stdout = normalize_output(engine, &stdout);
+            let normalized_stdout = normalize_output(&engine, &stdout);
             if status_success && !normalized_stdout.is_empty() {
-                persist_success_cache(engine, phase, prompt, cfg, &normalized_stdout, duration_ms);
+                persist_success_cache(&engine, phase, prompt, cfg, &normalized_stdout, duration_ms);
                 EngineCallReport {
                     engine: engine.label().to_string(),
                     phase: phase.to_string(),
@@ -849,8 +1010,129 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
         },
     };
 
-    update_engine_health(&report);
+        update_engine_health(&report);
     report
+}
+
+/// Execute a skill-as-engine: find the SkillDefinition by name and execute it via Executor.
+async fn call_skill_engine(skill_name: &str, prompt: &str, phase: &str, status_before: &str) -> EngineCallReport {
+    let started = Instant::now();
+    let paths = RouterPaths::for_workspace(&workspace_root());
+    let reg = match aion_types::capability_registry::CapabilityRegistry::load_or_builtin(&paths) {
+        Ok(r) => r,
+        Err(e) => {
+            return EngineCallReport {
+                engine: format!("skill:{}", skill_name),
+                phase: phase.to_string(),
+                success: false,
+                status_before: status_before.to_string(),
+                status_after: "down".to_string(),
+                duration_ms: started.elapsed().as_millis() as u64,
+                output: None,
+                output_excerpt: None,
+                error_kind: Some("process_error".to_string()),
+                error_message: Some(format!("failed to load capability registry: {}", e)),
+                exit_code: None,
+                stdout_excerpt: None,
+                stderr_excerpt: None,
+                skipped: false,
+                cache_hit: false,
+            };
+        }
+    };
+    let local_skills = match Loader::load_local_skills(&paths, &reg) {
+        Ok(s) => s,
+        Err(e) => {
+            return EngineCallReport {
+                engine: format!("skill:{}", skill_name),
+                phase: phase.to_string(),
+                success: false,
+                status_before: status_before.to_string(),
+                status_after: "down".to_string(),
+                duration_ms: started.elapsed().as_millis() as u64,
+                output: None,
+                output_excerpt: None,
+                error_kind: Some("process_error".to_string()),
+                error_message: Some(format!("failed to load local skills: {}", e)),
+                exit_code: None,
+                stdout_excerpt: None,
+                stderr_excerpt: None,
+                skipped: false,
+                cache_hit: false,
+            };
+        }
+    };
+    let skill = match local_skills.into_iter().find(|s| s.metadata.name == skill_name) {
+        Some(s) => s,
+        None => {
+            return EngineCallReport {
+                engine: format!("skill:{}", skill_name),
+                phase: phase.to_string(),
+                success: false,
+                status_before: status_before.to_string(),
+                status_after: "down".to_string(),
+                duration_ms: started.elapsed().as_millis() as u64,
+                output: None,
+                output_excerpt: None,
+                error_kind: Some("model_not_found".to_string()),
+                error_message: Some(format!("skill '{}' not found in local skills", skill_name)),
+                exit_code: None,
+                stdout_excerpt: None,
+                stderr_excerpt: None,
+                skipped: false,
+                cache_hit: false,
+            };
+        }
+    };
+    let capability = skill.metadata.capabilities.first().cloned().unwrap_or_else(|| "ai_task".to_string());
+    let ctx = ExecutionContext::new(prompt, &capability);
+    match Executor::execute(&skill, &ctx, &paths).await {
+        Ok(response) => {
+            let output = response.result.to_string();
+            let duration_ms = started.elapsed().as_millis() as u64;
+            let report = EngineCallReport {
+                engine: format!("skill:{}", skill_name),
+                phase: phase.to_string(),
+                success: true,
+                status_before: status_before.to_string(),
+                status_after: "healthy".to_string(),
+                duration_ms,
+                output: Some(output.clone()),
+                output_excerpt: Some(excerpt(&output, 320)),
+                error_kind: None,
+                error_message: None,
+                exit_code: None,
+                stdout_excerpt: Some(format!("skill '{}' executed", skill_name)),
+                stderr_excerpt: None,
+                skipped: false,
+                cache_hit: false,
+            };
+            update_engine_health(&report);
+            report
+        }
+        Err(e) => {
+            let duration_ms = started.elapsed().as_millis() as u64;
+            let report = EngineCallReport {
+                engine: format!("skill:{}", skill_name),
+                phase: phase.to_string(),
+                success: false,
+                status_before: status_before.to_string(),
+                status_after: "degraded".to_string(),
+                duration_ms,
+                output: None,
+                output_excerpt: None,
+                error_kind: Some("process_error".to_string()),
+                error_message: Some(e.to_string()),
+                exit_code: None,
+                stdout_excerpt: None,
+                stderr_excerpt: None,
+                skipped: false,
+                cache_hit: false,
+            };
+            update_engine_health(&report);
+            report
+        }
+    }
 }
 
 fn http_provider_disabled(label: &str) -> bool {
@@ -1034,7 +1316,7 @@ async fn call_engines_parallel(
 ) -> Vec<EngineCallReport> {
     let mut set = tokio::task::JoinSet::new();
     for (engine, prompt) in tasks {
-        let engine = *engine;
+        let engine = engine.clone();
         let prompt = prompt.clone();
         let cfg = cfg.clone();
         let phase = phase.to_string();
@@ -1105,7 +1387,7 @@ async fn call_engines_windowed(tasks: &[(Engine, String)], cfg: &OrchestratorCon
     let (tx, mut rx) = mpsc::unbounded_channel();
 
     for (engine, prompt) in tasks {
-        let engine = *engine;
+        let engine = engine.clone();
         let prompt = prompt.clone();
         let cfg = cfg.clone();
         let phase = phase.to_string();
@@ -1164,7 +1446,7 @@ async fn call_engines_windowed(tasks: &[(Engine, String)], cfg: &OrchestratorCon
 }
 
 fn parse_engines(ctx: &ExecutionContext) -> Vec<Engine> {
-    let defaults = vec![Engine::Claude, Engine::OpenAi, Engine::Gemini];
+    let defaults = Engine::filter_enabled(vec![Engine::Claude, Engine::OpenAi, Engine::Gemini]);
     let arr = match ctx.context.get("engines").and_then(|v| v.as_array()) {
         Some(a) => a,
         None => return defaults,
@@ -1254,11 +1536,11 @@ fn preferred_engines(task: &str, workflow: &str) -> Vec<Engine> {
     }
 }
 
-fn select_primary_engine(task: &str, workflow: &str, candidates: &[Engine]) -> Engine {
+fn select_primary_engine(task: &str, workflow: &str, candidates: &[Engine]) -> Option<Engine> {
     preferred_engines(task, workflow)
         .into_iter()
         .find(|engine| candidates.contains(engine))
-        .unwrap_or_else(|| candidates.first().copied().unwrap_or(Engine::Claude))
+        .or_else(|| candidates.first().cloned())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1312,9 +1594,10 @@ fn parse_keyed_lines(raw: &str) -> HashMap<String, String> {
 
 fn parse_proposal_output(engine: Engine, raw: &str, task: &str, workflow: &str) -> Proposal {
     let fields = parse_keyed_lines(raw);
-    let inferred_primary = select_primary_engine(task, workflow, &[Engine::Claude, Engine::OpenAi, Engine::Gemini])
-        .label()
-        .to_string();
+    let all_enabled = Engine::default_enabled();
+    let inferred_primary = select_primary_engine(task, workflow, &all_enabled)
+        .map(|e| e.label().to_string())
+        .unwrap_or_else(|| all_enabled.first().map(|e| e.label().to_string()).unwrap_or_default());
     Proposal {
         engine: engine.label().to_string(),
         plan_id: engine.label().to_string(),
@@ -1327,7 +1610,12 @@ fn parse_proposal_output(engine: Engine, raw: &str, task: &str, workflow: &str) 
             .get("REVIEW_ENGINES")
             .map(|v| split_compact_list(v, &['|', ',']))
             .filter(|v| !v.is_empty())
-            .unwrap_or_else(|| vec!["claude".into(), "openai".into(), "gemini".into()]),
+            .unwrap_or_else(|| {
+                Engine::default_enabled()
+                    .iter()
+                    .map(|e| e.label().to_string())
+                    .collect::<Vec<_>>()
+            }),
         execution_mode: fields
             .get("EXECUTION_MODE")
             .cloned()
@@ -1679,6 +1967,10 @@ async fn run_collaboration_workflow(
     risk_level: &str,
     force_triple: bool,
 ) -> Value {
+    let selected_engines = Engine::filter_enabled(selected_engines);
+    if selected_engines.is_empty() {
+        return json!({"status": "error", "error": "all engines are disabled via AION_ORCH_DISABLED_ENGINES"});
+    }
     let cfg = OrchestratorConfig::from_env();
     let mut phase_trace = Vec::new();
     let mut all_reports = Vec::new();
@@ -1686,7 +1978,7 @@ async fn run_collaboration_workflow(
 
     let proposal_tasks: Vec<_> = selected_engines
         .iter()
-        .map(|engine| (*engine, proposal_prompt(task, workflow, risk_level)))
+        .map(|engine| (engine.clone(), proposal_prompt(task, workflow, risk_level)))
         .collect();
     let proposal_batch = call_engines_windowed(&proposal_tasks, &cfg, "proposal").await;
     let proposal_reports = proposal_batch.reports;
@@ -1730,15 +2022,15 @@ async fn run_collaboration_workflow(
         .map(|proposal| proposal.plan_id.clone())
         .unwrap_or_else(|| {
             select_primary_engine(task, workflow, &selected_engines)
-                .label()
-                .to_string()
+                .map(|e| e.label().to_string())
+                .unwrap_or_default()
         });
     let mut arbiter_reason = None;
 
     if consensus_status == "disputed" && proposals.len() >= 2 {
         let review_tasks: Vec<_> = selected_engines
             .iter()
-            .map(|engine| (*engine, dispute_review_prompt(task, &proposals)))
+            .map(|engine| (engine.clone(), dispute_review_prompt(task, &proposals)))
             .collect();
         let review_batch = call_engines_windowed(&review_tasks, &cfg, "dispute_review").await;
         let review_reports = review_batch.reports;
@@ -1790,8 +2082,8 @@ async fn run_collaboration_workflow(
             plan_id: selected_plan_id.clone(),
             target_path: infer_target_path(task, workflow).to_string(),
             primary_engine: select_primary_engine(task, workflow, &selected_engines)
-                .label()
-                .to_string(),
+                .map(|e| e.label().to_string())
+                .unwrap_or_default(),
             review_engines: selected_engines
                 .iter()
                 .map(|engine| engine.label().to_string())
@@ -1826,7 +2118,7 @@ async fn run_collaboration_workflow(
     if execution_mode == "triple_execute" {
         let exec_tasks: Vec<_> = selected_engines
             .iter()
-            .map(|engine| (*engine, execution_prompt(task, &selected_proposal, workflow)))
+            .map(|engine| (engine.clone(), execution_prompt(task, &selected_proposal, workflow)))
             .collect();
         let exec_reports = call_engines_parallel(&exec_tasks, &cfg, "execute").await;
         for report in &exec_reports {
@@ -1855,7 +2147,7 @@ async fn run_collaboration_workflow(
         } else {
             let arbitration_tasks: Vec<_> = success_engines
                 .iter()
-                .map(|engine| (*engine, arbitration_prompt(task, &solutions)))
+                .map(|engine| (engine.clone(), arbitration_prompt(task, &solutions)))
                 .collect();
             let arbitration_batch = call_engines_windowed(&arbitration_tasks, &cfg, "arbiter").await;
             let arbitration_reports = arbitration_batch.reports;
@@ -1896,9 +2188,10 @@ async fn run_collaboration_workflow(
         }));
     } else {
         let primary_engine = Engine::from_label(&selected_proposal.primary_engine)
-            .unwrap_or_else(|| select_primary_engine(task, workflow, &selected_engines));
+            .or_else(|| select_primary_engine(task, workflow, &selected_engines))
+            .unwrap_or(Engine::Local); // 走到这里时 selected_engines 必然非空，此行仅为类型安全
         let primary_prompt = execution_prompt(task, &selected_proposal, workflow);
-        let primary_report = call_engine_detailed(primary_engine, &primary_prompt, &cfg, "execute").await;
+        let primary_report = call_engine_detailed(primary_engine.clone(), &primary_prompt, &cfg, "execute").await;
         if primary_report.success {
             if let Some(output) = &primary_report.output {
                 solutions.insert(primary_report.engine.clone(), output.clone());
@@ -1907,10 +2200,10 @@ async fn run_collaboration_workflow(
         } else {
             let fallback_engine = selected_engines
                 .iter()
-                .copied()
+                .cloned()
                 .find(|engine| engine.label() != primary_engine.label())
-                .unwrap_or(primary_engine);
-            let fallback_report = call_engine_detailed(fallback_engine, &primary_prompt, &cfg, "execute").await;
+                .unwrap_or_else(|| primary_engine.clone());
+            let fallback_report = call_engine_detailed(fallback_engine.clone(), &primary_prompt, &cfg, "execute").await;
             if fallback_report.success {
                 if let Some(output) = &fallback_report.output {
                     solutions.insert(fallback_report.engine.clone(), output.clone());
@@ -1935,7 +2228,7 @@ async fn run_collaboration_workflow(
             .filter(|engine| engine.label() != selected_proposal.primary_engine)
             .map(|engine| {
                 (
-                    *engine,
+                    engine.clone(),
                     review_execution_prompt(task, &selected_proposal, &review_source),
                 )
             })
@@ -2193,7 +2486,7 @@ impl BuiltinSkill for AiParallelSolve {
                             .collect::<Vec<_>>()
                     })
                     .filter(|engines| !engines.is_empty())
-                    .unwrap_or_else(|| vec![Engine::Claude, Engine::OpenAi, Engine::Gemini]);
+                    .unwrap_or_else(|| Engine::cycle_to_fill(&Engine::default_enabled(), 3));
                 let risk = input["risk_level"].as_str().unwrap_or("medium");
                 let force = input["force_triple_execute"].as_bool().unwrap_or(false);
                 run_collaboration_workflow("parallel_solve", &task, engines, risk, force).await
@@ -2245,7 +2538,11 @@ impl BuiltinSkill for AiTripleVote {
             .unwrap_or("medium")
             .to_string();
         let force = force_triple_execute(ctx);
-        let input = json!({"task": task, "engines": ["claude","openai","gemini"], "risk_level": risk_level, "force_triple_execute": force});
+        let engines = Engine::default_enabled()
+            .iter()
+            .map(|e| e.label())
+            .collect::<Vec<_>>();
+        let input = json!({"task": task, "engines": engines, "risk_level": risk_level, "force_triple_execute": force});
         Ok(spawn_orchestration_with_wait("triple_vote", input, None, |input| {
             Box::pin(async move {
                 let task = input["task"].as_str().unwrap_or("").to_string();
@@ -2254,7 +2551,7 @@ impl BuiltinSkill for AiTripleVote {
                 run_collaboration_workflow(
                     "triple_vote",
                     &task,
-                    vec![Engine::Claude, Engine::OpenAi, Engine::Gemini],
+                    Engine::cycle_to_fill(&Engine::default_enabled(), 3),
                     risk,
                     force,
                 )
@@ -2294,11 +2591,8 @@ impl BuiltinSkill for AiTriangleReview {
             let cfg = OrchestratorConfig::from_env();
             let code = input["code"].as_str().unwrap_or("");
             let prompt = format!("审查以下代码（正确性、性能、安全、风格、可维护性）：\n```\n{}\n```", code);
-            let tasks = vec![
-                (Engine::Claude, prompt.clone()),
-                (Engine::OpenAi, prompt.clone()),
-                (Engine::Gemini, prompt.clone()),
-            ];
+            let engines = Engine::cycle_to_fill(&Engine::default_enabled(), 3);
+            let tasks: Vec<_> = engines.iter().map(|e| (e.clone(), prompt.clone())).collect();
             let reviews = call_engines_parallel(&tasks, &cfg, "review").await;
             json!({
                 "reviews": reviews.iter().filter_map(|report| report.output.as_ref().map(|output| (report.engine.clone(), output.clone()))).collect::<BTreeMap<_, _>>(),
@@ -2332,13 +2626,18 @@ impl BuiltinSkill for AiCodeGenerate {
             .get("primary")
             .and_then(|v| v.as_str())
             .and_then(Engine::from_label)
-            .unwrap_or(Engine::Claude);
+            .or_else(|| Engine::first_available())
+            .unwrap_or(Engine::Local); // safety: first_available+Local always available
         let reviewer = ctx
             .context
             .get("reviewer")
             .and_then(|v| v.as_str())
             .and_then(Engine::from_label)
-            .unwrap_or(Engine::OpenAi);
+            .or_else(|| {
+                let all = Engine::default_enabled();
+                all.into_iter().find(|e| e.label() != primary.label())
+            })
+            .unwrap_or_else(|| primary.clone());
         info!("ai_code_generate: {}", safe_truncate(&task, 50));
 
         if cfg.passthrough {
@@ -2356,18 +2655,24 @@ impl BuiltinSkill for AiCodeGenerate {
                     let cfg = OrchestratorConfig::from_env();
                     let task = input["task"].as_str().unwrap_or("");
                     let language = input["language"].as_str().unwrap_or("python");
-                    let primary = input["primary"]
+                                        let primary = input["primary"]
                         .as_str()
                         .and_then(Engine::from_label)
-                        .unwrap_or(Engine::Claude);
+                        .or_else(|| Engine::first_available())
+                        .unwrap_or(Engine::Local)
+                        .clone();
                     let reviewer = input["reviewer"]
                         .as_str()
                         .and_then(Engine::from_label)
-                        .unwrap_or(Engine::OpenAi);
+                        .or_else(|| {
+                            let all = Engine::default_enabled();
+                            all.into_iter().find(|e| *e != primary)
+                        })
+                        .unwrap_or_else(|| primary.clone());
 
                     let mut participants_extra: Vec<EngineCallReport> = Vec::new();
                     let mut code_report = call_engine_detailed(
-                        primary,
+                        primary.clone(),
                         &format!("请用 {} 实现以下功能：\n{}", language, task),
                         &cfg,
                         "execute",
@@ -2391,7 +2696,7 @@ impl BuiltinSkill for AiCodeGenerate {
                     } else {
                         Some(
                             call_engine_detailed(
-                                reviewer,
+                                reviewer.clone(),
                                 &review_execution_prompt(
                                     task,
                                     &Proposal {
@@ -2493,7 +2798,11 @@ impl BuiltinSkill for AiSmartCollaborate {
             .unwrap_or(if is_high_risk(&task, ctx) { "high" } else { "medium" })
             .to_string();
         let force = force_triple_execute(ctx);
-        let input = json!({"task": task, "engines": ["claude","openai","gemini"], "risk_level": risk_level, "force_triple_execute": force});
+        let engines = Engine::default_enabled()
+            .iter()
+            .map(|e| e.label())
+            .collect::<Vec<_>>();
+        let input = json!({"task": task, "engines": engines, "risk_level": risk_level, "force_triple_execute": force});
         Ok(
             spawn_orchestration_with_wait("smart_collaborate", input, None, |input| {
                 Box::pin(async move {
@@ -2503,7 +2812,7 @@ impl BuiltinSkill for AiSmartCollaborate {
                     run_collaboration_workflow(
                         "smart_collaborate",
                         &task,
-                        vec![Engine::Claude, Engine::OpenAi, Engine::Gemini],
+                        Engine::cycle_to_fill(&Engine::default_enabled(), 3),
                         risk,
                         force,
                     )
@@ -2541,11 +2850,15 @@ impl BuiltinSkill for AiResearch {
         }
 
         let risk = if depth == "deep" { "high" } else { "medium" };
-        Ok(spawn_orchestration_with_wait("research", json!({"task": format!("研究主题：{}\n深度：{}", topic, depth), "engines": ["claude","openai","gemini"], "risk_level": risk, "force_triple_execute": depth == "deep"}), None, |input| Box::pin(async move {
+        let engines = Engine::default_enabled()
+            .iter()
+            .map(|e| e.label())
+            .collect::<Vec<_>>();
+        Ok(spawn_orchestration_with_wait("research", json!({"task": format!("研究主题：{}\n深度：{}", topic, depth), "engines": engines, "risk_level": risk, "force_triple_execute": depth == "deep"}), None, |input| Box::pin(async move {
             let task = input["task"].as_str().unwrap_or("").to_string();
             let risk = input["risk_level"].as_str().unwrap_or("medium");
             let force = input["force_triple_execute"].as_bool().unwrap_or(false);
-            run_collaboration_workflow("research", &task, vec![Engine::Claude, Engine::OpenAi, Engine::Gemini], risk, force).await
+            run_collaboration_workflow("research", &task, Engine::cycle_to_fill(&Engine::default_enabled(), 3), risk, force).await
         })).await)
     }
 }
@@ -2574,8 +2887,11 @@ impl BuiltinSkill for AiSerialOptimize {
                 Box::pin(async move {
                     let cfg = OrchestratorConfig::from_env();
                     let code = input["code"].as_str().unwrap_or("");
+                    let e0 = Engine::nth_enabled(0).unwrap_or_else(|| Engine::Local.clone()); // Local is always the final safety net
+                    let e1 = Engine::nth_enabled(1).unwrap_or_else(|| e0.clone());
+                    let e2 = Engine::nth_enabled(2).unwrap_or_else(|| e0.clone());
                     let analysis = call_engine_detailed(
-                        Engine::Claude,
+                        e0,
                         &format!("分析代码：\n```\n{}\n```", code),
                         &cfg,
                         "analyze",
@@ -2583,7 +2899,7 @@ impl BuiltinSkill for AiSerialOptimize {
                     .await;
                     let optimized = if let Some(output) = &analysis.output {
                         call_engine_detailed(
-                            Engine::Gemini,
+                            e1,
                             &format!("根据分析优化代码：\n{}\n原代码：\n```{}\n```", output, code),
                             &cfg,
                             "optimize",
@@ -2591,7 +2907,7 @@ impl BuiltinSkill for AiSerialOptimize {
                         .await
                     } else {
                         call_engine_detailed(
-                            Engine::Gemini,
+                            e1,
                             &format!("优化代码：\n```{}\n```", code),
                             &cfg,
                             "optimize",
@@ -2600,7 +2916,7 @@ impl BuiltinSkill for AiSerialOptimize {
                     };
                     let verify_prompt = optimized.output.clone().unwrap_or_default();
                     let verify = call_engine_detailed(
-                        Engine::OpenAi,
+                        e2,
                         &format!("验证以下优化结果：\n{}", verify_prompt),
                         &cfg,
                         "verify",
@@ -2656,8 +2972,9 @@ impl BuiltinSkill for AiLongContext {
                     let cfg = OrchestratorConfig::from_env();
                     let content = input["content"].as_str().unwrap_or("");
                     let task = input["task"].as_str().unwrap_or("");
+                    let engine = Engine::first_available().unwrap_or(Engine::Local);
                     let report =
-                        call_engine_detailed(Engine::Gemini, &format!("{}：\n{}", task, content), &cfg, "execute")
+                        call_engine_detailed(engine, &format!("{}：\n{}", task, content), &cfg, "execute")
                             .await;
                     let participants = vec![report.clone()];
                     json!({
@@ -2696,7 +3013,7 @@ impl BuiltinSkill for AiCrossReview {
         let review_engines = if engines.len() >= 2 {
             engines.into_iter().take(2).collect::<Vec<_>>()
         } else {
-            vec![Engine::Claude, Engine::OpenAi]
+            Engine::cycle_to_fill(&Engine::default_enabled(), 2)
         };
         Ok(spawn_orchestration_with_wait("cross_review", json!({"code": code, "engines": review_engines.iter().map(|e| e.label()).collect::<Vec<_>>() }), None, |input| Box::pin(async move {
             let cfg = OrchestratorConfig::from_env();
@@ -2704,9 +3021,9 @@ impl BuiltinSkill for AiCrossReview {
             let engines = input["engines"].as_array()
                 .map(|arr| arr.iter().filter_map(|v| Engine::from_label(v.as_str()?)).collect::<Vec<_>>())
                 .filter(|engines| !engines.is_empty())
-                .unwrap_or_else(|| vec![Engine::Claude, Engine::OpenAi]);
+                .unwrap_or_else(|| Engine::cycle_to_fill(&Engine::default_enabled(), 2));
             let prompt = format!("审查代码：\n```\n{}\n```", code);
-            let tasks: Vec<_> = engines.iter().map(|engine| (*engine, prompt.clone())).collect();
+            let tasks: Vec<_> = engines.iter().map(|engine| (engine.clone(), prompt.clone())).collect();
             let reviews = call_engines_parallel(&tasks, &cfg, "review").await;
             json!({
                 "reviews": reviews.iter().filter_map(|report| report.output.as_ref().map(|output| (report.engine.clone(), output.clone()))).collect::<BTreeMap<_, _>>(),
@@ -2739,8 +3056,8 @@ impl BuiltinSkill for Brainstorm {
             "你是一个创意生成器。围绕以下主题提出 {} 个方案。每个方案用 1-2 句描述。\n只列出方案，不要额外说明。\n\n<topic>{}</topic>",
             count, topic
         );
-        let engines = vec![Engine::Claude, Engine::OpenAi, Engine::Gemini];
-        let tasks: Vec<_> = engines.iter().map(|e| (*e, prompt.clone())).collect();
+        let engines = Engine::default_enabled();
+        let tasks: Vec<_> = engines.iter().map(|e| (e.clone(), prompt.clone())).collect();
         let reports = call_engines_parallel(&tasks, &cfg, "brainstorm").await;
         Ok(json!({
             "ideas": reports.iter().filter_map(|r| r.output.as_ref().map(|o| (r.engine.clone(), o))).collect::<BTreeMap<_,_>>(),
@@ -2769,8 +3086,8 @@ impl BuiltinSkill for Compare {
             "你是一个方案比较器。比较以下选项，按正确性、成本、风险、可维护性四个维度评分。\n输出表格或结构化文本。\n\n<options>\n{}\n</options>",
             options
         );
-        let engines = vec![Engine::Claude, Engine::OpenAi, Engine::Gemini];
-        let tasks: Vec<_> = engines.iter().map(|e| (*e, prompt.clone())).collect();
+        let engines = Engine::default_enabled();
+        let tasks: Vec<_> = engines.iter().map(|e| (e.clone(), prompt.clone())).collect();
         let reports = call_engines_parallel(&tasks, &cfg, "compare").await;
         Ok(json!({
             "comparisons": reports.iter().filter_map(|r| r.output.as_ref().map(|o| (r.engine.clone(), o))).collect::<BTreeMap<_,_>>(),
@@ -2797,8 +3114,8 @@ impl BuiltinSkill for Discuss {
             "你是讨论参与者。针对以下议题给出你的分析和观点。注意其他参与者会有不同视角，\n先给出独立分析，再指出你与其他视角可能的共识或分歧。\n\n<topic>{}</topic>",
             topic
         );
-        let engines = vec![Engine::Claude, Engine::OpenAi, Engine::Gemini];
-        let tasks: Vec<_> = engines.iter().map(|e| (*e, prompt.clone())).collect();
+        let engines = Engine::default_enabled();
+        let tasks: Vec<_> = engines.iter().map(|e| (e.clone(), prompt.clone())).collect();
         let reports = call_engines_parallel(&tasks, &cfg, "discuss").await;
         Ok(json!({
             "discussions": reports.iter().filter_map(|r| r.output.as_ref().map(|o| (r.engine.clone(), o))).collect::<BTreeMap<_,_>>(),
@@ -2808,7 +3125,7 @@ impl BuiltinSkill for Discuss {
 }
 
 #[cfg(test)]
-mod tests {
+mod orchestrator_tests {
     use super::*;
 
     #[test]

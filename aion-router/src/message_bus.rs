@@ -12,6 +12,7 @@
 //! ```
 
 use std::sync::Arc;
+use std::sync::OnceLock;
 use tokio::sync::broadcast;
 use tracing::{debug, warn};
 #[cfg(feature = "distributed")]
@@ -232,3 +233,25 @@ pub use nats_backend::{NatsBackend, subjects as nats_subjects};
 // Re-export for bridge subscriber iteration
 #[cfg(feature = "distributed")]
 use futures_util::StreamExt;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Global singleton — shared MessageBus across all agent builtins
+// ══════════════════════════════════════════════════════════════════════════════
+
+/// Global singleton message bus, shared across all agent builtins.
+/// Initialized on first access. Use `init_global_bus(capacity)` to set
+/// a specific capacity before the first `global_message_bus()` call.
+static GLOBAL_BUS: OnceLock<MessageBus> = OnceLock::new();
+
+/// Initialize the global message bus with a specific capacity.
+/// Only the first call initializes; subsequent calls return the existing bus.
+/// Call this at startup (e.g. from MCP server) to set a larger capacity.
+pub fn init_global_bus(capacity: usize) -> &'static MessageBus {
+    GLOBAL_BUS.get_or_init(|| MessageBus::new(capacity))
+}
+
+/// Get the global message bus, initializing with a default capacity of 64
+/// if `init_global_bus` was not called first.
+pub fn global_message_bus() -> &'static MessageBus {
+    GLOBAL_BUS.get_or_init(|| MessageBus::new(64))
+}

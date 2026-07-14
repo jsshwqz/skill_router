@@ -7,7 +7,6 @@ use aion_types::agent_message::{AgentMessage, AgentMessageType};
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::{now_epoch_ms, uuid_simple, BuiltinSkill};
-use crate::message_bus::MessageBus;
 
 // ── agent_delegate ──────────────────────────────────────────────────────────
 
@@ -26,7 +25,7 @@ impl BuiltinSkill for AgentDelegate {
             .unwrap_or(&context.capability);
         let task_id = uuid_simple();
 
-        let bus = MessageBus::new(16);
+        let bus = crate::message_bus::global_message_bus();
         let msg = AgentMessage {
             message_id: uuid_simple(),
             from_agent: "executor".to_string(),
@@ -63,7 +62,7 @@ impl BuiltinSkill for AgentBroadcast {
         let message = context.context["message"]
             .as_str()
             .unwrap_or(&context.task);
-        let bus = MessageBus::new(16);
+        let bus = crate::message_bus::global_message_bus();
         let msg = AgentMessage {
             message_id: uuid_simple(),
             from_agent: "executor".to_string(),
@@ -106,7 +105,7 @@ impl BuiltinSkill for AgentGather {
             })
             .unwrap_or_default();
 
-        let bus = MessageBus::new(16);
+        let bus = crate::message_bus::global_message_bus();
         let mut delivered = 0;
         for agent_id in &agent_ids {
             let task_id = uuid_simple();
@@ -145,7 +144,7 @@ impl BuiltinSkill for AgentStatus {
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let agent_id = context.context["agent_id"].as_str();
-        let bus = MessageBus::new(16);
+        let bus = crate::message_bus::global_message_bus();
         let subscriber_count = bus.subscriber_count();
         let uptime_ms = now_epoch_ms();
 

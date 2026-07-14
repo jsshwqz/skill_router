@@ -20,12 +20,12 @@ impl Executor for MockExecutor {
             let target_file = test_dir.join("src/main.rs");
 
             // [Phase 1.9] Simulation of automatic backup for Reversible actions
-            if step.side_effect_class == SideEffectClass::LocalWriteReversible {
-                if target_file.exists() {
-                    let backup_file = test_dir.join("src/main.rs.bak");
-                    println!("💾 MockExecutor: Creating backup at {:?}", backup_file);
-                    std::fs::copy(&target_file, &backup_file)?;
-                }
+            if step.side_effect_class == SideEffectClass::LocalWriteReversible
+                && target_file.exists()
+            {
+                let backup_file = test_dir.join("src/main.rs.bak");
+                println!("💾 MockExecutor: Creating backup at {:?}", backup_file);
+                std::fs::copy(&target_file, &backup_file)?;
             }
 
             if step.title.contains("Auto-fix") {

@@ -76,6 +76,7 @@ impl TrustedSourceSearch {
                             entrypoint: skill.entrypoint,
                             permissions: skill.permissions,
                             instruction: None,
+                            engine_capable: false,
                         },
                         root_dir: absolute
                             .parent()
@@ -109,6 +110,7 @@ impl TrustedSourceSearch {
                             entrypoint: skill.entrypoint,
                             permissions: skill.permissions,
                             instruction: None,
+                            engine_capable: false,
                         },
                         root_dir: paths.workspace_root.clone(),
                         source: SkillSource::RemoteCandidate,
@@ -155,6 +157,7 @@ impl TrustedSourceSearch {
                             entrypoint: skill.entrypoint,
                             permissions: skill.permissions,
                             instruction: None,
+                            engine_capable: false,
                         },
                         root_dir: absolute
                             .parent()

@@ -41,6 +41,7 @@ pub enum CircuitState {
     HalfOpen,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for CircuitState {
     fn default() -> Self {
         CircuitState::Closed
@@ -328,6 +329,7 @@ impl SkillLearner {
     }
 
     /// 记录一次完整执行（含来源、错误分类、空输出标记）
+    #[allow(clippy::too_many_arguments)]
     pub fn record_execution(
         &self,
         capability: &str,
@@ -725,12 +727,13 @@ impl SkillLearner {
             entry.1 = entry.1.max(e.timestamp);
             entry.2.push(e.capability.clone());
         }
-        let recurring_patterns: Vec<_> = pattern_map.iter()
+        let recurring_patterns: Vec<_> = pattern_map
+            .iter()
             .filter(|(_, (count, _, _))| *count >= 2)
             .map(|(key, (count, latest_ts, _caps))| {
                 let parts: Vec<&str> = key.splitn(2, '/').collect();
                 json!({
-                    "capability": parts.get(0).unwrap_or(&"unknown"),
+                    "capability": parts.first().unwrap_or(&"unknown"),
                     "error_class": parts.get(1).unwrap_or(&"unknown"),
                     "occurrences": *count,
                     "latest": *latest_ts,

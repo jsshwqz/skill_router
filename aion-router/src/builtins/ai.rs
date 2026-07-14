@@ -101,7 +101,18 @@ impl BuiltinSkill for AiTask {
             .timeout(std::time::Duration::from_secs(60))
             .build()?;
 
-        let endpoints = AiEndpoint::enabled_candidates();
+        let requested_model = context.context["model"].as_str();
+        let endpoints: Vec<_> = AiEndpoint::enabled_candidates()
+            .into_iter()
+            .filter(|endpoint| requested_model.is_none_or(|model| endpoint.model == model || endpoint.label == model))
+            .collect();
+        // 如果指定模型无匹配端点，不阻断，而是回退到全部候选
+        let endpoints = if endpoints.is_empty() && requested_model.is_some() {
+            tracing::info!("ai_task no candidate matches requested model, falling back to all candidates");
+            AiEndpoint::enabled_candidates()
+        } else {
+            endpoints
+        };
         let mut last_error = String::new();
 
         for ep in &endpoints {

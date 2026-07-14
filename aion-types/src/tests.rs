@@ -1,6 +1,7 @@
 #[cfg(test)]
-mod tests {
-    use crate::ai_native::{AiNativePayload, AiBackend, Priority};
+mod ai_native_tests {
+    use crate::ai_native::{AiBackend, AiNativePayload, Priority};
+    use crate::capability_registry::CapabilityRegistry;
     use serde_json::json;
 
     #[test]
@@ -51,6 +52,19 @@ mod tests {
         assert_eq!(payloads[2].intent, "normal_task");
         assert_eq!(payloads[3].intent, "low_task");
         assert_eq!(payloads[4].intent, "bg_task");
+    }
+
+    #[test]
+    fn test_async_task_query_capability_contract() {
+        let registry = CapabilityRegistry::builtin();
+        let definition = registry
+            .get("async_task_query")
+            .expect("async_task_query must be declared for its builtin implementation");
+        assert_eq!(definition.category, "orchestration");
+        assert!(!definition.requires_approval);
+        assert!(definition.inputs.contains(&"task_id".to_string()));
+        assert_eq!(definition.parameters_schema["type"], "object");
+        assert!(definition.parameters_schema["required"].is_null());
     }
 
     #[test]

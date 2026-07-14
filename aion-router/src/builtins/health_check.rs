@@ -50,7 +50,7 @@ impl BuiltinSkill for HealthCheck {
         };
 
         // ── Extract per-engine status ───────────────────────────────────
-        let engine_names = ["claude", "openai", "gemini"];
+        let engine_names = ["claude", "openai", "gemini", "local"];
         let mut engine_statuses = serde_json::Map::new();
         let mut all_healthy = true;
 

@@ -152,7 +152,7 @@ fn is_table_array(arr: &[Value]) -> bool {
     let first = match arr[0].as_object() { Some(o) => o, None => return false };
     let keys: Vec<&String> = first.keys().collect();
     arr.iter().all(|item| {
-        item.as_object().map_or(false, |m| m.keys().collect::<Vec<_>>() == keys)
+        item.as_object().is_some_and(|map| map.keys().collect::<Vec<_>>() == keys)
     })
 }
 

@@ -63,42 +63,35 @@ impl BuiltinSkill for MarketSearch {
         sources_tried.push("discovery_search".into());
         let workspace = std::env::current_dir().unwrap_or_default();
         let paths = RouterPaths::for_workspace(&workspace);
-        match DiscoveryRadar::cascade_search(&task, &paths).await {
-            Ok(result) => {
-                if !result.hits.is_empty() {
-                    sources_succeeded.push("discovery_search".into());
-                    for hit in &result.hits {
-                        if let Some(candidate) = hit_to_candidate(hit) {
-                            candidates.push(candidate);
-                        }
+        if let Ok(result) = DiscoveryRadar::cascade_search(&task, &paths).await {
+            if !result.hits.is_empty() {
+                sources_succeeded.push("discovery_search".into());
+                for hit in &result.hits {
+                    if let Some(candidate) = hit_to_candidate(hit) {
+                        candidates.push(candidate);
                     }
                 }
             }
-            Err(_) => {} // 静默降级
         }
 
         // ── Level 3: 如果结果太少，用更广的关键词再搜一次 ──
         if candidates.len() < 3 {
             let broad_query = format!("claude skill for {} github", task);
             sources_tried.push("discovery_search_broad".into());
-            match DiscoveryRadar::cascade_search(&broad_query, &paths).await {
-                Ok(result) => {
-                    if !result.hits.is_empty() {
-                        sources_succeeded.push("discovery_search_broad".into());
-                        for hit in &result.hits {
-                            // 去重：跳过已收录的 URL
-                            let url_exists = candidates.iter().any(|c| {
-                                c["url"].as_str() == Some(&hit.url)
-                            });
-                            if !url_exists {
-                                if let Some(candidate) = hit_to_candidate(hit) {
-                                    candidates.push(candidate);
-                                }
+            if let Ok(result) = DiscoveryRadar::cascade_search(&broad_query, &paths).await {
+                if !result.hits.is_empty() {
+                    sources_succeeded.push("discovery_search_broad".into());
+                    for hit in &result.hits {
+                        let url_exists = candidates
+                            .iter()
+                            .any(|candidate| candidate["url"].as_str() == Some(&hit.url));
+                        if !url_exists {
+                            if let Some(candidate) = hit_to_candidate(hit) {
+                                candidates.push(candidate);
                             }
                         }
                     }
                 }
-                Err(_) => {}
             }
         }
 

@@ -1,11 +1,11 @@
 #[cfg(test)]
-mod tests {
+mod ai_intel_tests {
     use crate::discovery_radar::{DiscoveryRadar, SearchHit, SearchSource};
     use crate::immunity::ImmunitySystem;
     use crate::synth::Synthesizer;
     use aion_types::types::RouterPaths;
-    use std::fs;
     use std::env;
+    use std::fs;
 
     #[test]
     fn test_discovery_radar_cascade() {

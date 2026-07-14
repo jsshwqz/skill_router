@@ -51,7 +51,7 @@ pub fn record_token_usage(
         "capability" => capability.to_string(),
         "provider" => provider.to_string()
     )
-    .increment(usage.prompt_tokens as u64);
+    .increment(usage.prompt_tokens);
 
     metrics::counter!(
         "skill_ai_completion_tokens_total",
@@ -59,7 +59,7 @@ pub fn record_token_usage(
         "capability" => capability.to_string(),
         "provider" => provider.to_string()
     )
-    .increment(usage.completion_tokens as u64);
+    .increment(usage.completion_tokens);
 
     metrics::counter!(
         "skill_ai_total_tokens_total",
@@ -67,7 +67,7 @@ pub fn record_token_usage(
         "capability" => capability.to_string(),
         "provider" => provider.to_string()
     )
-    .increment(usage.total_tokens as u64);
+    .increment(usage.total_tokens);
 
     if usage.cached_tokens > 0 {
         metrics::counter!(
@@ -76,6 +76,6 @@ pub fn record_token_usage(
             "capability" => capability.to_string(),
             "provider" => provider.to_string()
         )
-        .increment(usage.cached_tokens as u64);
+        .increment(usage.cached_tokens);
     }
 }

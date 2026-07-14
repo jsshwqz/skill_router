@@ -154,6 +154,7 @@ impl BuiltinSkill for TextWordcount {
 }
 
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
     use aion_types::types::SkillMetadata;
@@ -169,6 +170,7 @@ mod tests {
                 entrypoint: "builtin:text_wordcount".to_string(),
                 permissions: PermissionSet::default(),
                 instruction: None,
+                engine_capable: false,
             },
             root_dir: PathBuf::new(),
             source: SkillSource::Local,

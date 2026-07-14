@@ -1,0 +1,12 @@
+{
+  "name": "rag_query",
+  "version": "0.1.0",
+  "capabilities": ["rag_query"],
+  "entrypoint": "builtin:rag_query",
+  "permissions": {
+    "network": true,
+    "filesystem_read": false,
+    "filesystem_write": false,
+    "process_exec": false
+  }
+}
