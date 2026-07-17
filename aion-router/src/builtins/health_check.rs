@@ -71,6 +71,7 @@ impl BuiltinSkill for HealthCheck {
                     .and_then(|v| v.as_f64())
                     .unwrap_or(0.0);
                 let last_error_kind = engine_data.get("last_error_kind").cloned().unwrap_or(Value::Null);
+                let last_updated_at = engine_data.get("last_updated_at").cloned().unwrap_or(Value::Null);
                 let cooldown_until = engine_data.get("cooldown_until").cloned().unwrap_or(Value::Null);
 
                 if status != "healthy" {
@@ -86,7 +87,9 @@ impl BuiltinSkill for HealthCheck {
                         "consecutive_failures": consecutive_failures,
                         "avg_latency_ms": avg_latency_ms,
                         "last_error_kind": last_error_kind,
+                        "last_updated_at": last_updated_at,
                         "cooldown_until": cooldown_until,
+                        "status_basis": "historical_execution_telemetry",
                     }),
                 );
             } else {
@@ -121,6 +124,9 @@ impl BuiltinSkill for HealthCheck {
 
         Ok(json!({
             "overall_status": overall_status,
+            "status_basis": "historical_execution_telemetry",
+            "live_probe_performed": false,
+            "notice": "Engine statuses summarize prior executions and are not live connectivity probes.",
             "engines": Value::Object(engine_statuses),
             "server_version": server_version,
             "health_file": health_path.to_string_lossy(),

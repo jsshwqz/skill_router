@@ -145,7 +145,24 @@ macro_rules! define_zl_skill {
 }
 
 fn safe_truncate(s: &str, max: usize) -> String {
-    if s.len() <= max { s.to_string() } else { format!("{}…", &s[..max]) }
+    let mut chars = s.chars();
+    let prefix: String = chars.by_ref().take(max).collect();
+    if chars.next().is_some() {
+        format!("{prefix}…")
+    } else {
+        prefix
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_truncate;
+
+    #[test]
+    fn safe_truncate_preserves_utf8_boundaries() {
+        assert_eq!(safe_truncate("中文任务分析", 4), "中文任务…");
+        assert_eq!(safe_truncate("中文", 4), "中文");
+    }
 }
 
 // Define all 8 skills using the macro

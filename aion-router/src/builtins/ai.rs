@@ -235,7 +235,8 @@ async fn run_openai_chat(
             {"role": "user", "content": text}
         ],
         "max_tokens": 512,
-        "temperature": 0.3
+        "temperature": 0.3,
+        "stream": false
     });
 
     let resp = client
@@ -283,16 +284,47 @@ async fn parse_openai_response(resp: reqwest::Response) -> Result<(String, Optio
             .unwrap_or("AI backend returned an error");
         bail!("{err_msg}");
     }
-    let content = parsed["choices"][0]["message"]["content"]
-        .as_str()
-        .or_else(|| parsed["choices"][0]["delta"]["content"].as_str())
-        .or_else(|| parsed["result"].as_str())
-        .unwrap_or("")
-        .trim()
-        .to_string();
+    let (content, usage) = if parsed.is_null() {
+        parse_openai_sse(&raw)
+    } else {
+        let content = parsed["choices"][0]["message"]["content"]
+            .as_str()
+            .or_else(|| parsed["choices"][0]["delta"]["content"].as_str())
+            .or_else(|| parsed["result"].as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        (content, parse_openai_usage(&parsed))
+    };
     validate_content(&content)?;
-    let usage = parse_openai_usage(&parsed);
     Ok((content, usage))
+}
+
+fn parse_openai_sse(raw: &str) -> (String, Option<TokenUsage>) {
+    let mut content = String::new();
+    let mut usage = None;
+
+    for line in raw.lines() {
+        let Some(data) = line.trim().strip_prefix("data:") else {
+            continue;
+        };
+        let data = data.trim();
+        if data.is_empty() || data == "[DONE]" {
+            continue;
+        }
+        let Ok(chunk) = serde_json::from_str::<Value>(data) else {
+            continue;
+        };
+        if let Some(part) = chunk["choices"][0]["delta"]["content"]
+            .as_str()
+            .or_else(|| chunk["choices"][0]["message"]["content"].as_str())
+        {
+            content.push_str(part);
+        }
+        usage = parse_openai_usage(&chunk).or(usage);
+    }
+
+    (content.trim().to_string(), usage)
 }
 
 async fn parse_anthropic_response(resp: reqwest::Response) -> Result<(String, Option<TokenUsage>)> {
@@ -360,4 +392,27 @@ fn parse_anthropic_usage(parsed: &Value) -> Option<TokenUsage> {
         total_tokens,
         cached_tokens,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_openai_sse;
+
+    #[test]
+    fn parses_openai_sse_content_and_usage() {
+        let raw = concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"AIONUI_\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"FORGE_OK\"}}],",
+            "\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\n",
+            "data: [DONE]\n"
+        );
+
+        let (content, usage) = parse_openai_sse(raw);
+
+        assert_eq!(content, "AIONUI_FORGE_OK");
+        let usage = usage.expect("usage should be parsed");
+        assert_eq!(usage.prompt_tokens, 3);
+        assert_eq!(usage.completion_tokens, 2);
+        assert_eq!(usage.total_tokens, 5);
+    }
 }

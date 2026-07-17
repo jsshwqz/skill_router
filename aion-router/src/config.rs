@@ -31,8 +31,9 @@ impl AiEndpoint {
 }
 
 fn env_value(name: &str) -> Option<String> {
-    env_file_value(name)
-        .or_else(|| env::var(name).ok())
+    env::var(name)
+        .ok()
+        .or_else(|| env_file_value(name))
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
 }

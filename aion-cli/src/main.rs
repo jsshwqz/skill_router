@@ -119,6 +119,16 @@ async fn main() -> Result<()> {
         }
     }
 
+    match std::env::var("AI_PROVIDERS_DISABLED") {
+        Ok(value) if !value.trim().is_empty() => {}
+        _ => {
+            std::env::set_var(
+                "AI_PROVIDERS_DISABLED",
+                "host-anthropic-proxy,opencode-zen,openrouter,openai-compatible,zhipu-compatible,ollama-local",
+            );
+        }
+    }
+
     let cli = Cli::parse();
 
     let output_mode = if cli.json {

@@ -1,16 +1,14 @@
 {
   "mcpServers": {
     "aion-forge": {
-      "command": "D:/test/aionui/forge/aion-forge-cli.exe",
+      "command": "D:/test/aionui/forge/aion-cli.exe",
       "args": ["mcp-server"],
       "env": {
-        "AI_PASSTHROUGH": "false",
+        "AI_BASE_URL": "http://127.0.0.1:20128/v1",
+        "AI_API_KEY": "local-omniroute",
+        "AI_MODEL": "auto/fast",
         "AI_SECURITY_FAIL_POLICY": "open",
-        "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
-        "ANTHROPIC_MODEL": "deepseek-v4-pro",
-        "DEEPSEEK_BASE_URL": "https://api.deepseek.com/v1",
-        "DEEPSEEK_MODEL": "deepseek-chat",
-        "AI_PROVIDERS_DISABLED": "host-anthropic-proxy,openai-compatible,google-ai-compatible,ollama-local",
+        "AI_PROVIDERS_DISABLED": "host-anthropic-proxy,opencode-zen,openrouter,openai-compatible,google-ai-compatible,zhipu-compatible,deepseek,ollama-local",
         "AION_EVOLVER_GOVERNANCE": "true",
         "AION_ORCH_WAIT_SECS": "55"
       }

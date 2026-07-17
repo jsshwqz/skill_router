@@ -56,6 +56,9 @@ mod router_tests {
         for h in handles {
             let res = h.await.unwrap();
             assert!(res.is_ok(), "Concurrent routing failed: {:?}", res.err());
+            let routed = res.unwrap();
+            assert_eq!(routed.execution.status, "ok");
+            assert_eq!(routed.execution.result["output"], routed.execution.result["task"]);
         }
 
         let _ = fs::remove_dir_all(&tmp);

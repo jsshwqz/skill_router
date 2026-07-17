@@ -165,18 +165,33 @@ impl Executor {
             return Err(anyhow!("shell_exec is disabled for security reasons"));
         }
 
-        // 占位/回退
-        if builtin_name == "echo" || builtin_name == "placeholder" {
+        if builtin_name == "echo" {
             return Ok(ExecutionResponse {
                 status: "ok".to_string(),
                 result: json!({
                     "task": context.task,
                     "capability": context.capability,
                     "skill": skill.metadata.name,
-                    "notice": "placeholder — no real implementation for this capability yet",
+                    "output": context.task,
                 }),
                 artifacts: Value::Object(Default::default()),
                 error: None,
+                token_usage: None,
+            });
+        }
+
+        if builtin_name == "placeholder" {
+            let message = format!("capability '{}' has no real implementation", context.capability);
+            return Ok(ExecutionResponse {
+                status: "error".to_string(),
+                result: json!({
+                    "task": context.task,
+                    "capability": context.capability,
+                    "skill": skill.metadata.name,
+                    "error": message,
+                }),
+                artifacts: Value::Object(Default::default()),
+                error: Some(message),
                 token_usage: None,
             });
         }
@@ -191,6 +206,16 @@ impl Executor {
         })?;
 
         let result = builtin_impl.execute(skill, context).await?;
+
+        if let Some(error) = builtin_error(&result) {
+            return Ok(ExecutionResponse {
+                status: "error".to_string(),
+                result: result.clone(),
+                artifacts: Value::Object(Default::default()),
+                error: Some(error),
+                token_usage: None,
+            });
+        }
 
         // 从 result 中提取 token_usage（ai_task builtin 会附带）
         let token_usage = result.get("token_usage")
@@ -359,6 +384,31 @@ impl Executor {
         });
         writeln!(file, "{}", serde_json::to_string(&line)?)?;
         Ok(())
+    }
+}
+
+fn builtin_error(result: &Value) -> Option<String> {
+    result
+        .get("error")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|error| !error.is_empty())
+        .map(ToOwned::to_owned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::builtin_error;
+    use serde_json::json;
+
+    #[test]
+    fn builtin_error_rejects_non_empty_error_fields() {
+        assert_eq!(
+            builtin_error(&json!({"error": "backend unavailable"})),
+            Some("backend unavailable".to_string())
+        );
+        assert_eq!(builtin_error(&json!({"error": "  "})), None);
+        assert_eq!(builtin_error(&json!({"output": "ok"})), None);
     }
 }
 
