@@ -1,10 +1,9 @@
-//! aion-forge-cli — Aion Forge 命令行接口
+//! aion-forge-acp — Aion Forge 的停用 ACP 兼容适配器
 //!
 //! 用法：
-//!   aion-forge-cli <tool> '<json_params>'    执行工具
-//!   aion-forge-cli --list                    列出工具
-//!   aion-forge-cli acp                       ACP 协议模式（供 AionUi Agents）
-//!   aion-forge-cli setup                     一键注册 Agent + 部署扩展
+//!   aion-forge-acp <tool> '<json_params>'    执行工具
+//!   aion-forge-acp --list                    列出工具
+//!   aion-forge-acp acp                       ACP 协议兼容模式
 
 use std::path::PathBuf;
 
@@ -16,13 +15,12 @@ use serde_json::{json, Value};
 use aion_types::types::ExecutionContext;
 
 mod acp;
-mod setup;
 
 #[derive(Parser)]
 #[command(
-    name = "aion-forge-cli",
+    name = "aion-forge-acp",
     version = "0.7.0",
-    about = "Aion Forge — 72 个内置工具的 AI 智能体引擎"
+    about = "Aion Forge 的停用 ACP 兼容适配器与直接工具入口"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -46,15 +44,6 @@ enum Commands {
     /// ACP 协议服务器模式（供 AionUi Agents 页面使用）
     Acp,
 
-    /// 一键注册 Agent + 部署扩展文件到 aioncore
-    Setup {
-        /// 仅探查，不写入
-        #[arg(short, long)]
-        dry_run: bool,
-        /// 显示内置 Agent 的模型配置参考
-        #[arg(short, long)]
-        models: bool,
-    },
 }
 
 #[tokio::main]
@@ -108,10 +97,6 @@ async fn main() -> Result<()> {
     match &cli.command {
         Some(Commands::Acp) => {
             acp::run_acp_server().await?;
-            return Ok(());
-        }
-        Some(Commands::Setup { dry_run, models }) => {
-            setup::run(*dry_run, *models)?;
             return Ok(());
         }
         None => {}

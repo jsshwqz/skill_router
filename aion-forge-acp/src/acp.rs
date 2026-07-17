@@ -159,8 +159,6 @@ async fn handle_acp_message(raw: &str) -> Result<Value> {
 
             // 可用模型列表（从配置读取）
             let model = std::env::var("AI_MODEL").unwrap_or_else(|_| "deepseek-v4-flash".to_string());
-            let base_url = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "https://openrouter.ai/api/v1".to_string());
-
             if is_mcp {
                 // MCP 格式（兼容 Claude Code / Reasonix / AionUI v0.1.33+）
                 Ok(json!({
