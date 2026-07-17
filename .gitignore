@@ -2,7 +2,6 @@
 target/
 target_rebuild/
 *.exe
-*aion-forge-cli*
 
 # Logs
 *.log
@@ -41,6 +40,7 @@ memory_store.json
 .env
 
 # Skill router runtime
+.skill-router/registry.json
 .skill-router/cli_health.json
 .skill-router/engine_result_cache.json
 .skill-router/orchestration_trace.jsonl
@@ -57,9 +57,11 @@ img*.b64
 # Data directory (contains runtime state)
 data/
 
-# VS Code extensions
-aionext-forge/
+# Generated adapters
 adapters/
+
+# Disabled legacy ACP extension
+aionext-forge/
 
 # IDE and tool caches
 .aionrs/

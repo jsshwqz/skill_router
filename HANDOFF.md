@@ -1,135 +1,35 @@
-# Aion Forge — 项目状态交接文档
+# Aion Forge 项目交接
 
-> 最后更新: 2026-07-03  
-> 当前状态: ✅ P0+P1 完成，AI 引擎已接通
+最后更新：2026-07-17。
 
----
+## 当前状态
 
-## 项目概览
+| 项目 | 状态 |
+|---|---|
+| 正式入口 | `D:/test/aionui/forge/aion-cli.exe mcp-server` |
+| AionUI 集成 | MCP 已启用，ACP 独立聊天 Agent 已禁用 |
+| 模型路由 | OmniRoute `http://127.0.0.1:20128/v1`，模型 `auto/fast` |
+| 工具数量 | AionUI 实测 75 |
+| 端到端调用 | `code_generate` 已成功 |
+| 测试 | 全 workspace 通过，0 失败 |
 
-| 项目 | 值 |
-|------|-----|
-| 路径 | `D:\test\aionui\forge\` |
-| 语言 | Rust (edition 2024) |
-| crate 数 | 10 |
-| 二进制 | 5 (aion-forge-cli, aion-forge-server, forge-mcp-gateway, aion-proxy, aion-permission-bridge) |
-| 编译状态 | ✅ 通过 (零错误，8 warnings 无害) |
+## 重要决策
 
----
+- Forge 是由正常 Agent 按需调用的 MCP 工具集，不是独立聊天模型。
+- `aion-forge-acp` 仅保留历史兼容源码，不注册、不部署扩展。
+- `aionext-forge` 已从活跃工作区隔离。
+- `.skill-router/registry.json` 属于运行时历史，在本地保留但不再跟踪。
+- AionUI 注入的环境变量优先于项目 `.env`。
 
-## AI 引擎
+## 本轮关键修复
 
-| 引擎 | 状态 |
-|------|------|
-| Gitcode AI (Qwen3-235B-A22B) | ✅ **已接通** (免费、国内直连) |
-| DeepSeek | ❌ 401 (Key 无效) |
-| OpenRouter | ❌ Cloudflare 阻断 |
-| 其余 | ⏸️ 已禁用 |
+- OmniRoute 请求显式设置非流式，并兼容 SSE 回退响应。
+- placeholder 不再伪装成功，而是返回明确错误。
+- health check 明确区分历史遥测与实时探测。
+- `strategic_plan` 的中文截断改为按字符处理，避免 UTF-8 panic。
 
-### 引擎配置 (`D:\test\aionui\forge\.env`)
+## 后续优先事项
 
-```
-AI_BASE_URL=https://api-ai.gitcode.com/v1
-AI_API_KEY=<已配置>
-AI_MODEL=Qwen/Qwen3-235B-A22B
-AI_PROVIDERS_DISABLED=host-anthropic-proxy,opencode-zen,openrouter,openai-compatible,deepseek,zhipu-compatible,ollama-local
-```
-
----
-
-## 已完成任务
-
-### P0-1: Glitch Token 过滤层
-
-| 项目 | 详情 |
-|------|------|
-| 位置 | `crates/glitch-filter/` |
-| 行数 | 1195 行 (`src/lib.rs`) |
-| Token 数 | 200+ (25 个分类来自 L1B3RT4S) |
-| 测试 | 19 个单元测试 |
-| 核心 API | `GlitchFilter::check()`, `GlitchFilter::check_behavior()`, `token_count()` |
-
-### P0-2: 系统提示词参考文档
-
-| 项目 | 详情 |
-|------|------|
-| 位置 | `docs/reference/system-prompts-analysis.md` |
-| 行数 | 520 行 |
-| 内容 | 7 种控制面格式对比 + 4 种推理机制 + 3 种工具调用格式 + Forge 设计建议 |
-
-### P1: 控制字符过滤 + CLI 集成
-
-| 项目 | 详情 |
-|------|------|
-| Sanitizer | `glitch-filter::Sanitizer` |
-| 防御覆盖 | NULL / DEL / C1 / 零宽 / Bidi / BOM / ANSI / `\r`洪水 |
-| CLI 集成 | `aion-forge-cli/src/main.rs:13` — `use glitch_filter::{GlitchFilter, Sanitizer}` |
-
----
-
-## 待办事项
-
-| 阶段 | 任务 | 状态 |
-|------|------|------|
-| P2 | DeepSeek 攻击面研究 | ⏸️ 暂缓 (DeepSeek Key 401) |
-| P3 | 其他 jailbreak 参考 | ⏸️ 暂缓 (价值较低) |
-| — | 启动 AionUi 桌面端，通过 REST API 配置 Provider | 📋 待做 |
-| — | 端到端 AI 调用测试 (通过 forge 二进制) | 📋 待做 |
-| — | 连接更高质量模型 (Claude/GPT 等) | 📋 待做 |
-
----
-
-## 构建指南
-
-### 前置条件
-
-1. Rust 工具链 (edition 2024)
-2. 网络可访问 `https://index.crates.io/` (sparse 协议)
-
-### 常见问题
-
-**tuna 镜像阻断**: 全局 `~/.cargo/config.toml` 可能使用清华 tuna 镜像，该镜像在某些网络下不可达。解决：
-
-```powershell
-# 临时重命名全局配置
-Move-Item ~\.cargo\config.toml ~\.cargo\config.toml.bak
-cargo build
-Move-Item ~\.cargo\config.toml.bak ~\.cargo\config.toml
-```
-
-### 构建命令
-
-```bash
-cd D:\test\aionui\forge
-cargo build              # 全量构建 (首次 ~7 分钟)
-cargo build -p glitch-filter  # 仅构建过滤层
-cargo test -p glitch-filter    # 运行过滤层测试
-```
-
-### 运行
-
-```bash
-# 列出所有工具 (73 个)
-.\target\debug\aion-forge-cli.exe -l
-
-# 健康检查
-.\target\debug\aion-forge-cli.exe -t health_check -q
-
-# 工具调用
-.\target\debug\aion-forge-cli.exe -t echo -p "hello" -q
-```
-
----
-
-## 关键文件索引
-
-| 文件 | 用途 |
-|------|------|
-| `.env` | AI 引擎 + 服务配置 |
-| `Cargo.toml` | workspace 定义 |
-| `crates/glitch-filter/src/lib.rs` | GlitchFilter + Sanitizer |
-| `aion-forge-cli/src/main.rs` | CLI 入口 (已集成过滤) |
-| `aion-router/src/config.rs` | 配置加载 + AI 端点 fallback 链 |
-| `aion-router/src/builtins/ai.rs` | AI 调用实现 |
-| `docs/reference/system-prompts-analysis.md` | 各厂商系统提示词分析 |
-| `.cargo/config.toml` | 项目级 cargo 配置 (sparse 协议) |
+1. 修复 `route_task` 对 workspace 分析任务的误判。
+2. 为 CLI、ACP 兼容层和 aion-zl 增加入口级测试。
+3. 处理生产环境安全审查 fail-open 风险。
