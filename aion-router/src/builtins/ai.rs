@@ -53,10 +53,17 @@ pub struct AiTask;
 impl AiEndpoint {
     /// Check if a provider is disabled via AI_PROVIDERS_DISABLED env var.
     /// Example: AI_PROVIDERS_DISABLED=ollama-local,some-other
-    fn is_disabled(label: &str) -> bool {
-        std::env::var("AI_PROVIDERS_DISABLED")
-            .map(|v| v.split(',').any(|s| s.trim() == label))
-            .unwrap_or(false)
+    pub fn is_disabled(label: &str) -> bool {
+        let raw = std::env::var("AI_PROVIDERS_DISABLED").unwrap_or_default();
+        let result = raw.split(',').any(|s| s.trim() == label);
+        // Debug: print raw env var bytes for certain labels
+        if label == "ollama-local" || label == "host-anthropic-proxy" {
+            eprintln!(
+                "[FORGE-DEBUG] is_disabled({})={} raw_env={:?} bytes={:02x?}",
+                label, result, raw, raw.as_bytes()
+            );
+        }
+        result
     }
 
     fn enabled_candidates() -> Vec<Self> {
@@ -101,6 +108,12 @@ impl BuiltinSkill for AiTask {
             .timeout(std::time::Duration::from_secs(60))
             .build()?;
 
+                // Debug: print AI_PROVIDERS_DISABLED at entry point
+        eprintln!(
+            "[FORGE-DEBUG] ai_task.execute() AI_PROVIDERS_DISABLED={:?}",
+            std::env::var("AI_PROVIDERS_DISABLED")
+        );
+
         let requested_model = context.context["model"].as_str();
         let endpoints: Vec<_> = AiEndpoint::enabled_candidates()
             .into_iter()
@@ -113,6 +126,14 @@ impl BuiltinSkill for AiTask {
         } else {
             endpoints
         };
+
+        // Debug: log AI_PROVIDERS_DISABLED and the endpoint list
+        tracing::info!(
+            "ai_task AI_PROVIDERS_DISABLED={:?} endpoints={:?}",
+            std::env::var("AI_PROVIDERS_DISABLED").unwrap_or_default(),
+            endpoints.iter().map(|e| &e.label).collect::<Vec<_>>()
+        );
+
         let mut last_error = String::new();
 
         for ep in &endpoints {

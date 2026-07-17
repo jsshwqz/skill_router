@@ -9,13 +9,15 @@ use std::path::PathBuf;
 use anyhow::Result;
 use serde_json::{json, Value};
 
-use aion_router::config::candidate_ai_endpoints;
+use aion_router::config::{candidate_ai_endpoints, AiEndpoint};
 use aion_types::types::ExecutionContext;
 
 /// 从 candidate_ai_endpoints() 动态构建可用模型列表
 fn acp_available_models(current: &str) -> Value {
     let endpoints = candidate_ai_endpoints();
-    let models: Vec<Value> = endpoints.iter().map(|ep| {
+    // 只取未禁用的端点，去重（同 modelId 只保留第一个）
+    let mut seen = std::collections::HashSet::new();
+    let models: Vec<Value> = endpoints.iter().filter(|ep| !AiEndpoint::is_disabled(&ep.label)).filter(|ep| seen.insert(ep.model.as_str())).map(|ep| {
         let label = match ep.label.as_str() {
             "deepseek" => format!("DeepSeek ({})", ep.model),
             "primary" => format!("主力 ({})", ep.model),
@@ -233,19 +235,110 @@ async fn handle_acp_message(raw: &str) -> Result<Value> {
 
         "session/prompt" => {
             eprintln!("[forge-acp] session/prompt params: {}", serde_json::to_string(&params).unwrap_or_default());
-            // ACP PromptResponse schema: { stopReason: "end_turn"|"max_tokens"|"stop_sequence", usage?: {...} }
-            // Forge acts as a tool provider; minimal valid response to avoid -32601
-            Ok(json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": {
-                    "stopReason": "end_turn",
-                    "usage": {
-                        "inputTokens": 0,
-                        "outputTokens": 0
+
+            let message = params.get("message").and_then(|v| v.as_str()).unwrap_or("");
+            let model = params.get("model").and_then(|v| v.as_str()).unwrap_or("deepseek-chat");
+            let history = params.get("history").and_then(|v| v.as_array());
+
+            // 构建发给 ai_task 的上下文
+            let mut ctx = ExecutionContext::new("ai_task", message)
+                .with_context(json!({
+                    "model": model,
+                    "input": message,
+                    "text": message,
+                    "stream": false,
+                }));
+
+            // 如果有历史消息，加入上下文
+            if let Some(msgs) = history {
+                ctx = ctx.with_context(json!({"history": msgs}));
+            }
+
+            let registry = aion_router::builtins::BuiltinRegistry::default_registry();
+            if let Some(builtin) = registry.get("ai_task") {
+                let skill = aion_types::types::SkillDefinition {
+                    metadata: aion_types::types::SkillMetadata {
+                        name: "ai_task".to_string(),
+                        version: "0.1.0".to_string(),
+                        capabilities: vec!["ai_task".to_string()],
+                        entrypoint: "builtin:ai_task".to_string(),
+                        permissions: aion_types::types::PermissionSet::default_deny().with_network(true),
+                        instruction: Some("你是一个AI助手，请根据用户输入给出回答。".to_string()),
+                        engine_capable: false,
+                    },
+                    root_dir: PathBuf::new(),
+                    source: aion_types::types::SkillSource::Local,
+                };
+
+                match builtin.execute(&skill, &ctx).await {
+                    Ok(result) => {
+                        let content = result.get("output")
+                            .and_then(|c| c.as_str())
+                            .unwrap_or("");
+                        let provider = result.get("provider").and_then(|p| p.as_str()).unwrap_or("unknown");
+                        let input_tokens = result.get("token_usage").and_then(|u| u.get("prompt_tokens")).and_then(|v| v.as_u64()).unwrap_or(0);
+                        let output_tokens = result.get("token_usage").and_then(|u| u.get("completion_tokens")).and_then(|v| v.as_u64()).unwrap_or(0);
+                        let has_error = result.get("error").and_then(|e| e.as_str()).filter(|e| !e.is_empty());
+
+                        if let Some(err) = has_error {
+                            let mut content_parts = vec![json!({"type": "text", "text": format!("[{} 调用失败: {}]", provider, err)})];
+                            if !content.is_empty() {
+                                content_parts.push(json!({"type": "text", "text": content}));
+                            }
+                            Ok(json!({
+                                "jsonrpc": "2.0",
+                                "id": id,
+                                "result": {
+                                    "content": content_parts,
+                                    "stopReason": "end_turn",
+                                    "usage": {
+                                        "inputTokens": input_tokens,
+                                        "outputTokens": output_tokens
+                                    }
+                                }
+                            }))
+                        } else {
+                            Ok(json!({
+                                "jsonrpc": "2.0",
+                                "id": id,
+                                "result": {
+                                    "content": [
+                                        {"type": "text", "text": content}
+                                    ],
+                                    "stopReason": "end_turn",
+                                    "usage": {
+                                        "inputTokens": input_tokens,
+                                        "outputTokens": output_tokens
+                                    }
+                                }
+                            }))
+                        }
                     }
+                    Err(e) => Ok(json!({
+                        "jsonrpc": "2.0",
+                        "id": id,
+                        "result": {
+                            "messages": [{
+                                "role": "assistant",
+                                "content": [{"type": "text", "text": format!("[模型调用错误: {}]", e)}]
+                            }],
+                            "stopReason": "end_turn",
+                            "usage": {"inputTokens": 0, "outputTokens": 0}
+                        }
+                    })),
                 }
-            }))
+            } else {
+                // fallback: ai_task builtin 未注册
+                Ok(json!({
+                    "jsonrpc": "2.0",
+                    "id": id,
+                    "result": {
+                        "content": [{"type": "text", "text": "[ai_task builtin not available — 请检查 builtin 注册]"}],
+                        "stopReason": "end_turn",
+                        "usage": {"inputTokens": 0, "outputTokens": 0}
+                    }
+                }))
+            }
         }
 
         "tools/list" | "mcp/toolsList" | "listTools" => {
