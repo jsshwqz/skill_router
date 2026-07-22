@@ -5,6 +5,7 @@ use serde_json::Value;
 
 use aion_types::types::RouterPaths;
 
+mod catalog;
 pub mod cli;
 pub mod direct;
 pub mod mcp;

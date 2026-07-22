@@ -31,36 +31,17 @@ pub fn initialize_response(id: Value) -> Value {
 
 /// Build the current MCP tool catalog response.
 pub fn tools_list_response(id: Value) -> Value {
-    let registry = aion_types::capability_registry::CapabilityRegistry::builtin();
-    let mut tools: Vec<Value> = registry
-        .definitions()
-        .map(|capability| {
-            let input_schema = if capability.parameters_schema.is_null() || capability.parameters_schema == json!({}) {
-                json!({
-                    "type": "object",
-                    "properties": properties_from_inputs(&capability.inputs),
-                    "required": capability.inputs,
-                })
-            } else {
-                capability.parameters_schema.clone()
-            };
+    let tools: Vec<Value> = crate::catalog::entries()
+        .into_iter()
+        .map(|entry| {
             json!({
-                "name": capability.name,
-                "description": capability.description,
-                "inputSchema": input_schema,
-                "requiresApproval": capability.requires_approval,
+                "name": entry.name,
+                "description": entry.description,
+                "inputSchema": entry.input_schema,
+                "requiresApproval": entry.requires_approval,
             })
         })
         .collect();
-
-    tools.push(json!({
-        "name": "async_task_query",
-        "description": "Query an asynchronous orchestration task by task_id.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"task_id": {"type": "string"}}
-        }
-    }));
 
     success(id, json!({"tools": tools}))
 }
@@ -265,14 +246,6 @@ fn passthrough_enabled() -> bool {
     std::env::var("AI_PASSTHROUGH")
         .map(|value| value == "true" || value == "1")
         .unwrap_or(false)
-}
-
-fn properties_from_inputs(inputs: &[String]) -> Value {
-    let properties = inputs
-        .iter()
-        .map(|input| (input.clone(), json!({"type": "string", "description": input})))
-        .collect();
-    Value::Object(properties)
 }
 
 fn success(id: Value, result: Value) -> Value {

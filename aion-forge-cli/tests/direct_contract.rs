@@ -1,11 +1,52 @@
+use std::collections::HashSet;
 use std::process::Command;
 
 #[test]
 fn list_catalog_matches_the_75_tool_product_contract() {
     let catalog = aion_forge_cli::direct::list_tools();
+    let tools = catalog["tools"].as_array().expect("tools must be an array");
+    let names: Vec<&str> = tools
+        .iter()
+        .map(|tool| tool["name"].as_str().expect("tool name must be a string"))
+        .collect();
+    let unique: HashSet<&str> = names.iter().copied().collect();
+    let builtins = aion_router::builtins::BuiltinRegistry::default_registry();
+    let capabilities = aion_types::capability_registry::CapabilityRegistry::builtin();
+    let declared: HashSet<&str> = capabilities
+        .definitions()
+        .map(|definition| definition.name.as_str())
+        .collect();
+    let missing_declarations: Vec<&str> = builtins
+        .list_skills()
+        .into_iter()
+        .filter(|name| !declared.contains(name))
+        .collect();
+    let routable: HashSet<&str> = builtins.list_skills().into_iter().collect();
+    let undeclared_routes: Vec<&str> = declared
+        .iter()
+        .copied()
+        .filter(|name| !routable.contains(name))
+        .collect();
 
     assert_eq!(catalog["total"], 75);
-    assert_eq!(catalog["tools"].as_array().map(Vec::len), Some(75));
+    assert_eq!(names.len(), 75);
+    assert_eq!(
+        unique.len(),
+        75,
+        "direct catalog contains duplicate names; routable skills missing declarations: {missing_declarations:?}; declarations without routes: {undeclared_routes:?}"
+    );
+    assert!(unique.contains("sanitize"), "sanitize is the missing public capability");
+    assert!(
+        !unique.contains("ai_task"),
+        "ai_task is an internal dispatcher, not a public capability"
+    );
+    assert!(
+        builtins.get("sanitize").is_some(),
+        "the added public capability must have a builtin route"
+    );
+    assert!(names
+        .iter()
+        .all(|name| capabilities.get(name).is_some() || *name == "sanitize"));
 }
 
 #[tokio::test]

@@ -8,20 +8,15 @@ use aion_types::types::ExecutionContext;
 
 /// Return the direct CLI tool catalog.
 pub fn list_tools() -> Value {
-    let registry = aion_types::capability_registry::CapabilityRegistry::builtin();
-    let mut tools: Vec<Value> = registry
-        .definitions()
-        .map(|definition| {
+    let tools: Vec<Value> = crate::catalog::entries()
+        .into_iter()
+        .map(|entry| {
             json!({
-                "name": definition.name,
-                "description": definition.description,
+                "name": entry.name,
+                "description": entry.description,
             })
         })
         .collect();
-    tools.push(json!({
-        "name": "async_task_query",
-        "description": "Query an asynchronous orchestration task by task_id.",
-    }));
     json!({"total": tools.len(), "tools": tools})
 }
 
