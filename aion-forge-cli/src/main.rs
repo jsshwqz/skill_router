@@ -18,6 +18,7 @@ async fn main() -> Result<()> {
     }
 
     let cli = Cli::parse();
+    let quiet = cli.quiet;
     let is_mcp = matches!(cli.command, Some(Commands::McpServer));
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
@@ -30,7 +31,12 @@ async fn main() -> Result<()> {
     }
 
     if let Some(result) = aion_forge_cli::run_cli(cli).await? {
-        println!("{}", serde_json::to_string_pretty(&result)?);
+        let output = if quiet {
+            serde_json::to_string(&result)?
+        } else {
+            serde_json::to_string_pretty(&result)?
+        };
+        println!("{output}");
     }
     Ok(())
 }
