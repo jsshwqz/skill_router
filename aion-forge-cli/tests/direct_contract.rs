@@ -1,5 +1,13 @@
 use std::process::Command;
 
+#[test]
+fn list_catalog_matches_the_75_tool_product_contract() {
+    let catalog = aion_forge_cli::direct::list_tools();
+
+    assert_eq!(catalog["total"], 75);
+    assert_eq!(catalog["tools"].as_array().map(Vec::len), Some(75));
+}
+
 #[tokio::test]
 async fn execute_runs_echo_from_builtin_registry() {
     let result = aion_forge_cli::direct::execute("echo", Some(r#"{"text":"forge-direct-contract"}"#), true)
