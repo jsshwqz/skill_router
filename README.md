@@ -17,12 +17,12 @@
 
 **Mac / Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aioncore/aion-forge/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aioncore/aion-forge/main/scripts/install/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/aioncore/aion-forge/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/aioncore/aion-forge/main/scripts/install/install.ps1 | iex
 ```
 
 **Docker:**

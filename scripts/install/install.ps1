@@ -1,5 +1,5 @@
 # Aion Forge — 一键安装脚本 (Windows PowerShell)
-# 用法: irm https://raw.githubusercontent.com/aioncore/aion-forge/main/install.ps1 | iex
+# 用法: irm https://raw.githubusercontent.com/aioncore/aion-forge/main/scripts/install/install.ps1 | iex
 # 或者: .\install.ps1 [-Version vX.Y.Z] [-Yes]
 param(
     [string]$Version = "",

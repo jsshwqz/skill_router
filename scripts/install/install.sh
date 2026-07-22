@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Aion Forge — 一键安装脚本 (Mac/Linux)
-# 用法: curl -fsSL https://raw.githubusercontent.com/aioncore/aion-forge/main/install.sh | bash
+# 用法: curl -fsSL https://raw.githubusercontent.com/aioncore/aion-forge/main/scripts/install/install.sh | bash
 # 或者: bash install.sh [--version vX.Y.Z] [--yes]
 set -euo pipefail
 
