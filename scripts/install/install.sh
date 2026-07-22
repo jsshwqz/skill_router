@@ -51,6 +51,10 @@ detect_platform() {
     *)       error "Unsupported OS: $os (only Linux and macOS are supported)" ;;
   esac
 
+  if [[ "$OS" == "linux" && "$arch" != "x86_64" && "$arch" != "amd64" ]]; then
+    error "Unsupported Linux architecture: $arch (only x86_64 release artifacts are published)"
+  fi
+
   case "$arch" in
     x86_64|amd64)   ARCH="x86_64" ;;
     arm64|aarch64)   ARCH="aarch64" ;;
@@ -164,7 +168,7 @@ safety_review() {
 
 # ─── SHA256 校验 ───
 verify_checksum() {
-  local file="$1" expected_target="$2"
+  local file="$1" binary_key="$2" expected_target="$3"
   local manifest_file="/tmp/aion-safety-manifest.json"
 
   if [[ ! -f "$manifest_file" ]]; then
@@ -174,20 +178,16 @@ verify_checksum() {
 
   local expected
   expected=$(python3 -c "
-import json, sys
+import json
 m = json.load(open('$manifest_file'))
-for binary in m.get('binaries', {}).values():
-    platforms = binary.get('platforms', {})
-    if '$expected_target' in platforms:
-        sha = platforms['$expected_target'].get('sha256', 'TO_BE_FILLED_BY_CI')
-        if sha != 'TO_BE_FILLED_BY_CI':
-            print(sha)
-            sys.exit(0)
-print('')
+binary = m.get('binaries', {}).get('$binary_key', {})
+platform = binary.get('platforms', {}).get('$expected_target', {})
+sha = platform.get('sha256', 'TO_BE_FILLED_BY_CI')
+print('' if sha == 'TO_BE_FILLED_BY_CI' else sha)
 " 2>/dev/null || echo "")
 
   if [[ -z "$expected" || "$expected" == "TO_BE_FILLED_BY_CI" ]]; then
-    warn "No checksum available for ${expected_target}, skipping verification"
+    warn "No checksum available for ${binary_key} on ${expected_target}, skipping verification"
     return 0
   fi
 
@@ -243,8 +243,8 @@ main() {
   chmod +x "${INSTALL_DIR}/aion-server"
 
   # Step 4: SHA256 校验
-  verify_checksum "${INSTALL_DIR}/aion-forge-cli" "$TARGET"
-  verify_checksum "${INSTALL_DIR}/aion-server" "$TARGET"
+  verify_checksum "${INSTALL_DIR}/aion-forge-cli" "aion-forge-cli" "$TARGET"
+  verify_checksum "${INSTALL_DIR}/aion-server" "aion-server" "$TARGET"
 
   # Step 5: 配置 PATH
   if ! echo "$PATH" | tr ':' '\n' | grep -qx "$INSTALL_DIR"; then

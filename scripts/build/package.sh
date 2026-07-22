@@ -25,10 +25,10 @@ SHARED_FILES=(
   "manifest.json"
   "README.md"
   "CHANGELOG.md"
-  "SKILLS_GUIDE.md"
+  "docs/guide/SKILLS_GUIDE.md"
   ".env.example"
-  "install.sh"
-  "install.ps1"
+  "scripts/install/install.sh"
+  "scripts/install/install.ps1"
   "adapters/README.md"
   "adapters/claude-mcp/claude_desktop_config.json"
 )
@@ -49,7 +49,14 @@ for platform in "${!PLATFORMS[@]}"; do
   # 复制共享文件
   for f in "${SHARED_FILES[@]}"; do
     if [[ -f "$f" ]]; then
-      cp "$f" "$pkg_dir/$f"
+      case "$f" in
+        docs/guide/SKILLS_GUIDE.md|scripts/install/install.sh|scripts/install/install.ps1)
+          cp "$f" "$pkg_dir/$(basename "$f")"
+          ;;
+        *)
+          cp "$f" "$pkg_dir/$f"
+          ;;
+      esac
     fi
   done
 

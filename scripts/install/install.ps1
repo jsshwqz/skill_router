@@ -101,7 +101,7 @@ function Show-SafetyReview {
 
 # ─── SHA256 校验 ───
 function Test-Checksum {
-    param([string]$File, [string]$Target)
+    param([string]$File, [string]$BinaryKey, [string]$Target)
 
     $manifestFile = "$env:TEMP\aion-safety-manifest.json"
     if (-not (Test-Path $manifestFile)) {
@@ -110,17 +110,20 @@ function Test-Checksum {
     }
 
     $manifest = Get-Content $manifestFile | ConvertFrom-Json
-    $expected = $null
-
-    foreach ($binary in @("aion-forge-cli", "aion-server")) {
-        $platforms = $manifest.binaries.$binary.platforms
-        if ($platforms.$Target) {
-            $sha = $platforms.$Target.sha256
-            if ($sha -and $sha -ne "TO_BE_FILLED_BY_CI") {
-                $actual = (Get-FileHash -Path $File -Algorithm SHA256).Hash.ToLower()
-                if ($actual -ne $sha.ToLower()) {
-                    Remove-Item $File -Force
-                    Write-Err @"
+    $binaryProperty = $manifest.binaries.PSObject.Properties[$BinaryKey]
+    if (-not $binaryProperty) {
+        Write-Warn "No checksum entry for $BinaryKey, skipping verification"
+        return
+    }
+    $binary = $binaryProperty.Value
+    $platforms = $binary.platforms
+    if ($platforms.$Target) {
+        $sha = $platforms.$Target.sha256
+        if ($sha -and $sha -ne "TO_BE_FILLED_BY_CI") {
+            $actual = (Get-FileHash -Path $File -Algorithm SHA256).Hash.ToLower()
+            if ($actual -ne $sha.ToLower()) {
+                Remove-Item $File -Force
+                Write-Err @"
 SHA256 CHECKSUM MISMATCH! / 校验和不匹配！
   Expected: $sha
   Got:      $actual
@@ -128,14 +131,13 @@ SHA256 CHECKSUM MISMATCH! / 校验和不匹配！
   下载的文件可能已损坏或被篡改。
   Installation aborted. / 安装已中止。
 "@
-                }
-                Write-Ok "SHA256 verified for $File"
-                return
             }
+            Write-Ok "SHA256 verified for $File"
+            return
         }
     }
 
-    Write-Warn "No checksum available, skipping verification"
+    Write-Warn "No checksum available for $BinaryKey on $Target, skipping verification"
 }
 
 # ─── 主流程 ───
@@ -178,8 +180,8 @@ function Main {
     Invoke-WebRequest -Uri "$baseUrl/$serverArtifact" -OutFile "$InstallDir\aion-server.exe" -UseBasicParsing
 
     # SHA256 校验
-    Test-Checksum -File "$InstallDir\aion-forge-cli.exe" -Target $target
-    Test-Checksum -File "$InstallDir\aion-server.exe" -Target $target
+    Test-Checksum -File "$InstallDir\aion-forge-cli.exe" -BinaryKey "aion-forge-cli" -Target $target
+    Test-Checksum -File "$InstallDir\aion-server.exe" -BinaryKey "aion-server" -Target $target
 
     # 配置 PATH
     $currentPath = [Environment]::GetEnvironmentVariable("Path", "User")

@@ -116,7 +116,7 @@ jobs:
 
       - name: Update safety-manifest.json with checksums
         run: |
-          bash scripts/update-checksums.sh release-artifacts safety-manifest.json
+          bash scripts/build/update-checksums.sh release-artifacts safety-manifest.json
 
       - name: Package platform zip archives
         run: |
@@ -130,8 +130,8 @@ jobs:
             dist/*.zip
             checksums-sha256.txt
             safety-manifest.json
-            install.sh
-            install.ps1
+            scripts/install/install.sh
+            scripts/install/install.ps1
           generate_release_notes: true
           draft: false
           prerelease: false

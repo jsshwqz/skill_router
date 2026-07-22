@@ -52,9 +52,11 @@ cp "$CLI_BIN" "$PKG_DIR/aion-forge-cli${EXE}"
 [[ -f "$SERVER_BIN" ]] && cp "$SERVER_BIN" "$PKG_DIR/aion-server${EXE}"
 
 # 复制配置和文档
-for f in safety-manifest.json skill.json manifest.json README.md CHANGELOG.md \
-         SKILLS_GUIDE.md .env.example install.sh install.ps1; do
+for f in safety-manifest.json skill.json manifest.json README.md CHANGELOG.md .env.example; do
   [[ -f "$f" ]] && cp "$f" "$PKG_DIR/"
+done
+for f in docs/guide/SKILLS_GUIDE.md scripts/install/install.sh scripts/install/install.ps1; do
+  [[ -f "$f" ]] && cp "$f" "$PKG_DIR/$(basename "$f")"
 done
 
 # 复制适配器
