@@ -58,6 +58,7 @@ fn legacy_direct_execution_flags_are_rejected() {
     assert_rejected(&["--tool", "ai_task"]);
     assert_rejected(&["--params", "{}"]);
     assert_rejected(&["--list"]);
+    assert_rejected(&["--quiet"]);
 }
 
 #[test]
@@ -73,7 +74,15 @@ fn help_describes_only_the_acp_adapter() {
 
     let help = String::from_utf8(output.stdout).expect("help should be UTF-8");
     assert!(help.contains("ACP"));
-    for legacy in ["--tool", "--params", "--list", "setup", "mcp-server", "直接工具入口"] {
+    for legacy in [
+        "--tool",
+        "--params",
+        "--list",
+        "--quiet",
+        "setup",
+        "mcp-server",
+        "直接工具入口",
+    ] {
         assert!(!help.contains(legacy), "help exposed legacy surface: {legacy}");
     }
 }
