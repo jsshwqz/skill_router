@@ -32,7 +32,7 @@ docker compose up -d
 
 **From source / 从源码构建:**
 ```bash
-cargo build --release -p aion-cli -p aion-server
+cargo build --release -p aion-forge-cli -p aion-server
 ```
 
 ---
@@ -41,17 +41,17 @@ cargo build --release -p aion-cli -p aion-server
 
 ```bash
 # Run a task / 执行任务
-aion-cli "parse this yaml: name: test"
+aion-forge-cli "parse this yaml: name: test"
 
 # JSON output / JSON 输出
-aion-cli --json "summarize: Rust is a systems language"
+aion-forge-cli --json "summarize: Rust is a systems language"
 
 # Start HTTP API / 启动 HTTP API
 aion-server
 # -> http://localhost:3000/v1/health
 
 # Generate adapter configs / 生成适配器配置
-aion-cli adapter generate --output ./adapters/
+aion-forge-cli adapter generate --output ./adapters/
 ```
 
 ---
@@ -71,7 +71,7 @@ aion-cli adapter generate --output ./adapters/
 {
   "mcpServers": {
     "aion-forge": {
-      "command": "aion-cli",
+      "command": "aion-forge-cli",
       "args": ["mcp-server"]
     }
   }
@@ -103,15 +103,17 @@ aion-types   -- Data structures & protocol definitions (no IO)
 aion-memory  -- Memory storage with namespace isolation
 aion-intel   -- AI inference, planning, web search
 aion-router  -- Skill routing, execution, security, multi-agent coordination
-aion-cli     -- CLI entry point + MCP server
+aion-forge-cli -- CLI entry point + MCP server
 aion-server  -- HTTP REST API (Axum) + WebSocket events
 ```
+
+`aion-forge-acp` remains an optional ACP entrypoint. `aion-cli` belongs to the separate AionUI Agent project at `D:/test/aionui/aion-cli`; Forge does not build, publish, install, or emulate that executable.
 
 ```
 User / AI Agent
      |
      v
-[aion-cli] or [aion-server:3000]
+[aion-forge-cli] or [aion-server:3000]
      |
      v
 SkillRouter -> Planner -> Executor -> BuiltinSkill
@@ -197,7 +199,7 @@ host Anthropic proxy (`ANTHROPIC_*` / `AION_HOST_AI_*`) → explicit `AI_*` → 
 
 | Problem | Solution |
 |---------|----------|
-| `aion-cli: command not found` | Restart terminal or run `source ~/.bashrc` |
+| `aion-forge-cli: command not found` | Restart terminal or run `source ~/.bashrc` |
 | Connection refused on port 3000 | Start `aion-server` first |
 | AI tasks return errors | Check `AI_BASE_URL` points to a running LLM |
 | Web search fails | Set `SERPAPI_KEY` in `~/.aion/.env` |

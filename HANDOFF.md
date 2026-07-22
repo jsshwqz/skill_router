@@ -6,7 +6,7 @@
 
 | 项目 | 状态 |
 |---|---|
-| 正式入口 | `D:/test/aionui/forge/aion-cli.exe mcp-server` |
+| 正式入口 | `D:/test/aionui/forge/aion-forge-cli.exe mcp-server` |
 | AionUI 集成 | MCP 已启用，ACP 独立聊天 Agent 已禁用 |
 | 模型路由 | OmniRoute `http://127.0.0.1:20128/v1`，模型 `auto/fast` |
 | 工具数量 | AionUI 实测 75 |
@@ -16,7 +16,8 @@
 ## 重要决策
 
 - Forge 是由正常 Agent 按需调用的 MCP 工具集，不是独立聊天模型。
-- `aion-forge-acp` 仅保留历史兼容源码，不注册、不部署扩展。
+- `aion-forge-acp` 仅保留为可选 ACP 入口，不注册、不部署为默认扩展。
+- `aion-cli` 属于 `D:/test/aionui/aion-cli` 的独立 AionUI Agent 项目，不是 Forge 入口或兼容产物。
 - `aionext-forge` 已从活跃工作区隔离。
 - `.skill-router/registry.json` 属于运行时历史，在本地保留但不再跟踪。
 - AionUI 注入的环境变量优先于项目 `.env`。

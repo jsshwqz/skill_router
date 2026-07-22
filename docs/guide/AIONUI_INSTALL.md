@@ -6,7 +6,7 @@ Aion Forge 作为 MCP 工具服务器注入 AionUI 的正常 Agent，不作为�
 
 | 配置项 | 当前值 |
 |---|---|
-| 命令 | `D:/test/aionui/forge/aion-cli.exe` |
+| 命令 | `D:/test/aionui/forge/aion-forge-cli.exe` |
 | 参数 | `mcp-server` |
 | 模型入口 | `http://127.0.0.1:20128/v1` |
 | 默认模型 | `auto/fast` |
@@ -25,13 +25,15 @@ AionUI 中的 MCP 名称为 `aion-forge`。模型地址、模型名和本地访�
 
 ## ACP 说明
 
-`aion-forge-acp` 仅保留为历史兼容适配器源码，不是当前正式入口。独立 Aion Forge ACP 聊天 Agent 与 `aionext-forge` 扩展均保持停用，不应注册到 AionUI 的 Agent 列表。
+`aion-forge-acp` 是可选 ACP 入口，不是当前正式 MCP 入口。独立 Aion Forge ACP 聊天 Agent 与 `aionext-forge` 扩展均保持停用，不应注册到 AionUI 的 Agent 列表。
+
+`aion-cli` 属于 `D:/test/aionui/aion-cli` 的独立 AionUI Agent 项目。Forge 不构建、发布或安装该名称的兼容产物。
 
 ## 常见问题
 
 | 现象 | 检查项 |
 |---|---|
-| MCP 无法连接 | 确认根目录 `aion-cli.exe` 存在，并使用 `mcp-server` 参数 |
+| MCP 无法连接 | 确认根目录 `aion-forge-cli.exe` 存在，并使用 `mcp-server` 参数 |
 | AI 返回空内容 | 确认使用包含 OmniRoute 非流式及 SSE 兼容修复的新构建 |
 | 工具存在但模型不可用 | 检查 OmniRoute 是否监听 20128，以及 `auto/fast` 是否有可用 Provider |
 | 显示普通 Forge 聊天助手 | 禁用 ACP Agent；正常 Agent 应通过 MCP 调用具体 Forge 工具 |

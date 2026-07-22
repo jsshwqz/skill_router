@@ -14,12 +14,14 @@ Forge 不作为独立聊天 Agent 使用。`aion-forge-acp` 和历史扩展不�
 
 | 操作 | 目标 |
 |---|---|
-| Release 构建 | workspace 中的 `aion-cli` package |
-| 正式二进制 | `D:/test/aionui/forge/aion-cli.exe` |
+| Release 构建 | workspace 中的 `aion-forge-cli` package |
+| 正式二进制 | `D:/test/aionui/forge/aion-forge-cli.exe` |
 | AionUI MCP 参数 | `mcp-server` |
 | 模型入口 | OmniRoute 20128，`auto/fast` |
 
 覆盖正式二进制前应结束占用它的旧 MCP 进程；覆盖后必须比较构建产物与正式二进制的 SHA256，并执行真实工具调用。
+
+`aion-forge-acp` 保留为可选 ACP 入口。`aion-cli` 是 `D:/test/aionui/aion-cli` 中独立的 AionUI Agent 项目，不属于 Forge 构建或发布链路。
 
 ## 提交规范
 

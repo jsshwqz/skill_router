@@ -59,15 +59,15 @@ detect_platform() {
 
   # 构建 artifact 名称
   if [[ "$OS" == "linux" ]]; then
-    CLI_ARTIFACT="aion-cli-linux-x86_64"
+    CLI_ARTIFACT="aion-forge-cli-linux-x86_64"
     SERVER_ARTIFACT="aion-server-linux-x86_64"
     TARGET="x86_64-unknown-linux-musl"
   elif [[ "$OS" == "macos" && "$ARCH" == "aarch64" ]]; then
-    CLI_ARTIFACT="aion-cli-macos-aarch64"
+    CLI_ARTIFACT="aion-forge-cli-macos-aarch64"
     SERVER_ARTIFACT="aion-server-macos-aarch64"
     TARGET="aarch64-apple-darwin"
   else
-    CLI_ARTIFACT="aion-cli-macos-x86_64"
+    CLI_ARTIFACT="aion-forge-cli-macos-x86_64"
     SERVER_ARTIFACT="aion-server-macos-x86_64"
     TARGET="x86_64-apple-darwin"
   fi
@@ -234,16 +234,16 @@ main() {
   # Step 3: 下载二进制
   local base_url="https://github.com/${REPO}/releases/download/${VERSION}"
 
-  info "Downloading aion-cli..."
-  download "${base_url}/${CLI_ARTIFACT}" "${INSTALL_DIR}/aion-cli"
-  chmod +x "${INSTALL_DIR}/aion-cli"
+  info "Downloading aion-forge-cli..."
+  download "${base_url}/${CLI_ARTIFACT}" "${INSTALL_DIR}/aion-forge-cli"
+  chmod +x "${INSTALL_DIR}/aion-forge-cli"
 
   info "Downloading aion-server..."
   download "${base_url}/${SERVER_ARTIFACT}" "${INSTALL_DIR}/aion-server"
   chmod +x "${INSTALL_DIR}/aion-server"
 
   # Step 4: SHA256 校验
-  verify_checksum "${INSTALL_DIR}/aion-cli" "$TARGET"
+  verify_checksum "${INSTALL_DIR}/aion-forge-cli" "$TARGET"
   verify_checksum "${INSTALL_DIR}/aion-server" "$TARGET"
 
   # Step 5: 配置 PATH
@@ -297,10 +297,10 @@ ENVEOF
   # Step 7: 验证安装
   echo ""
   info "Verifying installation... / 验证安装..."
-  if "${INSTALL_DIR}/aion-cli" --help &>/dev/null; then
-    ok "aion-cli is working / aion-cli 正常工作"
+  if "${INSTALL_DIR}/aion-forge-cli" --help &>/dev/null; then
+    ok "aion-forge-cli is working / aion-forge-cli 正常工作"
   else
-    warn "aion-cli verification failed — binary may not be compatible with this system"
+    warn "aion-forge-cli verification failed — binary may not be compatible with this system"
   fi
 
   # Step 8: 完成
@@ -319,7 +319,7 @@ ENVEOF
   echo -e "    source ~/.bashrc  # or ~/.zshrc"
   echo ""
   echo -e "    # Try it / 试一试"
-  echo -e "    aion-cli echo \"hello world\""
+  echo -e "    aion-forge-cli echo \"hello world\""
   echo ""
   echo -e "    # Start HTTP API server / 启动 HTTP API"
   echo -e "    aion-server"
@@ -329,7 +329,7 @@ ENVEOF
   echo ""
   echo -e "  ${YELLOW}AI Platform Integration / AI 平台集成:${NC}"
   echo -e "    aionui  → Drop skill.json into skills directory"
-  echo -e "    Claude  → aion-cli mcp-server (MCP stdio)"
+  echo -e "    Claude  → aion-forge-cli mcp-server (MCP stdio)"
   echo -e "    ChatGPT → Import openapi.yaml as Custom GPT Action"
   echo -e "    HTTP    → curl http://localhost:3000/v1/route"
   echo ""

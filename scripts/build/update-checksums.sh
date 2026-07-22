@@ -15,10 +15,10 @@ echo "Updating checksums in $MANIFEST..."
 
 # 定义二进制名称到 JSON 路径的映射
 declare -A BINARY_MAP=(
-  ["aion-cli-linux-x86_64"]="aion-cli.platforms.x86_64-unknown-linux-musl"
-  ["aion-cli-windows-x86_64.exe"]="aion-cli.platforms.x86_64-pc-windows-msvc"
-  ["aion-cli-macos-x86_64"]="aion-cli.platforms.x86_64-apple-darwin"
-  ["aion-cli-macos-aarch64"]="aion-cli.platforms.aarch64-apple-darwin"
+  ["aion-forge-cli-linux-x86_64"]="aion-forge-cli.platforms.x86_64-unknown-linux-musl"
+  ["aion-forge-cli-windows-x86_64.exe"]="aion-forge-cli.platforms.x86_64-pc-windows-msvc"
+  ["aion-forge-cli-macos-x86_64"]="aion-forge-cli.platforms.x86_64-apple-darwin"
+  ["aion-forge-cli-macos-aarch64"]="aion-forge-cli.platforms.aarch64-apple-darwin"
   ["aion-server-linux-x86_64"]="aion-server.platforms.x86_64-unknown-linux-musl"
   ["aion-server-windows-x86_64.exe"]="aion-server.platforms.x86_64-pc-windows-msvc"
   ["aion-server-macos-x86_64"]="aion-server.platforms.x86_64-apple-darwin"
@@ -28,7 +28,7 @@ declare -A BINARY_MAP=(
 # 为每个二进制计算 SHA256 并用 python3 更新 JSON
 for artifact_name in "${!BINARY_MAP[@]}"; do
   json_path="${BINARY_MAP[$artifact_name]}"
-  binary_name="${json_path%%.*}"       # e.g. "aion-cli"
+  binary_name="${json_path%%.*}"       # e.g. "aion-forge-cli"
   platform_path="${json_path#*.}"      # e.g. "platforms.x86_64-unknown-linux-musl"
   platform="${platform_path#*.}"       # e.g. "x86_64-unknown-linux-musl"
 

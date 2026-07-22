@@ -112,7 +112,7 @@ function Test-Checksum {
     $manifest = Get-Content $manifestFile | ConvertFrom-Json
     $expected = $null
 
-    foreach ($binary in @("aion-cli", "aion-server")) {
+    foreach ($binary in @("aion-forge-cli", "aion-server")) {
         $platforms = $manifest.binaries.$binary.platforms
         if ($platforms.$Target) {
             $sha = $platforms.$Target.sha256
@@ -150,7 +150,7 @@ function Main {
     $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
     Write-Info "Detected platform: Windows $arch"
 
-    $cliArtifact = "aion-cli-windows-x86_64.exe"
+    $cliArtifact = "aion-forge-cli-windows-x86_64.exe"
     $serverArtifact = "aion-server-windows-x86_64.exe"
     $target = "x86_64-pc-windows-msvc"
 
@@ -171,14 +171,14 @@ function Main {
     # 下载二进制
     $baseUrl = "https://github.com/$Repo/releases/download/$ver"
 
-    Write-Info "Downloading aion-cli..."
-    Invoke-WebRequest -Uri "$baseUrl/$cliArtifact" -OutFile "$InstallDir\aion-cli.exe" -UseBasicParsing
+    Write-Info "Downloading aion-forge-cli..."
+    Invoke-WebRequest -Uri "$baseUrl/$cliArtifact" -OutFile "$InstallDir\aion-forge-cli.exe" -UseBasicParsing
 
     Write-Info "Downloading aion-server..."
     Invoke-WebRequest -Uri "$baseUrl/$serverArtifact" -OutFile "$InstallDir\aion-server.exe" -UseBasicParsing
 
     # SHA256 校验
-    Test-Checksum -File "$InstallDir\aion-cli.exe" -Target $target
+    Test-Checksum -File "$InstallDir\aion-forge-cli.exe" -Target $target
     Test-Checksum -File "$InstallDir\aion-server.exe" -Target $target
 
     # 配置 PATH
@@ -221,11 +221,11 @@ RUST_LOG=info
     Write-Host ""
     Write-Info "Verifying installation... / 验证安装..."
     try {
-        & "$InstallDir\aion-cli.exe" --help | Out-Null
-        Write-Ok "aion-cli is working / aion-cli 正常工作"
+        & "$InstallDir\aion-forge-cli.exe" --help | Out-Null
+        Write-Ok "aion-forge-cli is working / aion-forge-cli 正常工作"
     }
     catch {
-        Write-Warn "aion-cli verification failed"
+        Write-Warn "aion-forge-cli verification failed"
     }
 
     # 完成
@@ -241,7 +241,7 @@ RUST_LOG=info
     Write-Host "  Quick Start / 快速开始:" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "    # Restart terminal, then / 重启终端后:"
-    Write-Host "    aion-cli echo `"hello world`""
+    Write-Host "    aion-forge-cli echo `"hello world`""
     Write-Host ""
     Write-Host "    # Start HTTP API / 启动 HTTP API:"
     Write-Host "    aion-server"
@@ -251,7 +251,7 @@ RUST_LOG=info
     Write-Host ""
     Write-Host "  AI Platform Integration / AI 平台集成:" -ForegroundColor Yellow
     Write-Host "    aionui  -> Drop skill.json into skills directory"
-    Write-Host "    Claude  -> aion-cli mcp-server (MCP stdio)"
+    Write-Host "    Claude  -> aion-forge-cli mcp-server (MCP stdio)"
     Write-Host "    ChatGPT -> Import openapi.yaml as Custom GPT Action"
     Write-Host "    HTTP    -> curl http://localhost:3000/v1/route"
     Write-Host ""

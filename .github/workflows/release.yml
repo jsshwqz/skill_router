@@ -16,19 +16,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            cli_name: aion-cli-linux-x86_64
+            cli_name: aion-forge-cli-linux-x86_64
             server_name: aion-server-linux-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            cli_name: aion-cli-windows-x86_64.exe
+            cli_name: aion-forge-cli-windows-x86_64.exe
             server_name: aion-server-windows-x86_64.exe
           - os: macos-13
             target: x86_64-apple-darwin
-            cli_name: aion-cli-macos-x86_64
+            cli_name: aion-forge-cli-macos-x86_64
             server_name: aion-server-macos-x86_64
           - os: macos-latest
             target: aarch64-apple-darwin
-            cli_name: aion-cli-macos-aarch64
+            cli_name: aion-forge-cli-macos-aarch64
             server_name: aion-server-macos-aarch64
     runs-on: ${{ matrix.os }}
     steps:
@@ -53,16 +53,16 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release binaries
-        run: cargo build --release --target ${{ matrix.target }} -p aion-cli -p aion-server
+        run: cargo build --release --target ${{ matrix.target }} -p aion-forge-cli -p aion-server
 
       # --- Rename CLI ---
       - name: Rename CLI (Unix)
         if: matrix.os != 'windows-latest'
-        run: cp target/${{ matrix.target }}/release/aion-cli ${{ matrix.cli_name }}
+        run: cp target/${{ matrix.target }}/release/aion-forge-cli ${{ matrix.cli_name }}
 
       - name: Rename CLI (Windows)
         if: matrix.os == 'windows-latest'
-        run: cp target/${{ matrix.target }}/release/aion-cli.exe ${{ matrix.cli_name }}
+        run: cp target/${{ matrix.target }}/release/aion-forge-cli.exe ${{ matrix.cli_name }}
 
       # --- Rename Server ---
       - name: Rename Server (Unix)

@@ -55,14 +55,14 @@ for platform in "${!PLATFORMS[@]}"; do
 
   # 复制二进制（从 artifacts 目录查找）
   if [[ "$platform" == windows* ]]; then
-    cli_file=$(find "$ARTIFACTS_DIR" -name "aion-cli-${platform}.exe" -type f 2>/dev/null | head -1)
+    cli_file=$(find "$ARTIFACTS_DIR" -name "aion-forge-cli-${platform}.exe" -type f 2>/dev/null | head -1)
     server_file=$(find "$ARTIFACTS_DIR" -name "aion-server-${platform}.exe" -type f 2>/dev/null | head -1)
-    [[ -n "$cli_file" ]] && cp "$cli_file" "$pkg_dir/aion-cli.exe"
+    [[ -n "$cli_file" ]] && cp "$cli_file" "$pkg_dir/aion-forge-cli.exe"
     [[ -n "$server_file" ]] && cp "$server_file" "$pkg_dir/aion-server.exe"
   else
-    cli_file=$(find "$ARTIFACTS_DIR" -name "aion-cli-${platform}" -type f 2>/dev/null | head -1)
+    cli_file=$(find "$ARTIFACTS_DIR" -name "aion-forge-cli-${platform}" -type f 2>/dev/null | head -1)
     server_file=$(find "$ARTIFACTS_DIR" -name "aion-server-${platform}" -type f 2>/dev/null | head -1)
-    [[ -n "$cli_file" ]] && { cp "$cli_file" "$pkg_dir/aion-cli"; chmod +x "$pkg_dir/aion-cli"; }
+    [[ -n "$cli_file" ]] && { cp "$cli_file" "$pkg_dir/aion-forge-cli"; chmod +x "$pkg_dir/aion-forge-cli"; }
     [[ -n "$server_file" ]] && { cp "$server_file" "$pkg_dir/aion-server"; chmod +x "$pkg_dir/aion-server"; }
   fi
 

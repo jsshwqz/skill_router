@@ -1347,8 +1347,8 @@
     "yaml_parse"
   ],
   "description": "Universal AI Agent Capability Router — 29+ built-in skills",
-  "entrypoint": "aion-cli",
-  "entrypoint_dev": "cargo run -p aion-cli --",
+  "entrypoint": "aion-forge-cli",
+  "entrypoint_dev": "cargo run -p aion-forge-cli --",
   "name": "aion-forge",
   "permissions": {
     "filesystem_read": true,

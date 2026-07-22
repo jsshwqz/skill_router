@@ -129,13 +129,13 @@
     }
   },
   "binaries": {
-    "aion-cli": {
+    "aion-forge-cli": {
       "description": "Command-line interface for direct skill execution",
       "platforms": {
-        "x86_64-unknown-linux-musl": { "filename": "aion-cli-linux-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
-        "x86_64-pc-windows-msvc": { "filename": "aion-cli-windows-x86_64.exe", "sha256": "TO_BE_FILLED_BY_CI" },
-        "x86_64-apple-darwin": { "filename": "aion-cli-macos-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
-        "aarch64-apple-darwin": { "filename": "aion-cli-macos-aarch64", "sha256": "TO_BE_FILLED_BY_CI" }
+        "x86_64-unknown-linux-musl": { "filename": "aion-forge-cli-linux-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
+        "x86_64-pc-windows-msvc": { "filename": "aion-forge-cli-windows-x86_64.exe", "sha256": "TO_BE_FILLED_BY_CI" },
+        "x86_64-apple-darwin": { "filename": "aion-forge-cli-macos-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
+        "aarch64-apple-darwin": { "filename": "aion-forge-cli-macos-aarch64", "sha256": "TO_BE_FILLED_BY_CI" }
       }
     },
     "aion-server": {
@@ -155,7 +155,7 @@
       "Check no conflicting service on port 3000 (or configure AION_PORT)"
     ],
     "post_install": [
-      "Run 'aion-cli echo test' — should return {\"output\": \"test\"}",
+      "Run 'aion-forge-cli echo test' — should return {\"output\": \"test\"}",
       "Run 'aion-server' then curl http://localhost:3000/v1/health — should return {\"status\": \"ok\"}"
     ]
   }

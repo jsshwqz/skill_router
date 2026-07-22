@@ -4,7 +4,7 @@
 
 Aion Forge 是纯 Rust 实现的 MCP 工具服务器，为 AionUI 和其他 MCP 客户端提供代码、解析、搜索、记忆、RAG、治理及多模型编排能力。
 
-当前正式启动入口为 `aion-cli.exe mcp-server`。AI 请求通过本机 OmniRoute 的 OpenAI-compatible 接口路由，默认模型为 `auto/fast`。
+当前正式启动入口为 `aion-forge-cli.exe mcp-server`。AI 请求通过本机 OmniRoute 的 OpenAI-compatible 接口路由，默认模型为 `auto/fast`。
 
 ## Workspace
 
@@ -16,17 +16,19 @@ Aion Forge 是纯 Rust 实现的 MCP 工具服务器，为 AionUI 和其他 MCP 
 | `aion-router` | 技能路由、执行、治理和 MCP 核心 |
 | `aion-sandbox` | 命令策略、隔离与审计 |
 | `glitch-filter` | 控制字符及异常输入过滤 |
-| `aion-cli` | CLI 与正式 MCP server 入口 |
+| `aion-forge-cli` | CLI 与正式 MCP server 入口 |
 | `aion-server` | axum HTTP API |
 | `aion-forge-cli-gen` | CLI 适配器生成 |
 | `aion-zl` | 辩证分析与战略规划 |
-| `aion-forge-acp` | 停用的历史 ACP 兼容适配器 |
+| `aion-forge-acp` | 可选 ACP 入口 |
 
 ## 运行链路
 
 AionUI 正常 Agent → Aion Forge MCP → `aion-router` builtin → OmniRoute → 可用模型 Provider。
 
 ACP 独立聊天壳不在正式链路中，也不应自动注册。
+
+`aion-cli` 属于 `D:/test/aionui/aion-cli` 的独立 AionUI Agent 项目，不是 Forge workspace、入口或兼容产物。
 
 ## 当前验证基线
 
@@ -48,6 +50,6 @@ ACP 独立聊天壳不在正式链路中，也不应自动注册。
 ## 已知债务
 
 1. `route_task` 对 workspace 分析类中文任务仍可能产生语义误判。
-2. `aion-forge-acp`、`aion-cli` 和 `aion-zl` 的入口级集成测试仍需补充。
+2. `aion-forge-acp` 和 `aion-zl` 的入口级集成测试仍需补充。
 3. Forge 能力发现偶尔先走动态发现，再命中已有 builtin，存在额外延迟。
 4. crate 版本目前独立演进，发布前需要明确版本策略。

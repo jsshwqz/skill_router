@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "aion-forge": {
-      "command": "aion-cli",
+      "command": "aion-forge-cli",
       "args": ["mcp-server"],
       "env": {
         "AI_PASSTHROUGH": "true",
