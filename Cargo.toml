@@ -4,11 +4,12 @@ members = [
     "aion-memory",
     "aion-intel",
     "aion-router",
-    "aion-cli",
+    "aion-forge-cli",
     "aion-server",
     "aion-sandbox",
-    "aion-cli-gen",
-    "aion-zl", "aion-forge-acp",
+    "aion-forge-cli-gen",
+    "aion-zl",
+    "aion-forge-acp",
     "crates/glitch-filter",
 ]
 resolver = "2"

@@ -16,9 +16,9 @@ $p="$env:USERPROFILE\.aion\learning\execution_events.jsonl"
 Get-Content $p -Tail 10
 
 # 2) 触发 Forge 执行
-cargo run -q -p aion-cli -- --json "health check"
-cargo run -q -p aion-cli -- --json "evolution report"
-cargo run -q -p aion-cli -- --json "skill report"
+cargo run -q -p aion-forge-cli -- --tool health_check --params '{}' --quiet
+cargo run -q -p aion-forge-cli -- --tool evolution_report --params '{}' --quiet
+cargo run -q -p aion-forge-cli -- --tool skill_report --params '{}' --quiet
 
 # 3) 再看事件数是否增长
 (Get-Content $p | Measure-Object -Line).Lines
@@ -40,4 +40,3 @@ Get-Content .skill-router/executions.log -Tail 10
 - `82de4f3`：wordcount 输入兼容 + 建议逻辑收敛
 - `b297a79`：未修复失败追踪 + 最近窗口诊断
 - `b7725d5`：自治策略接入路由前决策
-

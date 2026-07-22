@@ -51,13 +51,10 @@ pub struct HealthResponse {
 // ── Capabilities ─────────────────────────────────────────────────────────────
 
 /// `GET /v1/capabilities`
-pub async fn list_capabilities(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn list_capabilities(State(state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>, AppError> {
     let reg = state.router.registry();
     let defs: Vec<_> = reg.definitions().cloned().collect();
-    let result = serde_json::to_value(&defs)
-        .map_err(|e| anyhow::anyhow!("serialization error: {}", e))?;
+    let result = serde_json::to_value(&defs).map_err(|e| anyhow::anyhow!("serialization error: {}", e))?;
     Ok(Json(result))
 }
 
@@ -146,13 +143,17 @@ pub async fn route_native(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<AiNativePayload>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<ApiError>)> {
-    info!("API native route: intent='{}', capability={:?}", payload.intent, payload.capability);
+    info!(
+        "API native route: intent='{}', capability={:?}",
+        payload.intent, payload.capability
+    );
 
     // Check delegation depth
     let max_depth = aion_router::config::max_delegation_depth();
     if payload.delegation_depth_exceeded(max_depth) {
         return Err(ApiError::bad_request(format!(
-            "delegation chain exceeds maximum depth of {}", max_depth
+            "delegation chain exceeds maximum depth of {}",
+            max_depth
         )));
     }
 
@@ -240,11 +241,17 @@ pub async fn memory_remember(
         return Err(ApiError::bad_request("content field is required"));
     }
 
-    info!("API memory remember: category={}, importance={}", req.category, req.importance);
+    info!(
+        "API memory remember: category={}, importance={}",
+        req.category, req.importance
+    );
 
     let memory = state.memory.clone();
     let category = parse_memory_category(&req.category);
-    let session_id = req.session_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let session_id = req
+        .session_id
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
 
     match memory.remember(category, &req.content, &session_id, req.importance) {
         Ok(entry_id) => {
@@ -268,12 +275,12 @@ pub struct RememberRequest {
     pub importance: u8,
 }
 
-fn default_importance() -> u8 { 5 }
+fn default_importance() -> u8 {
+    5
+}
 
 /// `GET /v1/memory/stats`
-pub async fn memory_stats(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<serde_json::Value>, AppError> {
+pub async fn memory_stats(State(state): State<Arc<AppState>>) -> Result<Json<serde_json::Value>, AppError> {
     let memory = state.memory.clone();
     let stats = memory.stats()?;
     Ok(Json(stats))
@@ -292,7 +299,7 @@ pub async fn agents_info() -> Json<serde_json::Value> {
         "node_capabilities": caps,
         "nats_connected": nats.is_some(),
         "nats_url": nats,
-        "message": "Full multi-agent orchestration available via CLI (aion-cli agent run) or NATS bus"
+        "message": "Full multi-agent orchestration is available via the external AionUI Agent CLI (aion-cli agent run from D:/test/aionui/aion-cli) or NATS bus"
     }))
 }
 
@@ -314,7 +321,8 @@ pub async fn agent_delegate(
     let max_depth = aion_router::config::max_delegation_depth();
     if payload.delegation_depth_exceeded(max_depth) {
         return Err(ApiError::bad_request(format!(
-            "delegation chain exceeds maximum depth of {}", max_depth
+            "delegation chain exceeds maximum depth of {}",
+            max_depth
         )));
     }
 
@@ -355,11 +363,11 @@ pub async fn metrics(State(state): State<Arc<AppState>>) -> String {
 fn parse_memory_category(s: &str) -> aion_memory::memory::MemoryCategory {
     use aion_memory::memory::MemoryCategory;
     match s.to_lowercase().as_str() {
-        "decision"      => MemoryCategory::Decision,
-        "lesson"        => MemoryCategory::Lesson,
-        "error"         => MemoryCategory::Error,
-        "preference"    => MemoryCategory::Preference,
-        "architecture"  => MemoryCategory::Architecture,
+        "decision" => MemoryCategory::Decision,
+        "lesson" => MemoryCategory::Lesson,
+        "error" => MemoryCategory::Error,
+        "preference" => MemoryCategory::Preference,
+        "architecture" => MemoryCategory::Architecture,
         "taskprogress" | "task_progress" => MemoryCategory::TaskProgress,
         _ => MemoryCategory::Lesson,
     }

@@ -1,4 +1,4 @@
-//! # aion-cli-gen
+//! # aion-forge-cli-gen
 //!
 //! CLI 包装器自动生成管道——分析外部工具并生成 AI Agent 可用的技能包。
 //!
@@ -13,13 +13,13 @@
 //! ## 使用
 //!
 //! ```text
-//! aion-cli tool generate <tool-name> --output ./skills/
+//! aion-forge-cli-gen tool generate <tool-name> --output ./skills/
 //! ```
 
 pub mod analyzer;
 pub mod generator;
 pub mod pipeline;
 
-pub use analyzer::{ToolAnalyzer, ToolAnalysis};
+pub use analyzer::{ToolAnalysis, ToolAnalyzer};
 pub use generator::SkillGenerator;
 pub use pipeline::{GenerationPipeline, PipelineResult};

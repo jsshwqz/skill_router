@@ -1,7 +1,7 @@
 //! aion-server — HTTP REST API for Skill Router
 //!
 //! 将 Aion 能力路由器以 Web 服务形式对外暴露，
-//! 供其他 Rust 服务、aion-cli 远程模式或 curl 调试使用。
+//! 供其他 Rust 服务、aion-forge-cli 或 curl 调试使用。
 //! 所有代码遵循项目规定：仅使用 Rust。
 //!
 //! # Endpoints
@@ -32,9 +32,9 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use axum::http::{HeaderValue, Method};
 use axum::routing::{get, post};
 use axum::Router;
-use axum::http::{HeaderValue, Method};
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -60,12 +60,16 @@ async fn main() -> anyhow::Result<()> {
         .ok()
         .and_then(|p| p.parent().map(|d| d.to_path_buf()));
     // project root = exe_dir/../../   (target/debug/ → forge/)
-    let project_root = exe_dir.as_ref()
+    let project_root = exe_dir
+        .as_ref()
         .and_then(|d| d.parent())
         .and_then(|d| d.parent())
         .map(|d| d.to_path_buf());
     let mut env_loaded = false;
-    for dir in [std::env::current_dir().ok(), exe_dir, project_root].into_iter().flatten() {
+    for dir in [std::env::current_dir().ok(), exe_dir, project_root]
+        .into_iter()
+        .flatten()
+    {
         let env_path = dir.join(".env");
         if env_path.exists() && dotenvy::from_path(&env_path).is_ok() {
             env_loaded = true;
@@ -74,9 +78,11 @@ async fn main() -> anyhow::Result<()> {
     }
     if env_loaded {
         // Use eprintln since tracing isn't initialized yet
-        eprintln!(".env loaded: AI_MODEL={}, AION_PORT={}",
+        eprintln!(
+            ".env loaded: AI_MODEL={}, AION_PORT={}",
             std::env::var("AI_MODEL").unwrap_or_default(),
-            std::env::var("AION_PORT").unwrap_or_default());
+            std::env::var("AION_PORT").unwrap_or_default()
+        );
     } else {
         eprintln!(".env not found, using existing environment");
     }
@@ -194,16 +200,10 @@ fn build_cors_layer() -> CorsLayer {
         CorsLayer::new().allow_origin(origins)
     };
 
-    base.allow_methods([
-        Method::GET,
-        Method::POST,
-        Method::PUT,
-        Method::DELETE,
-        Method::OPTIONS,
-    ])
-    .allow_headers([
-        axum::http::header::CONTENT_TYPE,
-        axum::http::header::AUTHORIZATION,
-        axum::http::header::ACCEPT,
-    ])
+    base.allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::ACCEPT,
+        ])
 }

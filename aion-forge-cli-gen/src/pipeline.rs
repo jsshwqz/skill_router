@@ -100,8 +100,8 @@ impl GenerationPipeline {
 
         // 验证 skill.json 是合法 JSON
         let skill_json = std::fs::read_to_string(skill_dir.join("skill.json"))?;
-        let _: serde_json::Value = serde_json::from_str(&skill_json)
-            .map_err(|e| anyhow::anyhow!("invalid skill.json: {}", e))?;
+        let _: serde_json::Value =
+            serde_json::from_str(&skill_json).map_err(|e| anyhow::anyhow!("invalid skill.json: {}", e))?;
 
         // 验证 sandbox-policy.json 可解析
         let _policy = SandboxPolicy::load_from_file(&skill_dir.join("sandbox-policy.json"))?;
@@ -113,8 +113,7 @@ impl GenerationPipeline {
     fn security_review(policy: &SandboxPolicy) -> Result<()> {
         // 检查是否有明显不安全的命令
         let dangerous_commands = [
-            "rm", "del", "format", "mkfs", "dd", "chmod", "chown",
-            "shutdown", "reboot", "kill", "pkill", "killall",
+            "rm", "del", "format", "mkfs", "dd", "chmod", "chown", "shutdown", "reboot", "kill", "pkill", "killall",
         ];
 
         for cmd in policy.allowed_commands.keys() {
@@ -147,21 +146,24 @@ impl GenerationPipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::BTreeMap;
     use aion_sandbox::policy::CommandRule;
+    use std::collections::BTreeMap;
 
     #[test]
     fn test_security_review_blocks_dangerous() {
         let mut commands = BTreeMap::new();
-        commands.insert("rm".to_string(), CommandRule {
-            allowed_args_patterns: vec![],
-            blocked_args_patterns: vec![],
-            timeout_secs: 10,
-            max_output_bytes: 1024,
-            allowed_env_vars: vec![],
-            work_dir_policy: aion_sandbox::WorkDirPolicy::TempDir,
-            description: String::new(),
-        });
+        commands.insert(
+            "rm".to_string(),
+            CommandRule {
+                allowed_args_patterns: vec![],
+                blocked_args_patterns: vec![],
+                timeout_secs: 10,
+                max_output_bytes: 1024,
+                allowed_env_vars: vec![],
+                work_dir_policy: aion_sandbox::WorkDirPolicy::TempDir,
+                description: String::new(),
+            },
+        );
         let policy = SandboxPolicy {
             name: "bad".to_string(),
             version: "1.0".to_string(),
@@ -175,15 +177,18 @@ mod tests {
     #[test]
     fn test_security_review_allows_safe() {
         let mut commands = BTreeMap::new();
-        commands.insert("curl".to_string(), CommandRule {
-            allowed_args_patterns: vec![],
-            blocked_args_patterns: vec![],
-            timeout_secs: 30,
-            max_output_bytes: 1024,
-            allowed_env_vars: vec![],
-            work_dir_policy: aion_sandbox::WorkDirPolicy::TempDir,
-            description: String::new(),
-        });
+        commands.insert(
+            "curl".to_string(),
+            CommandRule {
+                allowed_args_patterns: vec![],
+                blocked_args_patterns: vec![],
+                timeout_secs: 30,
+                max_output_bytes: 1024,
+                allowed_env_vars: vec![],
+                work_dir_policy: aion_sandbox::WorkDirPolicy::TempDir,
+                description: String::new(),
+            },
+        );
         let policy = SandboxPolicy {
             name: "safe".to_string(),
             version: "1.0".to_string(),

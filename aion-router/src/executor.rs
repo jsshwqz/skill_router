@@ -18,7 +18,7 @@ use serde_json::{json, Value};
 use crate::builtins::BuiltinRegistry;
 use crate::security::{AiSecurityReviewer, Security, Verdict};
 use aion_intel::immunity::ImmunitySystem;
-use aion_sandbox::{SandboxedCommand, SandboxedExecutor, SandboxPolicy};
+use aion_sandbox::{SandboxPolicy, SandboxedCommand, SandboxedExecutor};
 use aion_types::types::{ExecutionContext, ExecutionResponse, RouterPaths, SkillDefinition, TokenUsage};
 
 /// 全局 builtin 注册表（进程生命周期内只初始化一次）
@@ -53,7 +53,10 @@ impl Executor {
         Self::validate_permissions(skill, paths)?;
 
         // 可选前置治理（AION_EVOLVER_GOVERNANCE=true 时启用）
-        if std::env::var("AION_EVOLVER_GOVERNANCE").map(|v| v == "true").unwrap_or(false) {
+        if std::env::var("AION_EVOLVER_GOVERNANCE")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+        {
             if let Some(governance) = Self::run_governance(context).await? {
                 return Ok(ExecutionResponse {
                     status: "governance_blocked".into(),
@@ -67,9 +70,7 @@ impl Executor {
 
         paths.ensure_base_dirs()?;
 
-        if let Verdict::Deny(reason) =
-            AiSecurityReviewer::review_pre_execution(skill, context, paths).await
-        {
+        if let Verdict::Deny(reason) = AiSecurityReviewer::review_pre_execution(skill, context, paths).await {
             return Err(anyhow!("security review blocked execution: {}", reason));
         }
 
@@ -96,35 +97,24 @@ impl Executor {
 
         let duration = start.elapsed();
         let success = response.is_ok();
-        crate::metrics::record_skill_execution(
-            &skill.metadata.name,
-            &context.capability,
-            success,
-            duration,
-        );
+        crate::metrics::record_skill_execution(&skill.metadata.name, &context.capability, success, duration);
 
         // 记录 Token 消耗（从 ExecutionResponse 的 token_usage 字段提取）
         if let Ok(ref resp) = response {
             if let Some(token_usage) = &resp.token_usage {
-                let provider = resp.result.get("provider")
+                let provider = resp
+                    .result
+                    .get("provider")
                     .and_then(|p| p.as_str())
                     .unwrap_or("unknown");
-                crate::metrics::record_token_usage(
-                    &skill.metadata.name,
-                    &context.capability,
-                    provider,
-                    token_usage,
-                );
+                crate::metrics::record_token_usage(&skill.metadata.name, &context.capability, provider, token_usage);
             }
         }
 
         // 学习引擎：持久化记录执行结果（含来源与失败分类）
         if let Some(learner) = crate::learner::learner() {
             let source = Self::execution_source(context);
-            let error = response
-                .as_ref()
-                .err()
-                .map(|e| e.to_string());
+            let error = response.as_ref().err().map(|e| e.to_string());
             let empty_output = response
                 .as_ref()
                 .ok()
@@ -143,9 +133,7 @@ impl Executor {
 
         let response = response?;
 
-        if let Verdict::Deny(reason) =
-            AiSecurityReviewer::review_post_execution(skill, &response, paths).await
-        {
+        if let Verdict::Deny(reason) = AiSecurityReviewer::review_post_execution(skill, &response, paths).await {
             return Err(anyhow!("security review blocked output: {}", reason));
         }
 
@@ -154,10 +142,7 @@ impl Executor {
     }
 
     /// 通过 `BuiltinRegistry` 查找并执行 builtin 技能
-    async fn execute_builtin(
-        skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<ExecutionResponse> {
+    async fn execute_builtin(skill: &SkillDefinition, context: &ExecutionContext) -> Result<ExecutionResponse> {
         let builtin_name = skill.metadata.entrypoint.trim_start_matches("builtin:");
 
         // 禁用入口
@@ -218,7 +203,8 @@ impl Executor {
         }
 
         // 从 result 中提取 token_usage（ai_task builtin 会附带）
-        let token_usage = result.get("token_usage")
+        let token_usage = result
+            .get("token_usage")
             .and_then(|v| serde_json::from_value::<TokenUsage>(v.clone()).ok());
 
         Ok(ExecutionResponse {
@@ -246,13 +232,8 @@ impl Executor {
 
         // 2. 加载沙箱策略
         let policy_path = skill.root_dir.join("sandbox-policy.json");
-        let policy = SandboxPolicy::load_from_file(&policy_path).map_err(|e| {
-            anyhow!(
-                "failed to load sandbox policy for '{}': {}",
-                skill.metadata.name,
-                e
-            )
-        })?;
+        let policy = SandboxPolicy::load_from_file(&policy_path)
+            .map_err(|e| anyhow!("failed to load sandbox policy for '{}': {}", skill.metadata.name, e))?;
 
         // 3. 检查策略是否已被用户批准
         let approved_path = paths.state_dir.join("approved-policies.json");
@@ -269,9 +250,7 @@ impl Executor {
         // 从 context 提取参数
         let args: Vec<String> = if let Some(args_val) = context.context.get("args") {
             if let Some(arr) = args_val.as_array() {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
+                arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()
             } else if let Some(s) = args_val.as_str() {
                 s.split_whitespace().map(String::from).collect()
             } else {
@@ -323,15 +302,12 @@ impl Executor {
     }
 
     /// 检查策略是否已被用户批准
-    fn check_policy_approved(
-        approved_path: &std::path::Path,
-        skill_name: &str,
-        policy_hash: &str,
-    ) -> Result<()> {
+    fn check_policy_approved(approved_path: &std::path::Path, skill_name: &str, policy_hash: &str) -> Result<()> {
         if !approved_path.exists() {
             return Err(anyhow!(
                 "sandbox policy for '{}' has not been approved. \
-                 Run `aion-cli sandbox approve {}` to review and approve.",
+                 Run the external AionUI Agent CLI `aion-cli sandbox approve {}` from \
+                 `D:/test/aionui/aion-cli` to review and approve.",
                 skill_name,
                 skill_name
             ));
@@ -346,7 +322,8 @@ impl Executor {
             }
             return Err(anyhow!(
                 "sandbox policy for '{}' has changed since approval (hash mismatch). \
-                 Re-approve with `aion-cli sandbox approve {}`.",
+                 Re-approve with the external AionUI Agent CLI \
+                 `aion-cli sandbox approve {}` from `D:/test/aionui/aion-cli`.",
                 skill_name,
                 skill_name
             ));
@@ -354,7 +331,8 @@ impl Executor {
 
         Err(anyhow!(
             "sandbox policy for '{}' has not been approved. \
-             Run `aion-cli sandbox approve {}` to review and approve.",
+             Run the external AionUI Agent CLI `aion-cli sandbox approve {}` from \
+             `D:/test/aionui/aion-cli` to review and approve.",
             skill_name,
             skill_name
         ))

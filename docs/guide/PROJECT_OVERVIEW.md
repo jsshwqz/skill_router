@@ -18,7 +18,7 @@ Aion Forge 是纯 Rust 实现的 MCP 工具服务器，为 AionUI 和其他 MCP 
 | `glitch-filter` | 控制字符及异常输入过滤 |
 | `aion-cli` | CLI 与正式 MCP server 入口 |
 | `aion-server` | axum HTTP API |
-| `aion-cli-gen` | CLI 适配器生成 |
+| `aion-forge-cli-gen` | CLI 适配器生成 |
 | `aion-zl` | 辩证分析与战略规划 |
 | `aion-forge-acp` | 停用的历史 ACP 兼容适配器 |
 

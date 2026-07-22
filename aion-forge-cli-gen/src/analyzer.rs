@@ -55,10 +55,7 @@ pub struct ToolAnalyzer;
 
 impl ToolAnalyzer {
     /// 分析一个 CLI 工具
-    pub async fn analyze(
-        tool_name: &str,
-        executor: &SandboxedExecutor,
-    ) -> Result<ToolAnalysis> {
+    pub async fn analyze(tool_name: &str, executor: &SandboxedExecutor) -> Result<ToolAnalysis> {
         // 1. 获取 --help 输出
         let help_cmd = SandboxedCommand {
             command: tool_name.to_string(),
@@ -84,7 +81,11 @@ impl ToolAnalyzer {
         let version = match executor.execute(&version_cmd).await {
             Ok(v) => {
                 let text = v.stdout.trim().to_string();
-                if text.is_empty() { None } else { Some(text) }
+                if text.is_empty() {
+                    None
+                } else {
+                    Some(text)
+                }
             }
             Err(_) => None,
         };
@@ -120,15 +121,11 @@ impl ToolAnalyzer {
                 section = "usage";
                 continue;
             }
-            if lower.starts_with("commands:") || lower.starts_with("subcommands:")
-                || lower.starts_with("命令:")
-            {
+            if lower.starts_with("commands:") || lower.starts_with("subcommands:") || lower.starts_with("命令:") {
                 section = "commands";
                 continue;
             }
-            if lower.starts_with("options:") || lower.starts_with("flags:")
-                || lower.starts_with("选项:")
-            {
+            if lower.starts_with("options:") || lower.starts_with("flags:") || lower.starts_with("选项:") {
                 section = "options";
                 continue;
             }

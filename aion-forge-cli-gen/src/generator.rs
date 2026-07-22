@@ -54,11 +54,7 @@ impl SkillGenerator {
         if !analysis.global_options.is_empty() {
             md.push_str("## Options\n\n");
             for opt in &analysis.global_options {
-                let flag = opt
-                    .long
-                    .as_deref()
-                    .or(opt.short.as_deref())
-                    .unwrap_or("?");
+                let flag = opt.long.as_deref().or(opt.short.as_deref()).unwrap_or("?");
                 md.push_str(&format!("- `{}`: {}\n", flag, opt.description));
             }
         }
@@ -92,10 +88,7 @@ impl SkillGenerator {
         SandboxPolicy {
             name: format!("{}-sandbox", analysis.name),
             version: "1.0".to_string(),
-            description: format!(
-                "Auto-generated sandbox policy for {}",
-                analysis.name
-            ),
+            description: format!("Auto-generated sandbox policy for {}", analysis.name),
             allowed_commands: commands,
             max_concurrent: 4,
         }
@@ -211,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_write_to_dir() {
-        let tmp = std::env::temp_dir().join("aion-cli-gen-test");
+        let tmp = std::env::temp_dir().join("aion-forge-cli-gen-test");
         let _ = std::fs::remove_dir_all(&tmp);
 
         SkillGenerator::write_to_dir(&sample_analysis(), &tmp).unwrap();
