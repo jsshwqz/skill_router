@@ -1,3 +1,5 @@
+> **历史归档：本文记录旧错误时期把 `aion-cli` 当 Forge 的做法，不是当前执行指南；当前 Forge 使用 `aion-forge-cli.exe mcp-server`。**
+
 # CC 执行说明：正式 `aion-cli.exe` 重编译与替换
 
 ## 1. 背景
@@ -302,4 +304,3 @@ link.exe
    - `D:\test\aionui\config\skills\aion-forge\bin\aion-cli.exe`
 3. 跑完第 6 节的三条真实回归
 4. 将结果补回测试报告
-
