@@ -319,7 +319,7 @@ ENVEOF
   echo -e "    source ~/.bashrc  # or ~/.zshrc"
   echo ""
   echo -e "    # Try it / 试一试"
-  echo -e "    aion-forge-cli echo \"hello world\""
+  echo -e "    aion-forge-cli --tool echo --params '{\"text\":\"hello world\"}' --quiet"
   echo ""
   echo -e "    # Start HTTP API server / 启动 HTTP API"
   echo -e "    aion-server"

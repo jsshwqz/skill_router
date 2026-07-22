@@ -12,14 +12,14 @@
 - 新增自治策略前置路由：基于近期未修复失败能力做拦截与偏好提示（`AUTONOMY_MODE=off|assist|auto`）。
 - `text_wordcount` 增强：当 `context.text` 缺失时自动回退 `task/input`，降低调用契约不一致导致的失败。
 
-### 使用示例
-- 命令：`aion-forge-cli --json "evolution report"`
+### 使用示例（历史记录）
+- 当时命令：`aion-cli --json "evolution report"`；该入口现已迁移到独立 AionUI Agent 项目，当前 Forge CLI 使用 `aion-forge-cli --tool/--params`。
 - 预期：返回 `summary/sources/errors/recommendations/unresolved_failures` 结构化结果。
 
 ### 质量指标（对比 v0.2.1）
 - 稳定性（success_rate，10 次 YAML 解析基准）：`0% -> 100%`  
   - v0.2.1：`skill-router "yaml parse: a: 1"`，10/10 失败（Security Violation）。
-  - v0.3.0：`aion-forge-cli --json "yaml parse: a: 1"`，10/10 成功（`status=ok`）。
+  - v0.3.0：当时使用 `aion-cli --json "yaml parse: a: 1"`，10/10 成功（`status=ok`）；该命令不代表当前 Forge CLI 接口。
 - 时延（P95，同基准）：`9727ms -> 13291ms`（稳定性显著提升，时延后续继续优化）。
 
 ### 修复项
@@ -91,8 +91,8 @@
 - **Multi-Agent System**: 4 workflow modes (serial, parallel, expert panel, competitive)
 - **Distributed Architecture**: NATS message bus + JetStream KV capability registry
 - **HTTP REST API**: aion-server with 10+ endpoints (Axum 0.7)
-- **MCP Protocol**: `aion-forge-cli mcp-server` for Claude Desktop integration
-- **Adapter Generator**: `aion-forge-cli adapter generate` for Claude/OpenAI/HTTP configs
+- **MCP Protocol (historical)**: `aion-cli mcp-server` was the entrypoint in this release; current releases use `aion-forge-cli mcp-server`
+- **Adapter Generator (historical)**: `aion-cli adapter generate` generated Claude/OpenAI/HTTP configs in this release; this is not a current `aion-forge-cli` command
 - **WebSocket Events**: Real-time task lifecycle push via `/v1/stream/{session_id}`
 - **Prometheus Metrics**: `skill_executions_total` + `skill_execution_duration_seconds`
 - **CLI Progress**: spinner, progress bar, `--json`/`--quiet` output modes

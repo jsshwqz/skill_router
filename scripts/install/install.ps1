@@ -241,7 +241,7 @@ RUST_LOG=info
     Write-Host "  Quick Start / 快速开始:" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "    # Restart terminal, then / 重启终端后:"
-    Write-Host "    aion-forge-cli echo `"hello world`""
+    Write-Host "    aion-forge-cli --tool echo --params '{`"text`":`"hello world`"}' --quiet"
     Write-Host ""
     Write-Host "    # Start HTTP API / 启动 HTTP API:"
     Write-Host "    aion-server"

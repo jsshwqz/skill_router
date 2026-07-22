@@ -155,7 +155,7 @@
       "Check no conflicting service on port 3000 (or configure AION_PORT)"
     ],
     "post_install": [
-      "Run 'aion-forge-cli echo test' — should return {\"output\": \"test\"}",
+      "Run \"aion-forge-cli --tool echo --params '{\"text\":\"test\"}' --quiet\" — should return JSON containing {\"echo\":\"test\"}",
       "Run 'aion-server' then curl http://localhost:3000/v1/health — should return {\"status\": \"ok\"}"
     ]
   }

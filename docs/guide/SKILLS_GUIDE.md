@@ -83,6 +83,6 @@
 ### 如何快速查看最新列表？
 在终端运行：
 ```bash
-cargo run -p aion-forge-cli -- export-manifest
+cargo run -p aion-forge-cli -- --list
 ```
-它会生成一个 `manifest.json`，那是给机器看的“说明书”。
+它会输出当前内置工具的 JSON 列表。

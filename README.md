@@ -40,18 +40,18 @@ cargo build --release -p aion-forge-cli -p aion-server
 ## Quick Start / 快速开始
 
 ```bash
-# Run a task / 执行任务
-aion-forge-cli "parse this yaml: name: test"
+# Run a built-in tool / 执行内置工具
+aion-forge-cli --tool yaml_parse --params '{"text":"name: test"}'
 
-# JSON output / JSON 输出
-aion-forge-cli --json "summarize: Rust is a systems language"
+# Compact JSON output / 紧凑 JSON 输出
+aion-forge-cli --tool text_summarize --params '{"text":"Rust is a systems language"}' --quiet
 
 # Start HTTP API / 启动 HTTP API
 aion-server
 # -> http://localhost:3000/v1/health
 
-# Generate adapter configs / 生成适配器配置
-aion-forge-cli adapter generate --output ./adapters/
+# List built-in tools / 列出内置工具
+aion-forge-cli --list
 ```
 
 ---
