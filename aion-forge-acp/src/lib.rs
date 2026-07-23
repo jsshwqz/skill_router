@@ -4,6 +4,7 @@ mod acp;
 pub mod catalog;
 pub mod executor;
 pub mod model_catalog;
+pub mod planner;
 pub mod session;
 
 /// Run the ACP JSON-RPC server over stdin and stdout.

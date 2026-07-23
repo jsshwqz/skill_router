@@ -341,7 +341,7 @@ Commit: `git commit -m "feat(acp): expose and execute live Forge capabilities"`
 - Create: `aion-forge-acp/src/planner.rs`
 - Modify: `aion-forge-acp/src/lib.rs`
 
-- [ ] **Step 1: Write failing action parser tests**
+- [x] **Step 1: Write failing action parser tests**
 
 Cover final responses, valid tool calls, fenced JSON, malformed envelopes, non-object arguments, and one repair request.
 
@@ -363,13 +363,15 @@ fn parses_provider_neutral_tool_action() {
 }
 ```
 
-- [ ] **Step 2: Run and confirm failure**
+- [x] **Step 2: Run and confirm failure**
+
+Observed RED: compilation failed because the planner action, planner trait, AI executor boundary, and production planner were absent.
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp planner -- --nocapture`
 
 Expected: compile failure because planner actions are absent.
 
-- [ ] **Step 3: Implement planner types and trait**
+- [x] **Step 3: Implement planner types and trait**
 
 ```rust
 #[derive(Debug, Clone, PartialEq)]
@@ -396,7 +398,7 @@ pub trait Planner: Send + Sync {
 
 Accept one outer JSON code fence, then require a single object with either `action=final` plus a non-empty `message`, or `action=call_tool` plus a registered `tool` and object `arguments`.
 
-- [ ] **Step 4: Implement the production `AiTaskPlanner`**
+- [x] **Step 4: Implement the production `AiTaskPlanner`**
 
 Resolve the session model through `ModelCatalog` before invoking `ai_task`. For an exact model, pass that exact ID. For `auto`, omit the model constraint and allow the router priority policy. Reject unavailable exact models before any AI call.
 
@@ -406,9 +408,9 @@ Before committing the final prompt template, run the Forge audit:
 
 Run (PowerShell): `rtk aion-forge --tool prompt_audit --params '{"prompt":"<the exact planner template>"}' --quiet`
 
-Expected: no critical missing role, format, or hallucination guard. If the tool is unavailable, record the failure and perform the same eight-point review directly against `AGENTS.md`.
+Observed: `prompt_audit` reported all 8 framework items present with no critical issues.
 
-- [ ] **Step 5: Test exact model forwarding with a fake AI executor and commit**
+- [x] **Step 5: Test exact model forwarding with a fake AI executor and commit**
 
 The fake must record the `model` field. Assert `deepseek-chat` remains `deepseek-chat`, an unknown model returns an error without a request, and only `auto` omits the exact model.
 
