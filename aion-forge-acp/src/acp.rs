@@ -204,7 +204,8 @@ impl ForgeAcpAgent {
                 .map_err(RequestFailure::internal)?;
         }
 
-        let text = prompt_text(&params);
+        let prompt_blocks = prompt_text_blocks(&params);
+        let text = prompt_blocks.join("\n");
         if text.trim().is_empty() {
             let message = "请求内容为空。".to_string();
             sink.message_chunk(&message).await.map_err(RequestFailure::internal)?;
@@ -215,13 +216,22 @@ impl ForgeAcpAgent {
             return prompt_response(StopReason::EndTurn).map_err(RequestFailure::internal);
         }
 
-        if self
-            .sessions
-            .ingest_prompt(&session_id, &text)
-            .await
-            .map_err(RequestFailure::internal)?
-            == PromptDisposition::BootstrapStored
-        {
+        let mut has_user_turn = false;
+        for block in prompt_blocks {
+            if block.trim().is_empty() {
+                continue;
+            }
+            has_user_turn |= self
+                .sessions
+                .ingest_prompt(&session_id, &block)
+                .await
+                .map_err(RequestFailure::internal)?
+                == PromptDisposition::UserTurn;
+        }
+        if !has_user_turn {
+            sink.message_chunk("Aion Forge 已加载会话规则。")
+                .await
+                .map_err(RequestFailure::internal)?;
             return prompt_response(StopReason::EndTurn).map_err(RequestFailure::internal);
         }
 
@@ -385,9 +395,9 @@ async fn dispatch_message(
     }
 }
 
-fn prompt_text(params: &Value) -> String {
+fn prompt_text_blocks(params: &Value) -> Vec<String> {
     if let Some(message) = params.get("message").and_then(Value::as_str) {
-        return message.to_string();
+        return vec![message.to_string()];
     }
 
     params
@@ -397,8 +407,8 @@ fn prompt_text(params: &Value) -> String {
             blocks
                 .iter()
                 .filter_map(|block| block.get("text").and_then(Value::as_str))
+                .map(str::to_string)
                 .collect::<Vec<_>>()
-                .join("\n")
         })
         .unwrap_or_default()
 }
@@ -427,7 +437,7 @@ fn prompt_response(stop_reason: StopReason) -> Result<Value> {
 
 #[cfg(test)]
 mod tests {
-    use super::{prompt_text, requested_model};
+    use super::{prompt_text_blocks, requested_model};
     use serde_json::json;
 
     #[test]
@@ -440,7 +450,27 @@ mod tests {
             ]
         });
 
-        assert_eq!(prompt_text(&params), "第一段\n第二段");
+        assert_eq!(prompt_text_blocks(&params), vec!["第一段", "第二段"]);
+    }
+
+    #[test]
+    fn keeps_bootstrap_and_user_content_in_separate_prompt_blocks() {
+        let params = json!({
+            "prompt": [
+                {"type": "text", "text": "[Assistant Rules]\nAnswer visibly."},
+                {"type": "text", "text": "[Skill: aion-forge]\nUse Forge tools."},
+                {"type": "text", "text": "你有哪些技能？"}
+            ]
+        });
+
+        assert_eq!(
+            prompt_text_blocks(&params),
+            vec![
+                "[Assistant Rules]\nAnswer visibly.".to_string(),
+                "[Skill: aion-forge]\nUse Forge tools.".to_string(),
+                "你有哪些技能？".to_string(),
+            ]
+        );
     }
 
     #[test]

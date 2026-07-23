@@ -69,10 +69,32 @@ pub enum PlannerAction {
 }
 
 impl PlannerAction {
-    /// Parse one strict JSON action, accepting a single outer JSON code fence.
+    /// Parse one JSON action, accepting one unambiguous action embedded in model reasoning text.
     pub fn parse(raw: &str) -> Result<Self> {
-        let payload = strip_outer_json_fence(raw)?;
-        let value: Value = serde_json::from_str(payload).context("planner output is not valid JSON")?;
+        if let Ok(payload) = strip_outer_json_fence(raw) {
+            if let Ok(value) = serde_json::from_str(payload) {
+                return Self::from_value(value);
+            }
+        }
+
+        let mut candidates = raw
+            .char_indices()
+            .filter(|(_, character)| *character == '{')
+            .filter_map(|(offset, _)| {
+                serde_json::Deserializer::from_str(&raw[offset..])
+                    .into_iter::<Value>()
+                    .next()?
+                    .ok()
+                    .and_then(|value| Self::from_value(value).ok())
+            });
+        let action = candidates.next().context("planner output is not valid JSON")?;
+        if candidates.next().is_some() {
+            bail!("planner output contains multiple JSON actions");
+        }
+        Ok(action)
+    }
+
+    fn from_value(value: Value) -> Result<Self> {
         let object = value
             .as_object()
             .ok_or_else(|| anyhow::anyhow!("planner output must be one JSON object"))?;
@@ -367,6 +389,29 @@ mod tests {
                 message: "visible".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn extracts_one_action_from_reasoning_model_output() {
+        let action = PlannerAction::parse(
+            "<think>先分析用户意图。</think>\n这里是结果：\n```json\n{\"action\":\"final\",\"message\":\"Aion Forge 已正常工作\"}\n```\n完成。",
+        )
+        .unwrap();
+
+        assert_eq!(
+            action,
+            PlannerAction::Final {
+                message: "Aion Forge 已正常工作".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_ambiguous_multiple_embedded_actions() {
+        assert!(PlannerAction::parse(
+            "候选一：{\"action\":\"final\",\"message\":\"one\"}\n候选二：{\"action\":\"final\",\"message\":\"two\"}",
+        )
+        .is_err());
     }
 
     #[test]

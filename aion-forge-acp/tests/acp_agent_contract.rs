@@ -144,6 +144,16 @@ fn stateful_acp_session_exposes_models_and_handles_bootstrap_without_leaks() {
     assert_eq!(new_session["result"]["configOptions"][0]["currentValue"], "test-model");
     assert_eq!(set_model["result"]["configOptions"][0]["currentValue"], "test-model");
     assert_eq!(bootstrap["result"]["stopReason"], "end_turn");
+    assert!(
+        wire.iter().any(|message| {
+            message.pointer("/params/update/sessionUpdate").and_then(Value::as_str) == Some("agent_message_chunk")
+                && message
+                    .pointer("/params/update/content/text")
+                    .and_then(Value::as_str)
+                    .is_some_and(|text| text.contains("已加载会话规则"))
+        }),
+        "bootstrap prompt should produce a visible acknowledgement"
+    );
     assert_eq!(invalid_model["result"]["stopReason"], "end_turn");
     let invalid_model_message = wire
         .iter()
