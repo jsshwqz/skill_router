@@ -39,6 +39,7 @@ glitch-filter = { path = "crates/glitch-filter" }
 metrics-exporter-prometheus = "0.16"
 indicatif = "0.17"
 jsonschema = "0.18"
+agent-client-protocol = "1.3.0"
 
 [workspace.lints.clippy]
 all = "warn"

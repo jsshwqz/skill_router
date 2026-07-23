@@ -7,9 +7,14 @@ description = "Aion Forge ACP adapter for AionUI"
 [dependencies]
 aion-types = { path = "../aion-types" }
 aion-router = { path = "../aion-router" }
+agent-client-protocol = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
+async-trait = { workspace = true }
+uuid = { workspace = true }
+tracing = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 tracing-subscriber = { workspace = true }
 dotenvy = { workspace = true }

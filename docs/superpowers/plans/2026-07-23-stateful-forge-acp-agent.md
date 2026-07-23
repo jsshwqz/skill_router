@@ -19,7 +19,7 @@
 - Modify: `aion-forge-cli/tests/acp_contract.rs`
 - Modify: `aion-forge-acp/src/acp.rs`
 
-- [ ] **Step 1: Update the process contract test to send a valid ACP initialize request**
+- [x] **Step 1: Update the process contract test to send a valid ACP initialize request**
 
 Replace the empty initialize parameters with a standard ACP request and close stdin after the request. Assert that stdout contains JSON only, the response echoes the ID, and the negotiated protocol version is present.
 
@@ -35,13 +35,13 @@ assert_eq!(response["result"]["protocolVersion"], 1);
 assert!(response["result"]["agentInfo"]["name"].is_string());
 ```
 
-- [ ] **Step 2: Run the focused test and confirm it fails against the current hand-written response**
+- [x] **Step 2: Run the focused test and confirm it fails against the current hand-written response**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-cli --test acp_contract -- --nocapture`
 
-Expected: failure because the existing adapter does not return the typed ACP initialization shape expected by the test.
+Observed: the legacy adapter accepted malformed initialize parameters, so the focused failure asserted that missing required ACP fields must return JSON-RPC `-32602`.
 
-- [ ] **Step 3: Add shared dependencies**
+- [x] **Step 3: Add shared dependencies**
 
 Add to root `[workspace.dependencies]`:
 
@@ -60,13 +60,13 @@ Add to `aion-forge-acp/Cargo.toml`:
 // tracing = { workspace = true }
 ```
 
-- [ ] **Step 4: Replace only the initialize/shutdown transport shell with the official SDK**
+- [x] **Step 4: Replace only the initialize/shutdown transport shell with the official SDK**
 
 Build the ACP `Agent`, register an `InitializeRequest` handler, and connect through `Stdio::new().with_debug(debug_callback)` so the wire format remains newline-delimited JSON for AionUI. The debug callback must log only direction and byte length through `tracing::trace!`; it must not copy request bodies or credentials into logs.
 
 Retain a narrow raw-dispatch compatibility handler for the legacy `shutdown` request until the existing standalone tests are migrated. Do not retain MCP `tools/list` or `tools/call` behavior in the ACP server; MCP remains under `aion-forge mcp-server`.
 
-- [ ] **Step 5: Run the contract test and commit**
+- [x] **Step 5: Run the contract test and commit**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-cli --test acp_contract -- --nocapture`
 
