@@ -1,5 +1,7 @@
 use std::path::Path;
 
+use serde_json::json;
+
 #[test]
 fn dry_run_config_points_to_cli_mcp_server() {
     let config = aion_forge_cli::setup::dry_run_config(Path::new(r"D:\tools\aion-forge-cli.exe"));
@@ -19,4 +21,26 @@ fn setup_without_supported_helper_is_stable_error() {
     let error = aion_forge_cli::setup::run(false, Path::new("aion-forge-cli.exe"))
         .expect_err("unsupported helper context must not write configuration");
     assert!(error.to_string().contains("CONFIG_ENV_MISSING"));
+}
+
+#[test]
+fn update_input_targets_existing_forge_server() {
+    let listed = json!({
+        "success": true,
+        "data": {
+            "servers": [{
+                "server_id": "mcp_forge",
+                "name": "aion-forge"
+            }]
+        }
+    });
+    let env = json!({"AI_MODEL": "auto/fast"});
+
+    let input = aion_forge_cli::setup::build_update_input(&listed, Path::new(r"D:\tools\aion-forge-cli.exe"), &env)
+        .expect("existing Forge server should be found");
+
+    assert_eq!(input["server_id"], "mcp_forge");
+    assert_eq!(input["transport"]["command"], r"D:\tools\aion-forge-cli.exe");
+    assert_eq!(input["transport"]["args"], json!(["mcp-server"]));
+    assert_eq!(input["transport"]["env"], env);
 }
