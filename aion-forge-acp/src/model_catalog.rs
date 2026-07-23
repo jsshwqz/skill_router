@@ -89,6 +89,11 @@ impl ModelCatalog {
 
     /// Build the standard ACP model selector advertised to the client.
     pub fn session_config_option(&self) -> SessionConfigOption {
+        self.session_config_option_for(&self.default_model)
+    }
+
+    /// Build the standard ACP model selector with an explicit current session value.
+    pub fn session_config_option_for(&self, current_model: &str) -> SessionConfigOption {
         let mut options = vec![SessionConfigSelectOption::new("auto", "Auto")];
         options.extend(
             self.endpoints
@@ -96,7 +101,7 @@ impl ModelCatalog {
                 .map(|endpoint| SessionConfigSelectOption::new(endpoint.model.clone(), endpoint.model.clone())),
         );
 
-        SessionConfigOption::select("model", "Model", self.default_model.clone(), options)
+        SessionConfigOption::select("model", "Model", current_model.to_string(), options)
             .category(SessionConfigOptionCategory::Model)
     }
 }

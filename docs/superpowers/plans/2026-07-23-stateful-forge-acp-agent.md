@@ -508,7 +508,7 @@ Commit: `git commit -m "feat(acp): run bounded Forge tool loop"`
 - Create: `aion-forge-acp/tests/acp_agent_contract.rs`
 - Modify: `aion-forge-cli/tests/acp_contract.rs`
 
-- [ ] **Step 1: Write failing protocol tests**
+- [x] **Step 1: Write failing protocol tests**
 
 Launch the canonical CLI and exercise:
 
@@ -531,13 +531,15 @@ assert!(!stdout.contains("acp-secret-sentinel"));
 assert!(!stderr.contains("acp-secret-sentinel"));
 ```
 
-- [ ] **Step 2: Run and confirm failure**
+- [x] **Step 2: Run and confirm failure**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp --test acp_agent_contract -- --nocapture`
 
 Expected: failure because the current adapter does not persist sessions or expose stable config options.
 
-- [ ] **Step 3: Implement `ForgeAcpAgent` and handlers**
+Observed RED: `session/new` returned no `configOptions`, proving that the legacy adapter did not expose a selectable session model.
+
+- [x] **Step 3: Implement `ForgeAcpAgent` and handlers**
 
 `ForgeAcpAgent` owns shared `SessionStore`, `ModelCatalog`, `CapabilityCatalog`, and `AgentLoop`. Register typed handlers for `InitializeRequest`, `NewSessionRequest`, `SetSessionConfigOptionRequest`, and `PromptRequest`, plus a cancellation notification handler.
 
@@ -545,17 +547,17 @@ For `session/new`, validate `cwd`, choose the requested enabled model or catalog
 
 For `session/prompt`, concatenate text blocks in order, reject empty content visibly, ingest bootstrap envelopes without invoking the planner, and route ordinary turns through `AgentLoop`.
 
-- [ ] **Step 4: Map loop events to standard ACP updates**
+- [x] **Step 4: Map loop events to standard ACP updates**
 
 Map final text to `SessionUpdate::AgentMessageChunk`. Map tool start to `SessionUpdate::ToolCall` with a stable call ID and arguments. Map success/failure to `SessionUpdate::ToolCallUpdate`, preserving the same call ID and using terminal status values. Return `PromptResponse::new(StopReason::EndTurn)` after the visible chunk is sent.
 
 All tracing stays on stderr. Remove `eprintln!` and any stdout diagnostic text from the library.
 
-- [ ] **Step 5: Add the narrow compatibility layer**
+- [x] **Step 5: Add the narrow compatibility layer**
 
 Accept a model supplied in AionUI session creation or prompt extension fields and update the same session model field after validation. Accept the previously observed legacy model-selection request only as a raw dispatch fallback. Unknown legacy model IDs must produce the same visible list of valid options and must not call `ai_task`.
 
-- [ ] **Step 6: Run protocol tests and commit**
+- [x] **Step 6: Run protocol tests and commit**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp --test acp_agent_contract -- --nocapture`
 

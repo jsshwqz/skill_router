@@ -1,48 +1,388 @@
-//! ACP (Agent Control Protocol) 服务器模式
-//!
-//! 通过 stdin/stdout JSON-RPC 与 AionUi 通信。
-//! 将 forge 的 72 个工具通过 ACP 协议暴露给 AionUi。
+//! Stateful ACP server for the Aion Forge agent.
 
-use std::path::PathBuf;
+use std::sync::{atomic::Ordering, Arc};
 
-use agent_client_protocol::schema::v1::{AgentCapabilities, Implementation, InitializeRequest, InitializeResponse};
+use agent_client_protocol::schema::v1::{
+    AgentCapabilities, CancelNotification, Implementation, InitializeRequest, InitializeResponse, NewSessionRequest,
+    NewSessionResponse, PromptRequest, PromptResponse, SetSessionConfigOptionRequest, SetSessionConfigOptionResponse,
+    StopReason,
+};
 use agent_client_protocol::{Agent, Client, ConnectionTo, Dispatch, Stdio, UntypedMessage};
-use anyhow::Result;
+use anyhow::{Context, Result};
+use async_trait::async_trait;
 use serde_json::{json, Value};
 
-use aion_router::config::{candidate_ai_endpoints, AiEndpoint};
-use aion_types::types::ExecutionContext;
+use crate::{
+    agent_loop::{AgentLoop, SessionEventSink, TurnRequest},
+    catalog::CapabilityCatalog,
+    executor::ForgeToolExecutor,
+    model_catalog::ModelCatalog,
+    planner::{AiTaskPlanner, BuiltinAiExecutor},
+    session::{HistoryEntry, PromptDisposition, SessionStore},
+};
 
-/// 从 candidate_ai_endpoints() 动态构建可用模型列表
-fn acp_available_models(current: &str) -> Value {
-    let endpoints = candidate_ai_endpoints();
-    // 只取未禁用的端点，去重（同 modelId 只保留第一个）
-    let mut seen = std::collections::HashSet::new();
-    let models: Vec<Value> = endpoints
-        .iter()
-        .filter(|ep| !AiEndpoint::is_disabled(&ep.label))
-        .filter(|ep| seen.insert(ep.model.as_str()))
-        .map(|ep| {
-            let label = match ep.label.as_str() {
-                "deepseek" => format!("DeepSeek ({})", ep.model),
-                "primary" => format!("主力 ({})", ep.model),
-                "openrouter" => format!("OpenRouter ({})", ep.model),
-                "openai-compatible" => format!("GPT兼容 ({})", ep.model),
-                "google-ai-compatible" => format!("GitCode 免费 ({})", ep.model),
-                "zhipu-compatible" => format!("智谱 GLM 免费 ({})", ep.model),
-                "opencode-zen" => format!("OpenCode ({})", ep.model),
-                "ollama-local" => format!("Ollama 本地 ({})", ep.model),
-                other => format!("{} ({})", other, ep.model),
-            };
-            json!({"modelId": ep.model, "name": label})
+const MODEL_CONFIG_ID: &str = "model";
+const MAX_TOOL_CALLS: usize = 6;
+
+/// Stateful Forge runtime shared by all requests on one ACP process.
+struct ForgeAcpAgent {
+    sessions: SessionStore,
+    models: ModelCatalog,
+    capabilities: CapabilityCatalog,
+    agent_loop: AgentLoop,
+}
+
+enum RequestFailure {
+    Invalid(anyhow::Error),
+    Internal(anyhow::Error),
+    MethodNotFound(String),
+}
+
+impl RequestFailure {
+    fn invalid(error: anyhow::Error) -> Self {
+        Self::Invalid(error)
+    }
+
+    fn internal(error: anyhow::Error) -> Self {
+        Self::Internal(error)
+    }
+
+    fn into_protocol_error(self) -> agent_client_protocol::Error {
+        match self {
+            Self::Invalid(error) => agent_client_protocol::Error::new(-32602, error.to_string()),
+            Self::Internal(error) => agent_client_protocol::Error::new(-32603, error.to_string()),
+            Self::MethodNotFound(method) => {
+                agent_client_protocol::Error::new(-32601, format!("method not found: {method}"))
+            }
+        }
+    }
+}
+
+impl ForgeAcpAgent {
+    fn from_environment() -> Self {
+        let models = ModelCatalog::from_environment();
+        let capabilities = CapabilityCatalog::live();
+        let planner = AiTaskPlanner::new(models.clone(), Arc::new(BuiltinAiExecutor));
+        Self {
+            sessions: SessionStore::default(),
+            models,
+            capabilities,
+            agent_loop: AgentLoop::new(planner, ForgeToolExecutor::default(), MAX_TOOL_CALLS),
+        }
+    }
+
+    async fn handle_request(
+        &self,
+        method: &str,
+        params: Value,
+        connection: &ConnectionTo<Client>,
+    ) -> std::result::Result<Value, RequestFailure> {
+        match method {
+            "session/new" => self.new_session(params).await,
+            "session/set_config_option" => self.set_config_option(params).await,
+            "session/prompt" => self.prompt(params, connection).await,
+            "session/set_model" | "session/select_model" => self.set_legacy_model(params).await,
+            "shutdown" | "exit" => Ok(Value::Null),
+            other => return Err(RequestFailure::MethodNotFound(other.to_string())),
+        }
+    }
+
+    async fn handle_notification(&self, method: &str, params: Value) -> Result<()> {
+        match method {
+            "session/cancel" => {
+                let notification: CancelNotification =
+                    serde_json::from_value(params).context("invalid session/cancel parameters")?;
+                self.sessions.cancel(&notification.session_id.to_string()).await
+            }
+            "notifications/initialized" | "initialized" | "exit" => Ok(()),
+            other => {
+                tracing::debug!(method = other, "ignoring unsupported ACP notification");
+                Ok(())
+            }
+        }
+    }
+
+    async fn new_session(&self, params: Value) -> std::result::Result<Value, RequestFailure> {
+        let requested_model = requested_model(&params).map(str::to_string);
+        let request: NewSessionRequest = serde_json::from_value(params)
+            .context("invalid session/new parameters")
+            .map_err(RequestFailure::invalid)?;
+        let selected_model = match requested_model {
+            Some(model) => {
+                self.models.resolve(&model).map_err(RequestFailure::invalid)?;
+                model
+            }
+            None => self.models.default_model().to_string(),
+        };
+        let session_id = self
+            .sessions
+            .create(request.cwd, selected_model.clone())
+            .await
+            .map_err(RequestFailure::invalid)?;
+        let response = NewSessionResponse::new(session_id)
+            .config_options(vec![self.models.session_config_option_for(&selected_model)]);
+        serde_json::to_value(response)
+            .context("serialize session/new response")
+            .map_err(RequestFailure::internal)
+    }
+
+    async fn set_config_option(&self, params: Value) -> std::result::Result<Value, RequestFailure> {
+        let request: SetSessionConfigOptionRequest = serde_json::from_value(params)
+            .context("invalid session/set_config_option parameters")
+            .map_err(RequestFailure::invalid)?;
+        if request.config_id.to_string() != MODEL_CONFIG_ID {
+            return Err(RequestFailure::invalid(anyhow::anyhow!(
+                "unsupported session config option '{}'; expected 'model'",
+                request.config_id
+            )));
+        }
+        let selected_model = request
+            .value
+            .as_value_id()
+            .map(ToString::to_string)
+            .ok_or_else(|| anyhow::anyhow!("model config option requires a string value"))
+            .map_err(RequestFailure::invalid)?;
+        self.models.resolve(&selected_model).map_err(RequestFailure::invalid)?;
+        self.sessions
+            .set_model(&request.session_id.to_string(), selected_model.clone())
+            .await
+            .map_err(RequestFailure::invalid)?;
+        serde_json::to_value(SetSessionConfigOptionResponse::new(vec![self
+            .models
+            .session_config_option_for(&selected_model)]))
+        .context("serialize session/set_config_option response")
+        .map_err(RequestFailure::internal)
+    }
+
+    async fn set_legacy_model(&self, params: Value) -> std::result::Result<Value, RequestFailure> {
+        let session_id = session_id(&params).map_err(RequestFailure::invalid)?;
+        let selected_model = requested_model(&params)
+            .ok_or_else(|| anyhow::anyhow!("legacy model selection requires model or modelId"))
+            .map_err(RequestFailure::invalid)?;
+        self.models.resolve(selected_model).map_err(RequestFailure::invalid)?;
+        self.sessions
+            .set_model(session_id, selected_model.to_string())
+            .await
+            .map_err(RequestFailure::invalid)?;
+        Ok(json!({
+            "configOptions": [self.models.session_config_option_for(selected_model)]
+        }))
+    }
+
+    async fn prompt(
+        &self,
+        params: Value,
+        connection: &ConnectionTo<Client>,
+    ) -> std::result::Result<Value, RequestFailure> {
+        let requested = requested_model(&params).map(str::to_string);
+        let request: PromptRequest = serde_json::from_value(params.clone())
+            .context("invalid session/prompt parameters")
+            .map_err(RequestFailure::invalid)?;
+        let session_id = request.session_id.to_string();
+        self.sessions
+            .snapshot(&session_id)
+            .await
+            .map_err(RequestFailure::invalid)?;
+        let sink = AcpEventSink {
+            connection,
+            session_id: &session_id,
+        };
+
+        if let Some(model) = requested {
+            if let Err(error) = self.models.resolve(&model) {
+                let message = error.to_string();
+                sink.message_chunk(&message).await.map_err(RequestFailure::internal)?;
+                self.sessions
+                    .append_history(&session_id, HistoryEntry::Assistant(message))
+                    .await
+                    .map_err(RequestFailure::internal)?;
+                return prompt_response(StopReason::EndTurn).map_err(RequestFailure::internal);
+            }
+            self.sessions
+                .set_model(&session_id, model)
+                .await
+                .map_err(RequestFailure::internal)?;
+        }
+
+        let text = prompt_text(&params);
+        if text.trim().is_empty() {
+            let message = "请求内容为空。".to_string();
+            sink.message_chunk(&message).await.map_err(RequestFailure::internal)?;
+            self.sessions
+                .append_history(&session_id, HistoryEntry::Assistant(message))
+                .await
+                .map_err(RequestFailure::internal)?;
+            return prompt_response(StopReason::EndTurn).map_err(RequestFailure::internal);
+        }
+
+        if self
+            .sessions
+            .ingest_prompt(&session_id, &text)
+            .await
+            .map_err(RequestFailure::internal)?
+            == PromptDisposition::BootstrapStored
+        {
+            return prompt_response(StopReason::EndTurn).map_err(RequestFailure::internal);
+        }
+
+        let cancellation = self
+            .sessions
+            .start_prompt(&session_id)
+            .await
+            .map_err(RequestFailure::internal)?;
+        let snapshot = self
+            .sessions
+            .snapshot(&session_id)
+            .await
+            .map_err(RequestFailure::internal)?;
+        let original_history_len = snapshot.history.len();
+        let outcome = self
+            .agent_loop
+            .run(
+                TurnRequest {
+                    selected_model: snapshot.selected_model,
+                    cwd: snapshot.cwd,
+                    instructions: snapshot.instructions,
+                    history: snapshot.history,
+                    capabilities: self.capabilities.entries().to_vec(),
+                    cancellation: Arc::clone(&cancellation),
+                },
+                &sink,
+            )
+            .await;
+
+        match outcome {
+            Ok(outcome) => {
+                for entry in outcome.history.into_iter().skip(original_history_len) {
+                    self.sessions
+                        .append_history(&session_id, entry)
+                        .await
+                        .map_err(RequestFailure::internal)?;
+                }
+            }
+            Err(error) => {
+                let message = format!("Aion Forge 执行失败：{error}");
+                sink.message_chunk(&message).await.map_err(RequestFailure::internal)?;
+                self.sessions
+                    .append_history(&session_id, HistoryEntry::Assistant(message))
+                    .await
+                    .map_err(RequestFailure::internal)?;
+            }
+        }
+
+        prompt_response(if cancellation.load(Ordering::SeqCst) {
+            StopReason::Cancelled
+        } else {
+            StopReason::EndTurn
         })
-        .collect();
-    let current_id = if current.is_empty() || !endpoints.iter().any(|e| e.model == current) {
-        endpoints.first().map(|e| e.model.as_str()).unwrap_or("deepseek-chat")
-    } else {
-        current
-    };
-    json!({"availableModels": models, "currentModelId": current_id})
+        .map_err(RequestFailure::internal)
+    }
+}
+
+struct AcpEventSink<'a> {
+    connection: &'a ConnectionTo<Client>,
+    session_id: &'a str,
+}
+
+#[async_trait]
+impl SessionEventSink for AcpEventSink<'_> {
+    async fn tool_started(&self, call_id: &str, name: &str, arguments: &Value) -> Result<()> {
+        self.send_update(json!({
+            "sessionUpdate": "tool_call",
+            "toolCallId": call_id,
+            "title": name,
+            "status": "in_progress",
+            "rawInput": arguments,
+        }))
+    }
+
+    async fn tool_finished(&self, call_id: &str, result: &Result<Value>) -> Result<()> {
+        let update = match result {
+            Ok(value) => json!({
+                "sessionUpdate": "tool_call_update",
+                "toolCallId": call_id,
+                "status": "completed",
+                "rawOutput": value,
+            }),
+            Err(error) => json!({
+                "sessionUpdate": "tool_call_update",
+                "toolCallId": call_id,
+                "status": "failed",
+                "rawOutput": {"error": error.to_string()},
+            }),
+        };
+        self.send_update(update)
+    }
+
+    async fn message_chunk(&self, text: &str) -> Result<()> {
+        self.send_update(json!({
+            "sessionUpdate": "agent_message_chunk",
+            "content": {"type": "text", "text": text},
+        }))
+    }
+}
+
+impl AcpEventSink<'_> {
+    fn send_update(&self, update: Value) -> Result<()> {
+        let params = json!({"sessionId": self.session_id, "update": update});
+        self.connection
+            .send_notification(UntypedMessage::new("session/update", params)?)
+            .context("send ACP session/update notification")?;
+        Ok(())
+    }
+}
+
+/// Run the standard ACP JSON-RPC server over stdin and stdout.
+pub async fn run_acp_server() -> Result<()> {
+    let forge = Arc::new(ForgeAcpAgent::from_environment());
+    let dispatch_forge = Arc::clone(&forge);
+
+    Agent
+        .builder()
+        .name("aion-forge")
+        .on_receive_request(
+            async move |initialize: InitializeRequest, responder, _connection| {
+                responder.respond(
+                    InitializeResponse::new(initialize.protocol_version)
+                        .agent_capabilities(AgentCapabilities::new())
+                        .agent_info(Implementation::new("aion-forge", env!("CARGO_PKG_VERSION")).title("Aion Forge")),
+                )
+            },
+            agent_client_protocol::on_receive_request!(),
+        )
+        .on_receive_dispatch(
+            async move |message: Dispatch, connection: ConnectionTo<Client>| {
+                dispatch_message(Arc::clone(&dispatch_forge), message, connection).await
+            },
+            agent_client_protocol::on_receive_dispatch!(),
+        )
+        .connect_to(Stdio::new().with_debug(|line, direction| {
+            tracing::trace!(?direction, bytes = line.len(), "ACP transport line");
+        }))
+        .await
+        .map_err(anyhow::Error::new)
+}
+
+async fn dispatch_message(
+    forge: Arc<ForgeAcpAgent>,
+    message: Dispatch,
+    connection: ConnectionTo<Client>,
+) -> agent_client_protocol::Result<()> {
+    match message {
+        Dispatch::Request(message, responder) => {
+            match forge.handle_request(&message.method, message.params, &connection).await {
+                Ok(result) => responder.respond(result),
+                Err(error) => responder.respond_with_error(error.into_protocol_error()),
+            }
+        }
+        Dispatch::Notification(message) => {
+            if let Err(error) = forge.handle_notification(&message.method, message.params).await {
+                tracing::warn!(%error, method = %message.method, "ACP notification failed");
+            }
+            Ok(())
+        }
+        Dispatch::Response(_, _) => Ok(()),
+    }
 }
 
 fn prompt_text(params: &Value) -> String {
@@ -63,328 +403,31 @@ fn prompt_text(params: &Value) -> String {
         .unwrap_or_default()
 }
 
-fn visible_text(response: &Value) -> String {
-    let content = response
-        .pointer("/result/content")
-        .and_then(Value::as_array)
-        .or_else(|| response.pointer("/result/messages/0/content").and_then(Value::as_array));
-
-    content
-        .into_iter()
-        .flatten()
-        .filter_map(|block| block.get("text").and_then(Value::as_str))
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn agent_message_update(raw: &str, response: &Value) -> Option<Value> {
-    let request: Value = serde_json::from_str(raw).ok()?;
-    if request.get("method").and_then(Value::as_str) != Some("session/prompt") {
-        return None;
-    }
-
-    let session_id = request.pointer("/params/sessionId")?.as_str()?;
-    let text = visible_text(response);
-    if text.is_empty() {
-        return None;
-    }
-
-    Some(json!({
-        "jsonrpc": "2.0",
-        "method": "session/update",
-        "params": {
-            "sessionId": session_id,
-            "update": {
-                "sessionUpdate": "agent_message_chunk",
-                "content": {"type": "text", "text": text}
-            }
-        }
-    }))
-}
-
-/// 运行 ACP 协议服务器（stdin/stdout JSON-RPC）
-pub async fn run_acp_server() -> Result<()> {
-    Agent
-        .builder()
-        .name("aion-forge")
-        .on_receive_request(
-            async move |initialize: InitializeRequest, responder, _connection| {
-                responder.respond(
-                    InitializeResponse::new(initialize.protocol_version)
-                        .agent_capabilities(AgentCapabilities::new())
-                        .agent_info(Implementation::new("aion-forge", env!("CARGO_PKG_VERSION")).title("Aion Forge")),
-                )
-            },
-            agent_client_protocol::on_receive_request!(),
-        )
-        .on_receive_dispatch(
-            async move |message: Dispatch, connection: ConnectionTo<Client>| {
-                dispatch_legacy_message(message, connection).await
-            },
-            agent_client_protocol::on_receive_dispatch!(),
-        )
-        .connect_to(Stdio::new().with_debug(|line, direction| {
-            tracing::trace!(?direction, bytes = line.len(), "ACP transport line");
-        }))
-        .await
-        .map_err(anyhow::Error::new)
-}
-
-async fn dispatch_legacy_message(
-    message: Dispatch,
-    connection: ConnectionTo<Client>,
-) -> agent_client_protocol::Result<()> {
-    match message {
-        Dispatch::Request(message, responder) => {
-            let raw = json!({
-                "jsonrpc": "2.0",
-                "id": responder.id(),
-                "method": message.method,
-                "params": message.params,
-            })
-            .to_string();
-
-            match handle_acp_message(&raw).await {
-                Ok(response) => {
-                    if let Some(update) = agent_message_update(&raw, &response) {
-                        send_legacy_notification(&connection, update)?;
-                    }
-
-                    if let Some(result) = response.get("result") {
-                        responder.respond(result.clone())
-                    } else if let Some(error) = response.get("error") {
-                        responder.respond_with_error(legacy_error(error))
-                    } else {
-                        responder.respond_with_internal_error("legacy ACP handler returned no result")
-                    }
-                }
-                Err(error) => {
-                    responder.respond_with_error(agent_client_protocol::Error::internal_error().data(error.to_string()))
-                }
-            }
-        }
-        Dispatch::Notification(message) => {
-            let raw = json!({
-                "jsonrpc": "2.0",
-                "method": message.method,
-                "params": message.params,
-            })
-            .to_string();
-            if let Err(error) = handle_acp_message(&raw).await {
-                tracing::warn!(%error, "legacy ACP notification failed");
-            }
-            Ok(())
-        }
-        Dispatch::Response(_, _) => Ok(()),
-    }
-}
-
-fn send_legacy_notification(
-    connection: &ConnectionTo<Client>,
-    notification: Value,
-) -> agent_client_protocol::Result<()> {
-    let method = notification
-        .get("method")
+fn requested_model(params: &Value) -> Option<&str> {
+    params
+        .get("model")
+        .or_else(|| params.get("modelId"))
+        .or_else(|| params.pointer("/_meta/model"))
+        .or_else(|| params.pointer("/_meta/modelId"))
         .and_then(Value::as_str)
-        .ok_or_else(agent_client_protocol::Error::invalid_request)?;
-    let params = notification.get("params").cloned().unwrap_or(Value::Null);
-    connection.send_notification(UntypedMessage::new(method, params)?)
+        .map(str::trim)
+        .filter(|model| !model.is_empty())
 }
 
-fn legacy_error(error: &Value) -> agent_client_protocol::Error {
-    let code = error
-        .get("code")
-        .and_then(Value::as_i64)
-        .and_then(|code| i32::try_from(code).ok())
-        .unwrap_or(-32603);
-    let message = error.get("message").and_then(Value::as_str).unwrap_or("Internal error");
-    let mut mapped = agent_client_protocol::Error::new(code, message);
-    if let Some(data) = error.get("data") {
-        mapped = mapped.data(data.clone());
-    }
-    mapped
+fn session_id(params: &Value) -> Result<&str> {
+    params
+        .get("sessionId")
+        .and_then(Value::as_str)
+        .ok_or_else(|| anyhow::anyhow!("request requires sessionId"))
 }
 
-async fn handle_acp_message(raw: &str) -> Result<Value> {
-    let msg: Value = serde_json::from_str(raw).map_err(|e| anyhow::anyhow!("Invalid JSON-RPC: {}", e))?;
-
-    let id = msg.get("id").cloned().unwrap_or(Value::Null);
-    let method = msg["method"].as_str().unwrap_or("").to_string();
-    let params = msg.get("params").cloned().unwrap_or(json!({}));
-
-    match method.as_str() {
-        "session/new" => {
-            let session_id = format!(
-                "forge_{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map(|d| d.as_nanos())
-                    .unwrap_or(0)
-            );
-            Ok(json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": {
-                    "sessionId": session_id,
-                    "models": acp_available_models("deepseek-v4-flash"),
-                    "modes": {
-                        "availableModes": [
-                            {"id":"chat","name":"Chat"},
-                            {"id":"reasoning","name":"Reasoning"}
-                        ],
-                        "currentModeId": "chat"
-                    },
-                    "configOptions": []
-                }
-            }))
-        }
-        "session/update" | "session/delete" => Ok(json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "result": null
-        })),
-
-        "session/prompt" => {
-            let message = prompt_text(&params);
-            let model = params.get("model").and_then(|v| v.as_str()).unwrap_or("deepseek-chat");
-            let history = params.get("history").and_then(|v| v.as_array());
-
-            // 构建发给 ai_task 的上下文
-            let mut ctx = ExecutionContext::new("ai_task", &message).with_context(json!({
-                "model": model,
-                "input": &message,
-                "text": &message,
-                "stream": false,
-            }));
-
-            // 如果有历史消息，加入上下文
-            if let Some(msgs) = history {
-                ctx = ctx.with_context(json!({"history": msgs}));
-            }
-
-            let registry = aion_router::builtins::BuiltinRegistry::default_registry();
-            if let Some(builtin) = registry.get("ai_task") {
-                let skill = aion_types::types::SkillDefinition {
-                    metadata: aion_types::types::SkillMetadata {
-                        name: "ai_task".to_string(),
-                        version: "0.1.0".to_string(),
-                        capabilities: vec!["ai_task".to_string()],
-                        entrypoint: "builtin:ai_task".to_string(),
-                        permissions: aion_types::types::PermissionSet::default_deny().with_network(true),
-                        instruction: Some("你是一个AI助手，请根据用户输入给出回答。".to_string()),
-                        engine_capable: false,
-                    },
-                    root_dir: PathBuf::new(),
-                    source: aion_types::types::SkillSource::Local,
-                };
-
-                match builtin.execute(&skill, &ctx).await {
-                    Ok(result) => {
-                        let content = result.get("output").and_then(|c| c.as_str()).unwrap_or("");
-                        let provider = result.get("provider").and_then(|p| p.as_str()).unwrap_or("unknown");
-                        let input_tokens = result
-                            .get("token_usage")
-                            .and_then(|u| u.get("prompt_tokens"))
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-                        let output_tokens = result
-                            .get("token_usage")
-                            .and_then(|u| u.get("completion_tokens"))
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0);
-                        let has_error = result.get("error").and_then(|e| e.as_str()).filter(|e| !e.is_empty());
-
-                        if let Some(err) = has_error {
-                            let mut content_parts =
-                                vec![json!({"type": "text", "text": format!("[{} 调用失败: {}]", provider, err)})];
-                            if !content.is_empty() {
-                                content_parts.push(json!({"type": "text", "text": content}));
-                            }
-                            Ok(json!({
-                                "jsonrpc": "2.0",
-                                "id": id,
-                                "result": {
-                                    "content": content_parts,
-                                    "stopReason": "end_turn",
-                                    "usage": {
-                                        "inputTokens": input_tokens,
-                                        "outputTokens": output_tokens
-                                    }
-                                }
-                            }))
-                        } else {
-                            Ok(json!({
-                                "jsonrpc": "2.0",
-                                "id": id,
-                                "result": {
-                                    "content": [
-                                        {"type": "text", "text": content}
-                                    ],
-                                    "stopReason": "end_turn",
-                                    "usage": {
-                                        "inputTokens": input_tokens,
-                                        "outputTokens": output_tokens
-                                    }
-                                }
-                            }))
-                        }
-                    }
-                    Err(e) => Ok(json!({
-                        "jsonrpc": "2.0",
-                        "id": id,
-                        "result": {
-                            "messages": [{
-                                "role": "assistant",
-                                "content": [{"type": "text", "text": format!("[模型调用错误: {}]", e)}]
-                            }],
-                            "stopReason": "end_turn",
-                            "usage": {"inputTokens": 0, "outputTokens": 0}
-                        }
-                    })),
-                }
-            } else {
-                // fallback: ai_task builtin 未注册
-                Ok(json!({
-                    "jsonrpc": "2.0",
-                    "id": id,
-                    "result": {
-                        "content": [{"type": "text", "text": "[ai_task builtin not available — 请检查 builtin 注册]"}],
-                        "stopReason": "end_turn",
-                        "usage": {"inputTokens": 0, "outputTokens": 0}
-                    }
-                }))
-            }
-        }
-
-        "notifications/initialized" | "initialized" => {
-            // 忽略
-            Ok(json!({
-                "jsonrpc": "2.0",
-                "id": id,
-                "result": null
-            }))
-        }
-
-        "shutdown" | "exit" => Ok(json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "result": null
-        })),
-
-        _ => Ok(json!({
-            "jsonrpc": "2.0",
-            "id": id,
-            "error": {
-                "code": -32601,
-                "message": format!("Method not found: {}", method)
-            }
-        })),
-    }
+fn prompt_response(stop_reason: StopReason) -> Result<Value> {
+    serde_json::to_value(PromptResponse::new(stop_reason)).context("serialize session/prompt response")
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{agent_message_update, prompt_text};
+    use super::{prompt_text, requested_model};
     use serde_json::json;
 
     #[test]
@@ -401,27 +444,11 @@ mod tests {
     }
 
     #[test]
-    fn converts_prompt_result_to_visible_agent_message_update() {
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": 3,
-            "method": "session/prompt",
-            "params": {"sessionId": "forge_test", "prompt": []}
-        })
-        .to_string();
-        let response = json!({
-            "jsonrpc": "2.0",
-            "id": 3,
-            "result": {
-                "content": [{"type": "text", "text": "可见回答"}],
-                "stopReason": "end_turn"
-            }
-        });
-
-        let update = agent_message_update(&request, &response).expect("visible update");
-        assert_eq!(update["method"], "session/update");
-        assert_eq!(update["params"]["sessionId"], "forge_test");
-        assert_eq!(update["params"]["update"]["sessionUpdate"], "agent_message_chunk");
-        assert_eq!(update["params"]["update"]["content"]["text"], "可见回答");
+    fn reads_model_compatibility_fields() {
+        assert_eq!(requested_model(&json!({"modelId": "exact"})), Some("exact"));
+        assert_eq!(
+            requested_model(&json!({"_meta": {"model": "meta-model"}})),
+            Some("meta-model")
+        );
     }
 }

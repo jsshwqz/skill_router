@@ -3,15 +3,26 @@ use std::process::{Command, Stdio};
 
 #[test]
 fn canonical_cli_runs_acp_with_json_only_stdout() {
-    let responses = run_acp(concat!(
-        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"aion-forge-test","title":"Aion Forge Test","version":"0.1.0"}}}"#,
-        "\n"
-    ));
+    let cwd = serde_json::to_string(&std::env::current_dir().expect("test cwd should exist"))
+        .expect("test cwd should serialize");
+    let input = format!(
+        concat!(
+            r#"{{"jsonrpc":"2.0","id":1,"method":"initialize","params":{{"protocolVersion":1,"clientCapabilities":{{}},"clientInfo":{{"name":"aion-forge-test","title":"Aion Forge Test","version":"0.1.0"}}}}}}"#,
+            "\n",
+            r#"{{"jsonrpc":"2.0","id":2,"method":"session/new","params":{{"cwd":{},"mcpServers":[]}}}}"#,
+            "\n"
+        ),
+        cwd
+    );
+    let responses = run_acp(&input);
 
-    assert_eq!(responses.len(), 1);
+    assert_eq!(responses.len(), 2);
     assert_eq!(responses[0]["id"], 1);
     assert_eq!(responses[0]["result"]["protocolVersion"], 1);
     assert!(responses[0]["result"]["agentInfo"]["name"].is_string());
+    assert_eq!(responses[1]["id"], 2);
+    assert_eq!(responses[1]["result"]["configOptions"][0]["id"], "model");
+    assert!(responses[1]["result"]["configOptions"][0]["currentValue"].is_string());
 }
 
 #[test]
