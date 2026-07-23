@@ -80,6 +80,67 @@ fn read_message<R: BufRead>(reader: &mut R) -> Result<String> {
     }
 }
 
+fn prompt_text(params: &Value) -> String {
+    if let Some(message) = params.get("message").and_then(Value::as_str) {
+        return message.to_string();
+    }
+
+    params
+        .get("prompt")
+        .and_then(Value::as_array)
+        .map(|blocks| {
+            blocks
+                .iter()
+                .filter_map(|block| block.get("text").and_then(Value::as_str))
+                .collect::<Vec<_>>()
+                .join("\n")
+        })
+        .unwrap_or_default()
+}
+
+fn visible_text(response: &Value) -> String {
+    let content = response
+        .pointer("/result/content")
+        .and_then(Value::as_array)
+        .or_else(|| {
+            response
+                .pointer("/result/messages/0/content")
+                .and_then(Value::as_array)
+        });
+
+    content
+        .into_iter()
+        .flatten()
+        .filter_map(|block| block.get("text").and_then(Value::as_str))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn agent_message_update(raw: &str, response: &Value) -> Option<Value> {
+    let request: Value = serde_json::from_str(raw).ok()?;
+    if request.get("method").and_then(Value::as_str) != Some("session/prompt") {
+        return None;
+    }
+
+    let session_id = request.pointer("/params/sessionId")?.as_str()?;
+    let text = visible_text(response);
+    if text.is_empty() {
+        return None;
+    }
+
+    Some(json!({
+        "jsonrpc": "2.0",
+        "method": "session/update",
+        "params": {
+            "sessionId": session_id,
+            "update": {
+                "sessionUpdate": "agent_message_chunk",
+                "content": {"type": "text", "text": text}
+            }
+        }
+    }))
+}
+
 /// 运行 ACP 协议服务器（stdin/stdout JSON-RPC）
 pub async fn run_acp_server() -> Result<()> {
     let stdin = io::stdin();
@@ -115,6 +176,9 @@ pub async fn run_acp_server() -> Result<()> {
 
         match handle_acp_message(&raw).await {
             Ok(response) => {
+                if let Some(update) = agent_message_update(&raw, &response) {
+                    send_line(&serde_json::to_string(&update)?)?;
+                }
                 let json = serde_json::to_string(&response)?;
                 send_line(&json)?;
 
@@ -234,16 +298,16 @@ async fn handle_acp_message(raw: &str) -> Result<Value> {
         "session/prompt" => {
             eprintln!("[forge-acp] session/prompt params: {}", serde_json::to_string(&params).unwrap_or_default());
 
-            let message = params.get("message").and_then(|v| v.as_str()).unwrap_or("");
+            let message = prompt_text(&params);
             let model = params.get("model").and_then(|v| v.as_str()).unwrap_or("deepseek-chat");
             let history = params.get("history").and_then(|v| v.as_array());
 
             // 构建发给 ai_task 的上下文
-            let mut ctx = ExecutionContext::new("ai_task", message)
+            let mut ctx = ExecutionContext::new("ai_task", &message)
                 .with_context(json!({
                     "model": model,
-                    "input": message,
-                    "text": message,
+                    "input": &message,
+                    "text": &message,
                     "stream": false,
                 }));
 
@@ -470,5 +534,55 @@ fn is_shutdown(raw: &str) -> bool {
             .unwrap_or(false)
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{agent_message_update, prompt_text};
+    use serde_json::json;
+
+    #[test]
+    fn reads_standard_acp_prompt_content_blocks() {
+        let params = json!({
+            "prompt": [
+                {"type": "text", "text": "第一段"},
+                {"type": "image", "data": "ignored"},
+                {"type": "text", "text": "第二段"}
+            ]
+        });
+
+        assert_eq!(prompt_text(&params), "第一段\n第二段");
+    }
+
+    #[test]
+    fn converts_prompt_result_to_visible_agent_message_update() {
+        let request = json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "session/prompt",
+            "params": {"sessionId": "forge_test", "prompt": []}
+        })
+        .to_string();
+        let response = json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "result": {
+                "content": [{"type": "text", "text": "可见回答"}],
+                "stopReason": "end_turn"
+            }
+        });
+
+        let update = agent_message_update(&request, &response).expect("visible update");
+        assert_eq!(update["method"], "session/update");
+        assert_eq!(update["params"]["sessionId"], "forge_test");
+        assert_eq!(
+            update["params"]["update"]["sessionUpdate"],
+            "agent_message_chunk"
+        );
+        assert_eq!(
+            update["params"]["update"]["content"]["text"],
+            "可见回答"
+        );
     }
 }
