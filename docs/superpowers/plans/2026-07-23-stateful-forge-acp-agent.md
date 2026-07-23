@@ -81,7 +81,7 @@ Commit: `git commit -m "refactor(acp): adopt official Rust transport"`
 - Create: `aion-forge-acp/src/model_catalog.rs`
 - Modify: `aion-forge-acp/src/lib.rs`
 
-- [ ] **Step 1: Write failing catalog tests**
+- [x] **Step 1: Write failing catalog tests**
 
 Cover deduplication, disabled/empty entries, default selection, exact resolution, and the explicit `auto` exception.
 
@@ -108,13 +108,15 @@ fn auto_is_the_only_fallback_selection() {
 }
 ```
 
-- [ ] **Step 2: Run the module test and confirm the module is missing**
+- [x] **Step 2: Run the module test and confirm the module is missing**
+
+Observed RED: compilation failed because `ModelCatalog` and `ModelResolution` were not defined.
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp model_catalog -- --nocapture`
 
 Expected: compile failure because `ModelCatalog` does not exist.
 
-- [ ] **Step 3: Implement the pure model catalog**
+- [x] **Step 3: Implement the pure model catalog**
 
 Use these public types and invariants:
 
@@ -145,7 +147,7 @@ Filter endpoints whose model, base URL, or key is empty; deduplicate by model ID
 
 The ACP select option ID must be `model`. Its values must be `auto` followed by the enabled model IDs, with no hard-coded DeepSeek, Claude, Qwen, or GLM entries.
 
-- [ ] **Step 4: Run tests and commit**
+- [x] **Step 4: Run tests and commit**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp model_catalog -- --nocapture`
 
