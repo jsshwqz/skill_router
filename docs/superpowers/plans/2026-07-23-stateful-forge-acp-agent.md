@@ -427,7 +427,7 @@ Commit: `git commit -m "feat(acp): add typed exact-model planner"`
 - Create: `aion-forge-acp/src/agent_loop.rs`
 - Modify: `aion-forge-acp/src/lib.rs`
 
-- [ ] **Step 1: Write failing loop integration tests with fakes**
+- [x] **Step 1: Write failing loop integration tests with fakes**
 
 Test final-only responses, tool result consumption, multi-turn history, one malformed repair, six-call limit, repeated identical failure, and cancellation.
 
@@ -461,13 +461,15 @@ async fn tool_result_is_consumed_before_final_response() {
 }
 ```
 
-- [ ] **Step 2: Run and confirm failure**
+- [x] **Step 2: Run and confirm failure**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp agent_loop -- --nocapture`
 
 Expected: compile failure because the loop and event sink are absent.
 
-- [ ] **Step 3: Implement the event sink and loop**
+Observed: the focused test target failed to compile because `AgentLoop`, `SessionEventSink`, and `TurnRequest` were not yet defined.
+
+- [x] **Step 3: Implement the event sink and loop**
 
 ```rust
 #[async_trait]
@@ -489,7 +491,7 @@ Check cancellation before planning, before executing each tool, and before recor
 
 Every terminal path must emit a non-empty `message_chunk`, except the recognized bootstrap path handled before the loop. Normalize tool observations to at most 32 KiB before adding them to history.
 
-- [ ] **Step 4: Run tests and commit**
+- [x] **Step 4: Run tests and commit**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp agent_loop -- --nocapture`
 

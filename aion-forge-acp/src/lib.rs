@@ -1,6 +1,7 @@
 //! Reusable ACP protocol entry point for Aion Forge.
 
 mod acp;
+pub mod agent_loop;
 pub mod catalog;
 pub mod executor;
 pub mod model_catalog;
