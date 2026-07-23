@@ -11,6 +11,8 @@ use aion_types::types::{ExecutionContext, SkillDefinition, TokenUsage};
 use super::format;
 use super::BuiltinSkill;
 
+const AI_TASK_MAX_OUTPUT_TOKENS: u64 = 2048;
+
 /// 是否启用 TOON 自动转换（环境变量控制）
 fn toon_enabled() -> bool {
     std::env::var("AI_TOON_ENABLED")
@@ -220,24 +222,7 @@ async fn run_openai_chat(
     instruction: &str,
     text: &str,
 ) -> Result<(String, Option<TokenUsage>)> {
-    // 系统指令：开启 prompt caching 支持（OpenRouter 兼容）
-    // 缓存后重复调用仅收 10% 费用
-    let sys_msg = json!({
-        "role": "system",
-        "content": instruction,
-        "cache_control": {"type": "ephemeral"}
-    });
-
-    let body = json!({
-        "model": endpoint.model,
-        "messages": [
-            sys_msg,
-            {"role": "user", "content": text}
-        ],
-        "max_tokens": 512,
-        "temperature": 0.3,
-        "stream": false
-    });
+    let body = openai_request_body(endpoint, instruction, text);
 
     let resp = client
         .post(endpoint.chat_completions_url())
@@ -246,6 +231,27 @@ async fn run_openai_chat(
         .send()
         .await?;
     parse_openai_response(resp).await
+}
+
+fn openai_request_body(endpoint: &AiEndpoint, instruction: &str, text: &str) -> Value {
+    // 系统指令：开启 prompt caching 支持（OpenRouter 兼容）
+    // 缓存后重复调用仅收 10% 费用
+    let sys_msg = json!({
+        "role": "system",
+        "content": instruction,
+        "cache_control": {"type": "ephemeral"}
+    });
+
+    json!({
+        "model": endpoint.model,
+        "messages": [
+            sys_msg,
+            {"role": "user", "content": text}
+        ],
+        "max_tokens": AI_TASK_MAX_OUTPUT_TOKENS,
+        "temperature": 0.3,
+        "stream": false
+    })
 }
 
 async fn run_anthropic_messages(
@@ -257,7 +263,7 @@ async fn run_anthropic_messages(
     let body = json!({
         "model": endpoint.model,
         "system": [{"type": "text", "text": instruction, "cache_control": {"type": "ephemeral"}}],
-        "max_tokens": 2048,
+        "max_tokens": AI_TASK_MAX_OUTPUT_TOKENS,
         "messages": [{"role": "user", "content": text}],
         "stream": false
     });
@@ -396,7 +402,24 @@ fn parse_anthropic_usage(parsed: &Value) -> Option<TokenUsage> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_openai_sse;
+    use super::{openai_request_body, parse_openai_sse};
+    use crate::config::{AiEndpoint, AiProtocol};
+    use serde_json::Value;
+
+    #[test]
+    fn openai_request_budget_supports_structured_tool_followup() {
+        let endpoint = AiEndpoint {
+            label: "test".to_string(),
+            base_url: "http://127.0.0.1:1/v1".to_string(),
+            api_key: "test".to_string(),
+            model: "test-model".to_string(),
+            protocol: AiProtocol::OpenAiChat,
+        };
+
+        let body = openai_request_body(&endpoint, "instruction", "task");
+
+        assert_eq!(body.get("max_tokens").and_then(Value::as_u64), Some(2048));
+    }
 
     #[test]
     fn parses_openai_sse_content_and_usage() {
