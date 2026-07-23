@@ -257,7 +257,7 @@ Commit: `git commit -m "feat(acp): persist session state and bootstrap rules"`
 - Create: `aion-forge-acp/src/executor.rs`
 - Modify: `aion-forge-acp/src/lib.rs`
 
-- [ ] **Step 1: Write failing catalog and executor tests**
+- [x] **Step 1: Write failing catalog and executor tests**
 
 Assert that every exposed capability exists in `BuiltinRegistry`, descriptions come from `CapabilityRegistry`, recursive planner entries are not callable, unknown names fail, and valid parameters reach a fake builtin executor.
 
@@ -287,15 +287,17 @@ async fn executor_rejects_recursive_planner_entry() {
 }
 ```
 
-- [ ] **Step 2: Run and confirm failure**
+- [x] **Step 2: Run and confirm failure**
+
+Observed RED: compilation failed because `CapabilityCatalog`, `ForgeToolExecutor`, and `ToolExecutor` were absent.
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp catalog -- --nocapture`
 
 Expected: compile failure because the catalog and executor types are absent.
 
-- [ ] **Step 3: Implement the capability catalog**
+- [x] **Step 3: Implement the capability catalog**
 
-Intersect `BuiltinRegistry::list_skills()` with `CapabilityRegistry::builtin()`. Store name, description, parameter schema, approval metadata, and a `planner_callable` flag. Expose the exact live list for identity answers; set `planner_callable` to false for `ai_task` and `autonomous_agent` so the ACP planner cannot recursively create another planner loop.
+Intersect `BuiltinRegistry::list_skills()` with `CapabilityRegistry::builtin()`. Store name, description, parameter schema, approval metadata, and a `planner_callable` flag. Expose the exact live list for identity answers; set `planner_callable` to false for `ai_task` and `autonomous_agent` so the ACP planner cannot recursively create another planner loop. The intersection intentionally excludes metadata-only `text_summarize`, which has no registered builtin executor.
 
 ```rust
 #[derive(Debug, Clone)]
@@ -308,7 +310,7 @@ pub struct CapabilityEntry {
 }
 ```
 
-- [ ] **Step 4: Implement the executor trait and production adapter**
+- [x] **Step 4: Implement the executor trait and production adapter**
 
 ```rust
 #[async_trait]
@@ -324,7 +326,7 @@ pub trait ToolExecutor: Send + Sync {
 
 `ForgeToolExecutor` owns a `BuiltinRegistry`, validates an object argument, checks the capability is planner-callable, builds the existing `SkillDefinition` and `ExecutionContext`, and calls the builtin. Return normalized JSON; never log parameters that may contain secrets.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp catalog executor -- --nocapture`
 
