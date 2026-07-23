@@ -15,7 +15,7 @@ use uuid::Uuid;
 use crate::{
     catalog::CapabilityEntry,
     executor::ToolExecutor,
-    planner::{Planner, PlannerAction, PlannerRequest},
+    planner::{Planner, PlannerAction, PlannerRequest, FORGE_IDENTITY},
     session::HistoryEntry,
 };
 
@@ -101,6 +101,7 @@ impl AgentLoop {
             let action = self
                 .planner
                 .next_action(PlannerRequest {
+                    identity: FORGE_IDENTITY.to_string(),
                     selected_model: request.selected_model.clone(),
                     cwd: request.cwd.clone(),
                     instructions: request.instructions.clone(),

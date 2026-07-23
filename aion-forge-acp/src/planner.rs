@@ -18,6 +18,9 @@ use crate::{
     session::HistoryEntry,
 };
 
+/// Stable identity supplied to every ACP planning request.
+pub const FORGE_IDENTITY: &str = "Aion Forge，使用实时 Forge 能力目录执行工作的 Rust ACP 代理。";
+
 /// Stable system instruction used for provider-neutral ACP planning.
 pub const PLANNER_INSTRUCTION: &str = r#"你是 Aion Forge ACP 代理的计划器，负责基于实时能力目录选择下一步行动。
 
@@ -134,6 +137,8 @@ fn strip_outer_json_fence(raw: &str) -> Result<&str> {
 /// Complete data required for one planner decision.
 #[derive(Debug, Clone)]
 pub struct PlannerRequest {
+    /// Stable product identity for direct identity and capability questions.
+    pub identity: String,
     /// Persisted ACP model selection.
     pub selected_model: String,
     /// Session working directory.
@@ -280,6 +285,7 @@ fn planner_task_data(request: &PlannerRequest) -> Result<String> {
         })
         .collect();
     let data = json!({
+        "identity": request.identity,
         "selected_model": request.selected_model,
         "cwd": request.cwd,
         "instructions": request.instructions,
@@ -304,7 +310,7 @@ mod tests {
 
     use crate::{catalog::CapabilityEntry, model_catalog::ModelCatalog};
 
-    use super::{AiExecutor, AiTaskPlanner, Planner, PlannerAction, PlannerRequest};
+    use super::{AiExecutor, AiTaskPlanner, Planner, PlannerAction, PlannerRequest, FORGE_IDENTITY};
 
     fn endpoint(model: &str) -> AiEndpoint {
         AiEndpoint {
@@ -318,6 +324,7 @@ mod tests {
 
     fn request(selected_model: &str) -> PlannerRequest {
         PlannerRequest {
+            identity: FORGE_IDENTITY.to_string(),
             selected_model: selected_model.to_string(),
             cwd: PathBuf::from("D:/test/aionui/forge"),
             instructions: vec!["Use Forge tools first.".to_string()],

@@ -576,7 +576,7 @@ Commit: `git commit -m "feat(acp): wire stateful ACP session protocol"`
 - Modify: `aion-forge-acp/src/agent_loop.rs`
 - Modify: `aion-forge-acp/src/session.rs`
 
-- [ ] **Step 1: Write an end-to-end fake-engine test**
+- [x] **Step 1: Write an end-to-end fake-engine test**
 
 Create a fake planner that records each `PlannerRequest` and returns scripted actions. Create a fake executor that records calls. Run three turns in the same session:
 
@@ -586,17 +586,19 @@ Create a fake planner that records each `PlannerRequest` and returns scripted ac
 
 Assert the second and third planner requests contain Forge identity, the live registry capability names, stored bootstrap instructions, earlier user/assistant history, and the exact selected model.
 
-- [ ] **Step 2: Run and confirm failure before final integration adjustments**
+- [x] **Step 2: Run and confirm failure before final integration adjustments**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp --test agent_engine -- --nocapture`
 
 Expected: at least one assertion fails until the final history/catalog plumbing is complete.
 
-- [ ] **Step 3: Complete only the missing integration plumbing**
+Observed RED: the test failed to compile because `PlannerRequest` did not carry an explicit Forge identity.
+
+- [x] **Step 3: Complete only the missing integration plumbing**
 
 Ensure successful user turns append user and assistant entries atomically. Ensure tool observations are appended before the next planner request. Ensure bootstrap prompts never appear as user history. Ensure the planner request receives a fresh capability catalog generated from the live registries.
 
-- [ ] **Step 4: Run the complete ACP test suite and commit**
+- [x] **Step 4: Run the complete ACP test suite and commit**
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp --all-targets -- --nocapture`
 
