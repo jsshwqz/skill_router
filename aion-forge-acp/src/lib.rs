@@ -2,6 +2,7 @@
 
 mod acp;
 pub mod model_catalog;
+pub mod session;
 
 /// Run the ACP JSON-RPC server over stdin and stdout.
 pub use acp::run_acp_server;

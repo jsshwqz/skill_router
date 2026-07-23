@@ -34,7 +34,7 @@ fn acp_subcommand_starts_protocol_server_without_stdout_contamination() {
         .expect("ACP adapter should start");
 
     let input = concat!(
-        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#,
+        r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{},"clientInfo":{"name":"aion-forge-acp-test","title":"Aion Forge ACP Test","version":"0.1.0"}}}"#,
         "\n",
         r#"{"jsonrpc":"2.0","id":2,"method":"shutdown","params":{}}"#,
         "\n"

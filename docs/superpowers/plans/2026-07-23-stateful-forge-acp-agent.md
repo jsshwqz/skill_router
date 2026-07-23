@@ -162,7 +162,7 @@ Commit: `git commit -m "feat(acp): add strict dynamic model catalog"`
 - Create: `aion-forge-acp/src/session.rs`
 - Modify: `aion-forge-acp/src/lib.rs`
 
-- [ ] **Step 1: Write failing session lifecycle tests**
+- [x] **Step 1: Write failing session lifecycle tests**
 
 Test creation, unknown IDs, model persistence, bounded history, bootstrap classification, and cancellation replacement.
 
@@ -200,13 +200,15 @@ async fn ordinary_skill_question_remains_a_user_turn() {
 }
 ```
 
-- [ ] **Step 2: Run and confirm failure**
+- [x] **Step 2: Run and confirm failure**
+
+Observed RED: compilation failed because `SessionStore`, `HistoryEntry`, and `PromptDisposition` were absent.
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp session -- --nocapture`
 
 Expected: compile failure because the session store is absent.
 
-- [ ] **Step 3: Implement the session store**
+- [x] **Step 3: Implement the session store**
 
 Use an `Arc<RwLock<HashMap<String, SessionState>>>`. Keep public APIs documented and return snapshots instead of exposing locks.
 
@@ -237,7 +239,9 @@ pub struct SessionSnapshot {
 
 Recognize bootstrap content only when the trimmed prompt begins with `[Assistant Rules]` or `[Skill: `. Validate that `cwd` exists and is a directory. Keep the latest 48 history entries, preserving instruction entries separately. Starting a prompt replaces the cancellation flag; `session/cancel` sets the active flag to true.
 
-- [ ] **Step 4: Run tests and commit**
+- [x] **Step 4: Run tests and commit**
+
+The full crate suite also exposed an obsolete empty `initialize` request in `cli_isolation`; it now sends the required standard ACP fields.
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo test -p aion-forge-acp session -- --nocapture`
 
