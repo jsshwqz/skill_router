@@ -63,8 +63,14 @@ pub async fn run_cli(cli: cli::Cli) -> Result<Option<Value>> {
             setup::run(dry_run, &executable).map(Some)
         }
         None if cli.list => Ok(Some(direct::list_tools())),
-        None => direct::execute(cli.tool.as_deref().unwrap_or(""), cli.params.as_deref(), cli.quiet)
-            .await
-            .map(Some),
+        None if cli.tool.is_some() || cli.params.is_some() || cli.quiet => {
+            direct::execute(cli.tool.as_deref().unwrap_or(""), cli.params.as_deref(), cli.quiet)
+                .await
+                .map(Some)
+        }
+        None => {
+            aion_forge_acp::run_acp_server().await?;
+            Ok(None)
+        }
     }
 }

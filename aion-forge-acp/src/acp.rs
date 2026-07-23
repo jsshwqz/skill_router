@@ -83,7 +83,7 @@ impl ForgeAcpAgent {
             "session/prompt" => self.prompt(params, connection).await,
             "session/set_model" | "session/select_model" => self.set_legacy_model(params).await,
             "shutdown" | "exit" => Ok(Value::Null),
-            other => return Err(RequestFailure::MethodNotFound(other.to_string())),
+            other => Err(RequestFailure::MethodNotFound(other.to_string())),
         }
     }
 

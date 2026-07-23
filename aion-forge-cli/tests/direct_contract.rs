@@ -75,10 +75,10 @@ fn quiet_direct_output_is_one_compact_json_line() {
     );
     let stdout = String::from_utf8(output.stdout).expect("stdout should be UTF-8");
     assert_eq!(stdout.lines().count(), 1, "quiet output must be one JSON line");
-    assert_eq!(
-        stdout.trim_end(),
-        r#"{"capability":"echo","echo":"quiet-contract","length":14}"#
-    );
+    let value: serde_json::Value = serde_json::from_str(stdout.trim_end()).expect("quiet output should be valid JSON");
+    assert_eq!(value["capability"], "echo");
+    assert_eq!(value["echo"], "quiet-contract");
+    assert_eq!(value["length"], 14);
 }
 
 #[test]

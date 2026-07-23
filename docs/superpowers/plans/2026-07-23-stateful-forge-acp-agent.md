@@ -615,6 +615,8 @@ Commit: `git commit -m "test(acp): cover stateful Forge agent behavior"`
 
 - [ ] **Step 1: Run repository-quality checks**
 
+Status: target-scoped checks pass (`aion-forge-cli` 17 tests, `aion-forge-acp` 42 tests, changed-file `rustfmt --check`, `git diff --check`, and target `clippy --no-deps -D warnings`). The repository-wide formatting and dependency Clippy baselines still contain unrelated pre-existing failures outside these two crates.
+
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo fmt --all -- --check`
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo clippy -p aion-forge-acp -p aion-forge-cli --all-targets -- -D warnings`
@@ -625,7 +627,9 @@ Run (PowerShell): `rtk git diff --check`
 
 Expected: all commands exit zero.
 
-- [ ] **Step 2: Request a Forge code review**
+- [x] **Step 2: Request a Forge code review**
+
+Status: Forge reviews found no unresolved production-severity ACP issue. A final `prompt_audit` retry timed out on the local provider chain and left no background process.
 
 Run the available Aion Forge review tool against the changed files. Prefer `haoojiang_review`; if it is unavailable, use `code_lint`. Resolve only findings tied to ACP correctness, security, protocol compliance, or regressions.
 
@@ -633,21 +637,27 @@ Run (PowerShell): `rtk aion-forge --tool haoojiang_review --params '{"task":"Rev
 
 Expected: no unresolved high-severity finding. Record a Forge tool failure rather than replacing it with an unapproved external reviewer.
 
-- [ ] **Step 3: Build release binaries**
+- [x] **Step 3: Build release binaries**
+
+Status: built in the isolated `D:/Temp/aion-forge-release-build-20260723-b` target after the workspace drive initially ran out of space and MSVC PDB files were locked.
 
 Run (PowerShell): `$env:CARGO_HOME = Join-Path $env:TEMP 'aion-forge-cargo-direct'; rtk cargo build --release -p aion-forge-cli -p aion-forge-acp`
 
 Expected: `target/release/aion-forge.exe` and `target/release/aion-forge-acp.exe` exist.
 
-- [ ] **Step 4: Replace the deployed binaries safely**
+- [x] **Step 4: Replace the deployed binaries safely**
 
 Stop only the AionUI-owned Forge ACP process if it is running. Resolve the source and destination absolute paths, verify both destinations stay inside `D:/test/aionui/forge`, then copy the release binaries to the canonical root executables used by AionUI. Preserve the previous binaries with timestamped `.bak` names until AionUI verification succeeds.
 
-- [ ] **Step 5: Refresh AionUI Agent metadata through the AionUI configuration skill**
+- [x] **Step 5: Refresh AionUI Agent metadata through the AionUI configuration skill**
+
+Status: direct custom-agent update was rejected with `CONFIG_HTTP_STATUS_ERROR` (403), so the supported per-Agent command override was used instead. Read-back confirms `D:/test/aionui/forge/aion-forge.exe acp`, online status, and 12 model choices.
 
 Read and follow `aionui-config`. Confirm the Agent command is the canonical `D:/test/aionui/forge/aion-forge.exe` with argument `acp`. Refresh or recreate only the stale Aion Forge development Agent entry; do not change unrelated Agents or global provider settings.
 
 - [ ] **Step 6: Perform real AionUI acceptance tests**
+
+Status: AionUI connection testing passes; process-level ACP initialize/session/model-switch/error-visibility tests pass. A fresh in-app conversation remains manual because the installed `computer-use` runtime failed to initialize with missing assets. The current conversation is a Codex snapshot and cannot be converted in place.
 
 Open a new Aion Forge conversation and verify:
 
@@ -663,6 +673,8 @@ Open a new Aion Forge conversation and verify:
 Capture stderr logs with secrets redacted and confirm no late tool result is written after cancellation.
 
 - [ ] **Step 7: Remove backups after acceptance and record the session**
+
+Status: rollback binaries are retained outside the worktree at `D:/Temp/aion-forge-backups/20260723-standard-acp` until the fresh-conversation UI check is confirmed.
 
 After all acceptance checks pass, remove only the timestamped backups created in Step 4. Call `record_change` once per changed file, call `record_decision` for the exact-model/explicit-auto policy and the official ACP transport choice, generate `session_report`, and store that report through `memory_remember` with category `Decision`.
 
