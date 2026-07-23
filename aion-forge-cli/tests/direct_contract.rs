@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::path::Path;
 use std::process::Command;
 
 #[test]
@@ -78,4 +79,27 @@ fn quiet_direct_output_is_one_compact_json_line() {
         stdout.trim_end(),
         r#"{"capability":"echo","echo":"quiet-contract","length":14}"#
     );
+}
+
+#[test]
+fn direct_session_report_initializes_learning_engine() {
+    let learning_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("workspace root should exist")
+        .join("target")
+        .join("direct-learning-contract");
+    let output = Command::new(env!("CARGO_BIN_EXE_aion-forge-cli"))
+        .env("AION_LEARNING_DIR", learning_dir)
+        .args(["--tool", "session_report", "--params", "{}", "--quiet"])
+        .output()
+        .expect("direct session_report invocation should start");
+
+    assert!(
+        output.status.success(),
+        "stderr: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result: serde_json::Value = serde_json::from_slice(&output.stdout).expect("stdout should contain JSON");
+    assert_ne!(result["error"], "学习引擎未初始化");
+    assert!(result.get("session").is_some() || result.get("summary").is_some());
 }

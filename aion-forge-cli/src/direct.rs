@@ -26,6 +26,9 @@ pub async fn execute(tool_name: &str, raw_params: Option<&str>, quiet: bool) -> 
         bail!("No tool provided. Use --tool <name> or --list.");
     }
 
+    let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    aion_router::learner::init_learner(&workspace);
+
     let mut params: Value = match raw_params {
         Some(raw) => serde_json::from_str(raw).unwrap_or_else(|_| json!({"text": raw})),
         None => json!({}),
