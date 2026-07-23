@@ -3,8 +3,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-mod acp;
-
 #[derive(Parser)]
 #[command(name = "aion-forge-acp", version = "0.7.0", about = "Aion Forge ACP adapter")]
 struct Cli {
@@ -45,6 +43,6 @@ async fn main() -> Result<()> {
     aion_router::learner::init_learner(&std::env::current_dir().unwrap_or_default());
 
     match cli.command {
-        Commands::Acp => acp::run_acp_server().await,
+        Commands::Acp => aion_forge_acp::run_acp_server().await,
     }
 }

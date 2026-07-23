@@ -7,8 +7,19 @@ use std::{
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 
+/// Resolve the canonical command beside either supported Forge executable name.
+pub fn canonical_executable(executable: &Path) -> std::path::PathBuf {
+    let name = if executable.extension().and_then(|extension| extension.to_str()) == Some("exe") {
+        "aion-forge.exe"
+    } else {
+        "aion-forge"
+    };
+    executable.with_file_name(name)
+}
+
 /// Build the redacted MCP configuration displayed by `setup --dry-run`.
 pub fn dry_run_config(executable: &Path) -> Value {
+    let executable = canonical_executable(executable);
     json!({
         "mcpServers": {
             "aion-forge": {
@@ -28,7 +39,12 @@ pub fn build_update_input(listed: &Value, executable: &Path, env: &Value) -> Res
         .context("CONFIG_MCP_NOT_FOUND: aion-forge server is not registered")?;
     let server_id = servers
         .iter()
-        .find(|server| server.get("name").and_then(Value::as_str) == Some("aion-forge"))
+        .find(|server| {
+            matches!(
+                server.get("name").and_then(Value::as_str),
+                Some("aion-forge" | "aion-forge-cli")
+            )
+        })
         .and_then(|server| {
             server
                 .get("server_id")
@@ -37,6 +53,7 @@ pub fn build_update_input(listed: &Value, executable: &Path, env: &Value) -> Res
         })
         .context("CONFIG_MCP_NOT_FOUND: aion-forge server is not registered")?;
 
+    let executable = canonical_executable(executable);
     Ok(json!({
         "server_id": server_id,
         "transport": {
@@ -105,6 +122,7 @@ pub fn run(dry_run: bool, executable: &Path) -> Result<Value> {
     let read_back = invoke_helper(helper, &["config", "mcp", "servers", "list"], None)?;
     build_update_input(&read_back, executable, &json!({}))?;
 
+    let executable = canonical_executable(executable);
     Ok(json!({
         "configured": true,
         "server": "aion-forge",

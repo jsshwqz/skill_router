@@ -2,10 +2,12 @@
 name = "aion-forge-cli"
 version = "0.7.0"
 edition = "2021"
+autobins = false
 authors = ["AionCore Team"]
 description = "Standalone command-line and MCP entrypoint for Aion Forge"
 
 [dependencies]
+aion-forge-acp = { path = "../aion-forge-acp" }
 aion-intel = { path = "../aion-intel" }
 aion-router = { path = "../aion-router" }
 aion-types = { path = "../aion-types" }
@@ -18,3 +20,11 @@ serde_json = "1"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+[[bin]]
+name = "aion-forge"
+path = "src/main.rs"
+
+[[bin]]
+name = "aion-forge-cli"
+path = "src/bin/aion-forge-cli.rs"

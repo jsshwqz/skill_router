@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 /// Command-line arguments for the standalone Aion Forge entrypoint.
 #[derive(Debug, Parser)]
-#[command(name = "aion-forge-cli", version, about = "Aion Forge standalone CLI and MCP server")]
+#[command(name = "aion-forge", version, about = "Aion Forge agent, CLI, and MCP server")]
 pub struct Cli {
     /// Run a protocol or setup command.
     #[command(subcommand)]
@@ -28,6 +28,9 @@ pub struct Cli {
 /// Standalone CLI subcommands.
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Start the ACP JSON-RPC stdio server.
+    Acp,
+
     /// Start the MCP JSON-RPC stdio server.
     McpServer,
 

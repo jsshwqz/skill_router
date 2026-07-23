@@ -49,6 +49,7 @@ dependencies = [
 name = "aion-forge-cli"
 version = "0.7.0"
 dependencies = [
+ "aion-forge-acp",
  "aion-intel",
  "aion-router",
  "aion-types",

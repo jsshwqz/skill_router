@@ -1,6 +1,13 @@
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
 
+use aion_forge_acp::run_acp_server;
+
+#[test]
+fn acp_server_is_exposed_as_library_api() {
+    let _ = run_acp_server;
+}
+
 fn run(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_aion-forge-acp"))
         .args(args)
