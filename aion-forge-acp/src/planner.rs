@@ -45,11 +45,11 @@ pub const PLANNER_INSTRUCTION: &str = r#"你是 Aion Forge ACP 代理的计划�
 
 输入数据位于用户消息的 <task>...</task> 中。
 
-先一步步分析，再只输出一个 JSON 对象。输出格式只能是以下二者之一：
+先一步步分析，将分析过程保留在内部，只输出一个 JSON 对象。如果 <task>.required_tool 非空，且当前请求中尚未产生该工具的观察结果，必须先调用该精确工具。输出格式只能是以下二者之一：
 {"action":"final","message":"非空可见文本"}
 {"action":"call_tool","tool":"实时目录中的精确名称","arguments":{}}
 
-如果信息不足或无法确定安全行动，输出 {"action":"final","message":"unknown"}。"#;
+如果信息不足、无法确定安全行动或不确定正确答案，回答 unknown：输出 {"action":"final","message":"unknown"}。"#;
 
 /// One provider-neutral action returned by the planner model.
 #[derive(Debug, Clone, PartialEq)]
@@ -69,7 +69,7 @@ pub enum PlannerAction {
 }
 
 impl PlannerAction {
-    /// Parse one JSON action, accepting one unambiguous action embedded in model reasoning text.
+    /// Parse one JSON action, using the final valid action when reasoning revises an earlier candidate.
     pub fn parse(raw: &str) -> Result<Self> {
         if let Ok(payload) = strip_outer_json_fence(raw) {
             if let Ok(value) = serde_json::from_str(payload) {
@@ -77,8 +77,7 @@ impl PlannerAction {
             }
         }
 
-        let mut candidates = raw
-            .char_indices()
+        raw.char_indices()
             .filter(|(_, character)| *character == '{')
             .filter_map(|(offset, _)| {
                 serde_json::Deserializer::from_str(&raw[offset..])
@@ -86,12 +85,9 @@ impl PlannerAction {
                     .next()?
                     .ok()
                     .and_then(|value| Self::from_value(value).ok())
-            });
-        let action = candidates.next().context("planner output is not valid JSON")?;
-        if candidates.next().is_some() {
-            bail!("planner output contains multiple JSON actions");
-        }
-        Ok(action)
+            })
+            .last()
+            .context("planner output is not valid JSON")
     }
 
     fn from_value(value: Value) -> Result<Self> {
@@ -171,7 +167,9 @@ pub struct PlannerRequest {
     pub history: Vec<HistoryEntry>,
     /// Exact live Forge capability metadata.
     pub capabilities: Vec<CapabilityEntry>,
-    /// Parse failure supplied for one repair attempt.
+    /// Exact tool explicitly requested by the current user turn, until it has been invoked.
+    pub required_tool: Option<String>,
+    /// Planner or explicit-tool contract failure supplied for a bounded repair attempt.
     pub repair_error: Option<String>,
 }
 
@@ -313,6 +311,7 @@ fn planner_task_data(request: &PlannerRequest) -> Result<String> {
         "instructions": request.instructions,
         "history": history,
         "capabilities": capabilities,
+        "required_tool": request.required_tool,
         "repair_error": request.repair_error,
     });
 
@@ -358,6 +357,7 @@ mod tests {
                 requires_approval: false,
                 planner_callable: true,
             }],
+            required_tool: None,
             repair_error: None,
         }
     }
@@ -407,11 +407,19 @@ mod tests {
     }
 
     #[test]
-    fn rejects_ambiguous_multiple_embedded_actions() {
-        assert!(PlannerAction::parse(
-            "候选一：{\"action\":\"final\",\"message\":\"one\"}\n候选二：{\"action\":\"final\",\"message\":\"two\"}",
+    fn uses_the_last_embedded_action_after_reasoning_reconsiders() {
+        let action = PlannerAction::parse(
+            "先考虑：{\"action\":\"final\",\"message\":\"one\"}\n但用户明确要求调用工具。\n{\"action\":\"call_tool\",\"tool\":\"echo\",\"arguments\":{\"text\":\"ok\"}}",
         )
-        .is_err());
+        .unwrap();
+
+        assert_eq!(
+            action,
+            PlannerAction::CallTool {
+                tool: "echo".to_string(),
+                arguments: json!({"text": "ok"}),
+            }
+        );
     }
 
     #[test]

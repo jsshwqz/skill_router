@@ -87,9 +87,12 @@ impl AgentLoop {
         request: TurnRequest,
         sink: &dyn SessionEventSink,
     ) -> Result<TurnOutcome> {
+        let required_tool = explicit_required_tool(&request.history, &request.capabilities);
         let mut history = request.history;
         let mut repair_error = None;
         let mut repair_used = false;
+        let mut tool_contract_repair_used = false;
+        let mut required_tool_attempted = false;
         let mut tool_calls = 0usize;
         let mut failed_calls = HashSet::new();
 
@@ -107,6 +110,7 @@ impl AgentLoop {
                     instructions: request.instructions.clone(),
                     history: history.clone(),
                     capabilities: request.capabilities.clone(),
+                    required_tool: required_tool.clone().filter(|_| !required_tool_attempted),
                     repair_error: repair_error.take(),
                 })
                 .await;
@@ -125,6 +129,16 @@ impl AgentLoop {
 
             match action {
                 PlannerAction::Final { message } => {
+                    if let Some(tool) = required_tool.as_ref().filter(|_| !required_tool_attempted) {
+                        if !tool_contract_repair_used {
+                            tool_contract_repair_used = true;
+                            repair_error = Some(format!(
+                                "用户明确要求调用工具 {tool}，但上一动作未实际调用该工具。下一动作必须是 call_tool。"
+                            ));
+                            continue;
+                        }
+                        return finish(sink, history, format!("规划失败：未按用户要求调用工具 {tool}。")).await;
+                    }
                     if is_cancelled(&request.cancellation) {
                         return finish(sink, history, "请求已取消。".to_string()).await;
                     }
@@ -145,6 +159,9 @@ impl AgentLoop {
 
                     let call_id = Uuid::new_v4().to_string();
                     sink.tool_started(&call_id, &tool, &arguments).await?;
+                    if required_tool.as_deref() == Some(tool.as_str()) {
+                        required_tool_attempted = true;
+                    }
                     tool_calls += 1;
 
                     if is_cancelled(&request.cancellation) {
@@ -196,6 +213,28 @@ impl AgentLoop {
             }
         }
     }
+}
+
+fn explicit_required_tool(
+    history: &[HistoryEntry],
+    capabilities: &[CapabilityEntry],
+) -> Option<String> {
+    let user = history.iter().rev().find_map(|entry| match entry {
+        HistoryEntry::User(message) => Some(message.to_ascii_lowercase()),
+        _ => None,
+    })?;
+    let prefixes = [
+        "使用 ", "使用", "调用 ", "调用", "执行 ", "执行", "use ", "call ", "run ",
+    ];
+
+    capabilities
+        .iter()
+        .filter(|capability| capability.planner_callable)
+        .find(|capability| {
+            let name = capability.name.to_ascii_lowercase();
+            prefixes.iter().any(|prefix| user.contains(&format!("{prefix}{name}")))
+        })
+        .map(|capability| capability.name.clone())
 }
 
 fn is_cancelled(cancellation: &AtomicBool) -> bool {
@@ -433,6 +472,55 @@ mod tests {
             .as_deref()
             .unwrap()
             .contains("JSON object"));
+    }
+
+    #[tokio::test]
+    async fn explicit_tool_request_cannot_be_satisfied_by_a_false_final_answer() {
+        let planner = ScriptedPlanner::new(vec![
+            Ok(PlannerAction::Final {
+                message: "Aion Forge 已正常工作".to_string(),
+            }),
+            Ok(PlannerAction::CallTool {
+                tool: "echo".to_string(),
+                arguments: json!({"text": "Aion Forge 已正常工作"}),
+            }),
+            Ok(PlannerAction::Final {
+                message: "Aion Forge 已正常工作".to_string(),
+            }),
+        ]);
+        let executor = RecordingExecutor::with_results(vec![Ok(json!({
+            "echo": "Aion Forge 已正常工作"
+        }))]);
+        let sink = RecordingEventSink::default();
+        let request = TurnRequest {
+            selected_model: "auto".to_string(),
+            cwd: PathBuf::from("D:/test/aionui/forge"),
+            instructions: Vec::new(),
+            history: vec![HistoryEntry::User(
+                "使用 echo 技能返回：Aion Forge 已正常工作".to_string(),
+            )],
+            capabilities: vec![CapabilityEntry {
+                name: "echo".to_string(),
+                description: "Echo text".to_string(),
+                parameters_schema: json!({"type": "object"}),
+                requires_approval: false,
+                planner_callable: true,
+            }],
+            cancellation: Arc::new(AtomicBool::new(false)),
+        };
+
+        let outcome = AgentLoop::new(planner.clone(), executor, 6)
+            .run(request, &sink)
+            .await
+            .unwrap();
+
+        assert_eq!(outcome.message, "Aion Forge 已正常工作");
+        assert!(sink.events.lock().unwrap().iter().any(|event| event.contains(":echo")));
+        assert!(planner.requests.lock().unwrap()[1]
+            .repair_error
+            .as_deref()
+            .unwrap()
+            .contains("echo"));
     }
 
     #[tokio::test]
