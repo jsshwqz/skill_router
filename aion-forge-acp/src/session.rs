@@ -143,8 +143,12 @@ impl SessionStore {
             .ok_or_else(|| anyhow::anyhow!("unknown ACP session '{session_id}'"))?;
         let trimmed = prompt.trim();
 
-        if trimmed.starts_with("[Assistant Rules]") || trimmed.starts_with("[Skill: ") {
-            session.instructions.push(trimmed.to_string());
+        if let Some((instruction, user_turn)) = split_bootstrap_envelope(trimmed) {
+            session.instructions.push(instruction.to_string());
+            if let Some(user_turn) = user_turn {
+                session.append_history(HistoryEntry::User(user_turn.to_string()));
+                return Ok(PromptDisposition::UserTurn);
+            }
             return Ok(PromptDisposition::BootstrapStored);
         }
 
@@ -183,6 +187,23 @@ impl SessionStore {
         session.cancellation.store(true, Ordering::SeqCst);
         Ok(())
     }
+}
+
+fn split_bootstrap_envelope(prompt: &str) -> Option<(&str, Option<&str>)> {
+    let closing_tag = if prompt.starts_with("[Assistant Rules]") {
+        "[/Assistant Rules]"
+    } else if prompt.starts_with("[Skill: ") {
+        "[/Skill]"
+    } else {
+        return None;
+    };
+
+    let Some(closing_offset) = prompt.find(closing_tag) else {
+        return Some((prompt, None));
+    };
+    let envelope_end = closing_offset + closing_tag.len();
+    let user_turn = prompt[envelope_end..].trim();
+    Some((&prompt[..envelope_end], (!user_turn.is_empty()).then_some(user_turn)))
 }
 
 #[cfg(test)]
@@ -255,6 +276,28 @@ mod tests {
             .unwrap();
 
         assert_eq!(disposition, PromptDisposition::BootstrapStored);
+    }
+
+    #[tokio::test]
+    async fn assistant_rules_envelope_preserves_trailing_user_turn() {
+        let store = SessionStore::default();
+        let session_id = create_session(&store).await;
+
+        let disposition = store
+            .ingest_prompt(
+                &session_id,
+                "[Assistant Rules]\nUse Forge tools.\n[/Assistant Rules]\n\n你是谁？",
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(disposition, PromptDisposition::UserTurn);
+        let snapshot = store.snapshot(&session_id).await.unwrap();
+        assert_eq!(
+            snapshot.instructions,
+            vec!["[Assistant Rules]\nUse Forge tools.\n[/Assistant Rules]".to_string()]
+        );
+        assert_eq!(snapshot.history, vec![HistoryEntry::User("你是谁？".to_string())]);
     }
 
     #[tokio::test]
