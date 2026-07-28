@@ -61,6 +61,26 @@ async fn execute_runs_echo_from_builtin_registry() {
     assert_eq!(result["length"], 21);
 }
 
+#[tokio::test]
+async fn health_check_defaults_to_zero_request_historical_mode() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("workspace root should exist")
+        .join("target")
+        .join("health-contract");
+    let params = serde_json::json!({
+        "workspace": workspace,
+        "live_probe": false,
+    });
+    let result = aion_forge_cli::direct::execute("health_check", Some(&params.to_string()), true)
+        .await
+        .expect("health_check should execute through the built-in registry");
+
+    assert_eq!(result["live_probe_performed"], false);
+    assert!(result["live_probes"].is_null());
+    assert_eq!(result["server_version"]["version"], env!("CARGO_PKG_VERSION"));
+}
+
 #[test]
 fn quiet_direct_output_is_one_compact_json_line() {
     let output = Command::new(env!("CARGO_BIN_EXE_aion-forge-cli"))
