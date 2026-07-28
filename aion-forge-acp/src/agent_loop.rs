@@ -546,7 +546,14 @@ mod tests {
 
     #[tokio::test]
     async fn stops_visibly_after_six_tool_calls() {
-        let actions = (0..7).map(|_| Ok(call_tool())).collect();
+        let actions = (0..7)
+            .map(|index| {
+                Ok(PlannerAction::CallTool {
+                    tool: "json_parse".to_string(),
+                    arguments: json!({"text": format!("{{\"index\":{index}}}")}),
+                })
+            })
+            .collect();
         let results = (0..6).map(|_| Ok(json!({"ok": true}))).collect();
         let sink = RecordingEventSink::default();
 
