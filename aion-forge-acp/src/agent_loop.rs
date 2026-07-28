@@ -91,6 +91,8 @@ impl AgentLoop {
         let mut required_tool_attempted = false;
         let mut tool_calls = 0usize;
         let mut failed_calls = HashSet::new();
+        let mut successful_calls = HashSet::new();
+        let mut duplicate_success_repair_used = false;
 
         loop {
             if is_cancelled(&request.cancellation) {
@@ -141,6 +143,21 @@ impl AgentLoop {
                     return finish(sink, history, message).await;
                 }
                 PlannerAction::CallTool { tool, arguments } => {
+                    let call_signature = json!({
+                        "tool": tool,
+                        "arguments": arguments,
+                    })
+                    .to_string();
+                    if successful_calls.contains(&call_signature) {
+                        if duplicate_success_repair_used {
+                            return finish(sink, history, format!("检测到重复的成功工具调用：{tool}。")).await;
+                        }
+                        duplicate_success_repair_used = true;
+                        repair_error = Some(format!(
+                            "工具 {tool} 已使用相同参数成功执行。不要重复调用；请根据已有观察返回 final。"
+                        ));
+                        continue;
+                    }
                     if tool_calls >= self.max_tool_calls {
                         return finish(
                             sink,
@@ -177,6 +194,7 @@ impl AgentLoop {
                     sink.tool_finished(&call_id, &result).await?;
                     match result {
                         Ok(value) => {
+                            successful_calls.insert(call_signature);
                             history.push(HistoryEntry::Tool {
                                 name: tool,
                                 observation: normalize_observation(value.to_string()),
@@ -426,6 +444,32 @@ mod tests {
             .history
             .iter()
             .any(|entry| matches!(entry, HistoryEntry::Tool { observation, .. } if observation.contains("true"))));
+    }
+
+    #[tokio::test]
+    async fn identical_successful_tool_call_is_repaired_without_reexecution() {
+        let planner = ScriptedPlanner::new(vec![
+            Ok(call_tool()),
+            Ok(call_tool()),
+            Ok(PlannerAction::Final {
+                message: "解析完成。".to_string(),
+            }),
+        ]);
+        let executor = RecordingExecutor::with_results(vec![Ok(json!({"ok": true}))]);
+        let sink = RecordingEventSink::default();
+
+        let outcome = AgentLoop::new(planner.clone(), executor, 6)
+            .run(turn_request(Arc::new(AtomicBool::new(false))), &sink)
+            .await
+            .unwrap();
+
+        assert_eq!(outcome.message, "解析完成。");
+        assert_eq!(sink.events.lock().unwrap().len(), 2);
+        assert!(planner.requests.lock().unwrap()[2]
+            .repair_error
+            .as_deref()
+            .unwrap()
+            .contains("不要重复调用"));
     }
 
     #[tokio::test]
