@@ -396,6 +396,6 @@ impl AiNativePayload {
 
     /// Sort a batch of payloads by priority (Critical first).
     pub fn sort_by_priority(payloads: &mut [AiNativePayload]) {
-        payloads.sort_by(|a, b| b.priority.cmp(&a.priority));
+        payloads.sort_by_key(|payload| std::cmp::Reverse(payload.priority));
     }
 }
