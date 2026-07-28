@@ -1227,7 +1227,7 @@ mod tests {
 
     #[test]
     fn test_auto_evolve_on_3_failures() {
-        let tmp = std::env::temp_dir().join("aion_test_auto_evolve");
+        let tmp = std::env::temp_dir().join(format!("aion_test_auto_evolve_{}", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_dir_all(&tmp);
         // 记录：3 次失败 → 应触发 auto_evolve 事件
         let learner = SkillLearner::load(&tmp, &tmp);
@@ -1251,9 +1251,15 @@ mod tests {
             "circuit should be open after 3 failures"
         );
         // 等待异步线程写入 evolve 事件
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let events = loop {
+            let events = SkillLearner::read_events_from(&learner.events_path);
+            if events.iter().any(|event| event.event_type == "evolve") || std::time::Instant::now() >= deadline {
+                break events;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        };
         // 检查 evolve 事件
-        let events = SkillLearner::read_events_from(&learner.events_path);
         let evolve_events: Vec<&ExecutionEvent> = events.iter().filter(|e| e.event_type == "evolve").collect();
         assert!(!evolve_events.is_empty(), "expected at least one evolve event");
         assert!(evolve_events[0].capability == "test_fragile");

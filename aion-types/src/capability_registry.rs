@@ -1163,6 +1163,24 @@ impl CapabilityRegistry {
                 category: "security".to_string(),
             },
             CapabilityDefinition {
+                name: "evolution_run".to_string(),
+                description: "Evaluate generated Rust patch candidates in isolated git worktrees, run deterministic gates, reject regressions, and return promotion evidence.".to_string(),
+                inputs: vec!["request".to_string(), "candidates".to_string(), "gates".to_string()],
+                outputs: vec!["selected".to_string(), "evaluated".to_string(), "rejected".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type":"object",
+                    "properties": {
+                        "request":{"type":"object"},
+                        "candidates":{"type":"array"},
+                        "gates":{"type":"array"}
+                    },
+                    "required":["request","candidates","gates"]
+                }),
+                examples: vec![],
+                requires_approval: true,
+                category: "evolution".to_string(),
+            },
+            CapabilityDefinition {
                 name: "autonomous_agent".to_string(),
                 description: "Autonomous goal-driven agent: receives a high-level goal, plans steps, executes them iteratively, adapts on failure, and delivers a structured report.".to_string(),
                 inputs: vec!["task".to_string()],

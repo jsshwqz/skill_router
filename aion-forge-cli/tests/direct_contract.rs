@@ -3,7 +3,7 @@ use std::path::Path;
 use std::process::Command;
 
 #[test]
-fn list_catalog_matches_the_75_tool_product_contract() {
+fn list_catalog_matches_the_76_tool_product_contract() {
     let catalog = aion_forge_cli::direct::list_tools();
     let tools = catalog["tools"].as_array().expect("tools must be an array");
     let names: Vec<&str> = tools
@@ -30,11 +30,11 @@ fn list_catalog_matches_the_75_tool_product_contract() {
         .filter(|name| !routable.contains(name))
         .collect();
 
-    assert_eq!(catalog["total"], 75);
-    assert_eq!(names.len(), 75);
+    assert_eq!(catalog["total"], 76);
+    assert_eq!(names.len(), 76);
     assert_eq!(
         unique.len(),
-        75,
+        76,
         "direct catalog contains duplicate names; routable skills missing declarations: {missing_declarations:?}; declarations without routes: {undeclared_routes:?}"
     );
     assert!(unique.contains("sanitize"), "sanitize is the missing public capability");
