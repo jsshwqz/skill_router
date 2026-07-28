@@ -129,6 +129,15 @@
     }
   },
   "binaries": {
+    "aion-forge": {
+      "description": "Canonical Aion Forge Agent, CLI, ACP, and MCP entrypoint",
+      "platforms": {
+        "x86_64-unknown-linux-musl": { "filename": "aion-forge-linux-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
+        "x86_64-pc-windows-msvc": { "filename": "aion-forge-windows-x86_64.exe", "sha256": "TO_BE_FILLED_BY_CI" },
+        "x86_64-apple-darwin": { "filename": "aion-forge-macos-x86_64", "sha256": "TO_BE_FILLED_BY_CI" },
+        "aarch64-apple-darwin": { "filename": "aion-forge-macos-aarch64", "sha256": "TO_BE_FILLED_BY_CI" }
+      }
+    },
     "aion-forge-cli": {
       "description": "Command-line interface for direct skill execution",
       "platforms": {
@@ -155,7 +164,7 @@
       "Check no conflicting service on port 3000 (or configure AION_PORT)"
     ],
     "post_install": [
-      "Run \"aion-forge-cli --tool echo --params '{\"text\":\"test\"}' --quiet\" — should return JSON containing {\"echo\":\"test\"}",
+      "Run \"aion-forge --tool echo --params '{\"text\":\"test\"}' --quiet\" — should return JSON containing {\"echo\":\"test\"}",
       "Run 'aion-server' then curl http://localhost:3000/v1/health — should return {\"status\": \"ok\"}"
     ]
   }

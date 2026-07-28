@@ -39,15 +39,17 @@ mkdir -p "$PKG_DIR/adapters/aionui"
 mkdir -p "$OUTPUT_DIR"
 
 # 复制二进制
+FORGE_BIN="target/${PROFILE}/aion-forge${EXE}"
 CLI_BIN="target/${PROFILE}/aion-forge-cli${EXE}"
 SERVER_BIN="target/${PROFILE}/aion-server${EXE}"
 
-if [[ ! -f "$CLI_BIN" ]]; then
-  echo "Binary not found: $CLI_BIN"
-  echo "Run: cargo build -p aion-forge-cli -p aion-server [--release]"
+if [[ ! -f "$FORGE_BIN" || ! -f "$CLI_BIN" ]]; then
+  echo "Binary not found: $FORGE_BIN or $CLI_BIN"
+  echo "Run: cargo build -p aion-forge-cli --bin aion-forge --bin aion-forge-cli -p aion-server [--release]"
   exit 1
 fi
 
+cp "$FORGE_BIN" "$PKG_DIR/aion-forge${EXE}"
 cp "$CLI_BIN" "$PKG_DIR/aion-forge-cli${EXE}"
 [[ -f "$SERVER_BIN" ]] && cp "$SERVER_BIN" "$PKG_DIR/aion-server${EXE}"
 

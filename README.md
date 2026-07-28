@@ -32,7 +32,7 @@ docker compose up -d
 
 **From source / 从源码构建:**
 ```bash
-cargo build --release -p aion-forge-cli -p aion-server
+cargo build --release -p aion-forge-cli --bin aion-forge --bin aion-forge-cli -p aion-server
 ```
 
 ---
@@ -41,17 +41,17 @@ cargo build --release -p aion-forge-cli -p aion-server
 
 ```bash
 # Run a built-in tool / 执行内置工具
-aion-forge-cli --tool yaml_parse --params '{"text":"name: test"}'
+aion-forge --tool yaml_parse --params '{"text":"name: test"}'
 
 # Compact JSON output / 紧凑 JSON 输出
-aion-forge-cli --tool text_summarize --params '{"text":"Rust is a systems language"}' --quiet
+aion-forge --tool text_summarize --params '{"text":"Rust is a systems language"}' --quiet
 
 # Start HTTP API / 启动 HTTP API
 aion-server
 # -> http://localhost:3000/v1/health
 
 # List built-in tools / 列出内置工具
-aion-forge-cli --list
+aion-forge --list
 ```
 
 ---
@@ -71,7 +71,7 @@ aion-forge-cli --list
 {
   "mcpServers": {
     "aion-forge": {
-      "command": "aion-forge-cli",
+      "command": "aion-forge",
       "args": ["mcp-server"]
     }
   }
@@ -103,7 +103,8 @@ aion-types   -- Data structures & protocol definitions (no IO)
 aion-memory  -- Memory storage with namespace isolation
 aion-intel   -- AI inference, planning, web search
 aion-router  -- Skill routing, execution, security, multi-agent coordination
-aion-forge-cli -- CLI entry point + MCP server
+aion-forge -- canonical Agent, CLI, ACP, and MCP entry point
+aion-forge-cli -- compatibility alias
 aion-server  -- HTTP REST API (Axum) + WebSocket events
 ```
 
@@ -113,7 +114,7 @@ aion-server  -- HTTP REST API (Axum) + WebSocket events
 User / AI Agent
      |
      v
-[aion-forge-cli] or [aion-server:3000]
+[aion-forge] or [aion-server:3000]
      |
      v
 SkillRouter -> Planner -> Executor -> BuiltinSkill
@@ -199,7 +200,7 @@ host Anthropic proxy (`ANTHROPIC_*` / `AION_HOST_AI_*`) → explicit `AI_*` → 
 
 | Problem | Solution |
 |---------|----------|
-| `aion-forge-cli: command not found` | Restart terminal or run `source ~/.bashrc` |
+| `aion-forge: command not found` | Restart terminal or run `source ~/.bashrc` |
 | Connection refused on port 3000 | Start `aion-server` first |
 | AI tasks return errors | Check `AI_BASE_URL` points to a running LLM |
 | Web search fails | Set `SERPAPI_KEY` in `~/.aion/.env` |

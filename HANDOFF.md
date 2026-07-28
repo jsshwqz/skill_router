@@ -6,7 +6,7 @@
 
 | 项目 | 状态 |
 |---|---|
-| 正式入口 | `D:/test/aionui/forge/aion-forge-cli.exe mcp-server` |
+| 正式入口 | `aion-forge mcp-server` |
 | AionUI 集成 | MCP 已启用，ACP 独立聊天 Agent 已禁用 |
 | 模型路由 | OmniRoute `http://127.0.0.1:20128/v1`，模型 `auto/fast` |
 | 工具数量 | AionUI 实测 75 |
