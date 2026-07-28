@@ -20,6 +20,7 @@ fn list_catalog_matches_the_75_tool_product_contract() {
     let missing_declarations: Vec<&str> = builtins
         .list_skills()
         .into_iter()
+        .filter(|name| *name != "ai_task")
         .filter(|name| !declared.contains(name))
         .collect();
     let routable: HashSet<&str> = builtins.list_skills().into_iter().collect();
@@ -45,9 +46,21 @@ fn list_catalog_matches_the_75_tool_product_contract() {
         builtins.get("sanitize").is_some(),
         "the added public capability must have a builtin route"
     );
+    assert!(
+        missing_declarations.is_empty(),
+        "builtin routes missing public declarations: {missing_declarations:?}"
+    );
+    assert!(
+        undeclared_routes.is_empty(),
+        "public declarations without builtin routes: {undeclared_routes:?}"
+    );
     assert!(names
         .iter()
         .all(|name| capabilities.get(name).is_some() || *name == "sanitize"));
+
+    let acp_catalog = aion_forge_acp::catalog::CapabilityCatalog::live();
+    let acp_names: HashSet<&str> = acp_catalog.entries().iter().map(|entry| entry.name.as_str()).collect();
+    assert_eq!(unique, acp_names, "direct and ACP catalogs must expose the same names");
 }
 
 #[tokio::test]

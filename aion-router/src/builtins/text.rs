@@ -7,6 +7,46 @@ use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::{extract_text, require_text, BuiltinSkill};
 
+macro_rules! ai_text_builtin {
+    ($type_name:ident, $tool_name:literal, $instruction:literal) => {
+        pub struct $type_name;
+
+        #[async_trait::async_trait]
+        impl BuiltinSkill for $type_name {
+            fn name(&self) -> &'static str {
+                $tool_name
+            }
+
+            async fn execute(&self, skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+                let mut delegated = skill.clone();
+                delegated.metadata.instruction = Some($instruction.to_string());
+                super::ai::AiTask.execute(&delegated, context).await
+            }
+        }
+    };
+}
+
+ai_text_builtin!(
+    TextSummarize,
+    "text_summarize",
+    "Summarize the input accurately and concisely while preserving key facts."
+);
+ai_text_builtin!(
+    TextClassify,
+    "text_classify",
+    "Classify the input using the requested labels or the smallest useful label set."
+);
+ai_text_builtin!(
+    TextExtract,
+    "text_extract",
+    "Extract the requested entities and facts from the input without inventing information."
+);
+ai_text_builtin!(
+    TextTranslate,
+    "text_translate",
+    "Translate the input into the requested target language while preserving meaning and tone."
+);
+
 // ── text_diff ───────────────────────────────────────────────────────────────
 
 pub struct TextDiff;
