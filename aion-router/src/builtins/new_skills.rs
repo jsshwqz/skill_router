@@ -1,6 +1,6 @@
 //! 新增 builtin 技能：echo, json_query, regex_match, skill_report, evolution_report
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use serde_json::{json, Value};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
@@ -233,6 +233,25 @@ impl BuiltinSkill for RegexMatch {
 }
 
 // ── code_lint ─────────────────────────────────────────────────────────────
+
+/// Generate Rust code through the shared AI task backend.
+pub struct CodeGenerate;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for CodeGenerate {
+    fn name(&self) -> &'static str {
+        "code_generate"
+    }
+
+    async fn execute(&self, skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let mut delegated = skill.clone();
+        delegated.metadata.instruction = Some(
+            "You are a Rust code generator. Return focused, compilable Rust code for the user's requirement."
+                .to_string(),
+        );
+        super::ai::AiTask.execute(&delegated, context).await
+    }
+}
 
 /// 代码静态检查：纯 Rust 规则检测（不调 AI）
 ///
@@ -513,9 +532,19 @@ impl BuiltinSkill for RecordChange {
             .context
             .get("kind")
             .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
+            .filter(|value| !value.trim().is_empty())
+            .ok_or_else(|| anyhow!("record_change requires a non-empty kind"))?;
+        if !matches!(
+            kind,
+            "feature" | "fix" | "refactor" | "prompt" | "doc" | "config" | "test"
+        ) {
+            bail!("record_change kind must be feature, fix, refactor, prompt, doc, config, or test");
+        }
         let file = context.context.get("file").and_then(|v| v.as_str()).unwrap_or("");
         let summary = context.context.get("summary").and_then(|v| v.as_str()).unwrap_or("");
+        if file.trim().is_empty() || summary.trim().is_empty() {
+            bail!("record_change requires non-empty file and summary");
+        }
         match crate::learner::learner() {
             Some(learner) => {
                 learner.record_change(kind, file, summary);
@@ -541,6 +570,9 @@ impl BuiltinSkill for RecordDecision {
         let ctx = context.context.get("context").and_then(|v| v.as_str()).unwrap_or("");
         let choice = context.context.get("choice").and_then(|v| v.as_str()).unwrap_or("");
         let rationale = context.context.get("rationale").and_then(|v| v.as_str()).unwrap_or("");
+        if ctx.trim().is_empty() || choice.trim().is_empty() || rationale.trim().is_empty() {
+            bail!("record_decision requires non-empty context, choice, and rationale");
+        }
         match crate::learner::learner() {
             Some(learner) => {
                 learner.record_decision(ctx, choice, rationale);

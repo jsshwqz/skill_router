@@ -13,7 +13,7 @@ pub(crate) struct ToolCatalogEntry {
 /// Build the single authoritative public tool catalog.
 pub(crate) fn entries() -> Vec<ToolCatalogEntry> {
     let registry = aion_types::capability_registry::CapabilityRegistry::builtin();
-    let mut entries: BTreeMap<String, ToolCatalogEntry> = registry
+    let entries: BTreeMap<String, ToolCatalogEntry> = registry
         .definitions()
         .map(|capability| {
             let input_schema = if capability.parameters_schema.is_null() || capability.parameters_schema == json!({}) {
@@ -36,19 +36,6 @@ pub(crate) fn entries() -> Vec<ToolCatalogEntry> {
             )
         })
         .collect();
-
-    entries
-        .entry("sanitize".to_string())
-        .or_insert_with(|| ToolCatalogEntry {
-            name: "sanitize".to_string(),
-            description: "Remove dangerous control characters and report sanitization details.".to_string(),
-            input_schema: json!({
-                "type": "object",
-                "properties": {"text": {"type": "string", "description": "Text to sanitize."}},
-                "required": ["text"],
-            }),
-            requires_approval: false,
-        });
 
     entries.into_values().collect()
 }

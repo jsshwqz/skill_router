@@ -80,7 +80,9 @@ mod tests {
             .iter()
             .all(|entry| registry.get(&entry.name).is_some()));
         assert!(catalog.entries().iter().any(|entry| entry.name == "yaml_parse"));
-        assert!(!catalog.entries().iter().any(|entry| entry.name == "text_summarize"));
+        assert!(catalog.entries().iter().any(|entry| entry.name == "text_summarize"));
+        assert!(catalog.entries().iter().any(|entry| entry.name == "code_generate"));
+        assert_eq!(catalog.entries().len(), 75);
     }
 
     #[test]

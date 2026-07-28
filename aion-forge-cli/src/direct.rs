@@ -36,12 +36,14 @@ pub async fn execute(tool_name: &str, raw_params: Option<&str>, quiet: bool) -> 
 
     sanitize_text(&mut params, quiet);
 
+    let task = task_from_params(&params, tool_name);
+
     let registry = aion_router::builtins::BuiltinRegistry::default_registry();
     let Some(builtin) = registry.get(tool_name) else {
         bail!("Tool '{}' not found. Use --list to view available tools.", tool_name);
     };
 
-    let context = ExecutionContext::new(tool_name, tool_name).with_context(params);
+    let context = ExecutionContext::new(&task, tool_name).with_context(params);
     let skill = aion_types::types::SkillDefinition {
         metadata: aion_types::types::SkillMetadata {
             name: tool_name.to_string(),
@@ -57,6 +59,16 @@ pub async fn execute(tool_name: &str, raw_params: Option<&str>, quiet: bool) -> 
     };
 
     builtin.execute(&skill, &context).await
+}
+
+fn task_from_params(params: &Value, tool_name: &str) -> String {
+    params
+        .get("task")
+        .or_else(|| params.get("text"))
+        .or_else(|| params.get("input"))
+        .and_then(Value::as_str)
+        .unwrap_or(tool_name)
+        .to_string()
 }
 
 fn sanitize_text(params: &mut Value, quiet: bool) {
@@ -80,5 +92,21 @@ fn sanitize_text(params: &mut Value, quiet: bool) {
             );
         }
         params["text"] = json!(clean_text);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::task_from_params;
+
+    #[test]
+    fn direct_task_uses_the_user_goal_instead_of_the_tool_name() {
+        assert_eq!(
+            task_from_params(&json!({"task": "ship PR 6"}), "autonomous_agent"),
+            "ship PR 6"
+        );
+        assert_eq!(task_from_params(&json!({}), "autonomous_agent"), "autonomous_agent");
     }
 }

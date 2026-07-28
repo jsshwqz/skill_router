@@ -92,6 +92,10 @@ impl BuiltinRegistry {
         // 文本类
         reg.register(Box::new(text::TextDiff));
         reg.register(Box::new(text::TextEmbed));
+        reg.register(Box::new(text::TextSummarize));
+        reg.register(Box::new(text::TextClassify));
+        reg.register(Box::new(text::TextExtract));
+        reg.register(Box::new(text::TextTranslate));
         reg.register(Box::new(text::MarkdownRender));
         reg.register(Box::new(text::TextWordcount));
 
@@ -124,6 +128,7 @@ impl BuiltinRegistry {
         reg.register(Box::new(new_skills::SpaceNavigation));
         reg.register(Box::new(new_skills::JsonQuery));
         reg.register(Box::new(new_skills::RegexMatch));
+        reg.register(Box::new(new_skills::CodeGenerate));
         reg.register(Box::new(new_skills::CodeLint));
         reg.register(Box::new(new_skills::CodeTest));
         reg.register(Box::new(new_skills::SkillReport));

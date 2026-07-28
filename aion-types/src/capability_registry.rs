@@ -1149,6 +1149,20 @@ impl CapabilityRegistry {
                 category: "orchestration".to_string(),
             },
             CapabilityDefinition {
+                name: "sanitize".to_string(),
+                description: "Remove dangerous control characters and report sanitization details.".to_string(),
+                inputs: vec!["text".to_string()],
+                outputs: vec!["clean_text".to_string(), "sanitized_count".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {"text": {"type": "string", "description": "Text to sanitize."}},
+                    "required": ["text"]
+                }),
+                examples: vec![],
+                requires_approval: false,
+                category: "security".to_string(),
+            },
+            CapabilityDefinition {
                 name: "autonomous_agent".to_string(),
                 description: "Autonomous goal-driven agent: receives a high-level goal, plans steps, executes them iteratively, adapts on failure, and delivers a structured report.".to_string(),
                 inputs: vec!["task".to_string()],
