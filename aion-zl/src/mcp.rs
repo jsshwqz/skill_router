@@ -25,11 +25,18 @@ pub struct McpResp {
 
 impl McpResp {
     fn ok(id: serde_json::Value, result: serde_json::Value) -> Self {
-        Self { jsonrpc: "2.0".into(), id, result: Some(result), error: None }
+        Self {
+            jsonrpc: "2.0".into(),
+            id,
+            result: Some(result),
+            error: None,
+        }
     }
     fn err(id: serde_json::Value, code: i32, msg: String) -> Self {
         Self {
-            jsonrpc: "2.0".into(), id, result: None,
+            jsonrpc: "2.0".into(),
+            id,
+            result: None,
             error: Some(serde_json::json!({ "code": code, "message": msg })),
         }
     }
@@ -41,7 +48,9 @@ pub async fn run(engine: &Engine) -> anyhow::Result<()> {
 
     for line in stdin.lock().lines() {
         let line = line?;
-        if line.trim().is_empty() { continue; }
+        if line.trim().is_empty() {
+            continue;
+        }
 
         let req: McpReq = match serde_json::from_str(&line) {
             Ok(r) => r,
@@ -62,11 +71,14 @@ pub async fn run(engine: &Engine) -> anyhow::Result<()> {
 
 async fn handle(engine: &Engine, req: &McpReq) -> McpResp {
     match req.method.as_str() {
-        "initialize" => McpResp::ok(req.id.clone(), serde_json::json!({
-            "protocolVersion": "2024-11-05",
-            "capabilities": { "tools": {} },
-            "serverInfo": { "name": "aion-zl", "version": "0.2.0" }
-        })),
+        "initialize" => McpResp::ok(
+            req.id.clone(),
+            serde_json::json!({
+                "protocolVersion": "2024-11-05",
+                "capabilities": { "tools": {} },
+                "serverInfo": { "name": "aion-zl", "version": "0.2.0" }
+            }),
+        ),
         "notifications/initialized" => McpResp::ok(req.id.clone(), serde_json::json!({})),
         "tools/list" => McpResp::ok(req.id.clone(), serde_json::json!({ "tools": tools() })),
         "tools/call" => {
@@ -75,15 +87,21 @@ async fn handle(engine: &Engine, req: &McpReq) -> McpResp {
             match call(engine, name, args).await {
                 Ok(v) => {
                     let text = serde_json::to_string_pretty(&v).unwrap_or_default();
-                    McpResp::ok(req.id.clone(), serde_json::json!({
-                        "content": [{ "type": "text", "text": text }],
-                        "isError": false
-                    }))
+                    McpResp::ok(
+                        req.id.clone(),
+                        serde_json::json!({
+                            "content": [{ "type": "text", "text": text }],
+                            "isError": false
+                        }),
+                    )
                 }
-                Err(e) => McpResp::ok(req.id.clone(), serde_json::json!({
-                    "content": [{ "type": "text", "text": format!("Error: {}", e) }],
-                    "isError": true
-                })),
+                Err(e) => McpResp::ok(
+                    req.id.clone(),
+                    serde_json::json!({
+                        "content": [{ "type": "text", "text": format!("Error: {}", e) }],
+                        "isError": true
+                    }),
+                ),
             }
         }
         _ => McpResp::err(req.id.clone(), -32601, format!("Unknown method: {}", req.method)),
@@ -100,14 +118,14 @@ async fn call(engine: &Engine, tool: &str, args: &serde_json::Value) -> anyhow::
             let max = args["max_attempts"].as_u64().unwrap_or(3) as u32;
             Ok(serde_json::to_value(engine.dialectical_retry(task, max).await?)?)
         }
-        "compile_contract" => {
-            Ok(serde_json::to_value(engine.compile_contract(task).await?)?)
-        }
+        "compile_contract" => Ok(serde_json::to_value(engine.compile_contract(task).await?)?),
         "check_sufficiency" => {
             let contract: crate::contract::TaskContract = serde_json::from_value(args["contract"].clone())
                 .map_err(|e| anyhow::anyhow!("Invalid contract: {}", e))?;
             let context = args["context"].as_str().unwrap_or("");
-            Ok(serde_json::to_value(engine.check_sufficiency(&contract, context).await?)?)
+            Ok(serde_json::to_value(
+                engine.check_sufficiency(&contract, context).await?,
+            )?)
         }
         "verify_result" => {
             let contract: crate::contract::TaskContract = serde_json::from_value(args["contract"].clone())

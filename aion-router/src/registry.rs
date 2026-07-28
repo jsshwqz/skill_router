@@ -46,10 +46,7 @@ impl RegistryStore {
 
     pub fn save(&self, paths: &RouterPaths) -> Result<()> {
         paths.ensure_base_dirs()?;
-        fs::write(
-            &paths.registry_path,
-            serde_json::to_vec_pretty(&self.state)?,
-        )?;
+        fs::write(&paths.registry_path, serde_json::to_vec_pretty(&self.state)?)?;
         Ok(())
     }
 
@@ -64,12 +61,7 @@ impl RegistryStore {
         prune_old_executions(&mut entry.executions, now);
     }
 
-    pub fn record_synthetic_stats(
-        &mut self,
-        skill_name: &str,
-        total_uses: usize,
-        last_used: Option<SystemTime>,
-    ) {
+    pub fn record_synthetic_stats(&mut self, skill_name: &str, total_uses: usize, last_used: Option<SystemTime>) {
         let entry = self.state.skills.entry(skill_name.to_string()).or_default();
         entry.executions.clear();
 
@@ -92,7 +84,10 @@ impl RegistryStore {
             .unwrap_or(UNIX_EPOCH);
         let mut purged = Vec::new();
         self.state.skills.retain(|name, stored| {
-            let last = stored.last_used_epoch_ms.map(epoch_ms_to_system_time).unwrap_or(UNIX_EPOCH);
+            let last = stored
+                .last_used_epoch_ms
+                .map(epoch_ms_to_system_time)
+                .unwrap_or(UNIX_EPOCH);
             if last < cutoff {
                 purged.push(name.clone());
                 false
@@ -145,10 +140,7 @@ fn prune_old_executions(executions: &mut Vec<ExecutionStamp>, now: SystemTime) {
 }
 
 fn system_time_to_epoch_ms(value: SystemTime) -> u128 {
-    value
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis()
+    value.duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
 }
 
 fn epoch_ms_to_system_time(value: u128) -> SystemTime {

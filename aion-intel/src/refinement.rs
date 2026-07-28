@@ -86,7 +86,7 @@ impl RefinementEngine {
             })
             .collect();
 
-        gaps.sort_by(|a, b| b.frequency.cmp(&a.frequency));
+        gaps.sort_by_key(|gap| std::cmp::Reverse(gap.frequency));
         Ok(gaps)
     }
 
@@ -112,16 +112,14 @@ impl RefinementEngine {
         let audit_path = state_dir.join("sandbox_audit.log");
         if audit_path.exists() {
             let content = std::fs::read_to_string(&audit_path)?;
-            let timeout_count = content.lines()
+            let timeout_count = content
+                .lines()
                 .filter(|line| line.contains("\"outcome\":\"timeout\""))
                 .count();
             if timeout_count >= 3 {
                 improvements.push(Improvement {
                     category: ImprovementCategory::PerformanceOptimization,
-                    description: format!(
-                        "沙箱执行出现 {} 次超时，建议增加超时限制或优化命令参数",
-                        timeout_count
-                    ),
+                    description: format!("沙箱执行出现 {} 次超时，建议增加超时限制或优化命令参数", timeout_count),
                     auto_applicable: false,
                     related_capability: None,
                 });

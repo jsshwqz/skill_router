@@ -1,9 +1,8 @@
 //! Core engine — holds router + memory + AI config
 
-use aion_memory::memory::{MemoryManager, MemoryCategory};
+use aion_memory::memory::{MemoryCategory, MemoryManager};
 use aion_router::SkillRouter;
 use aion_types::types::RouterPaths;
-
 
 pub struct Engine {
     pub router: SkillRouter,
@@ -45,13 +44,18 @@ impl Engine {
             ))
             .build()?;
 
-        let ai_base_url = std::env::var("AI_BASE_URL")
-            .unwrap_or_else(|_| "http://localhost:11434/v1".into());
+        let ai_base_url = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".into());
         let ai_api_key = std::env::var("AI_API_KEY").unwrap_or_default();
-        let ai_model = std::env::var("AI_MODEL")
-            .unwrap_or_else(|_| "qwen2.5:7b".into());
+        let ai_model = std::env::var("AI_MODEL").unwrap_or_else(|_| "qwen2.5:7b".into());
 
-        Ok(Self { router, memory, http, ai_base_url, ai_api_key, ai_model })
+        Ok(Self {
+            router,
+            memory,
+            http,
+            ai_base_url,
+            ai_api_key,
+            ai_model,
+        })
     }
 
     /// Store a lesson via aion-memory

@@ -17,12 +17,12 @@
 //! - **资源约束**：超时自动 kill，输出截断防止 OOM
 //! - **完整审计**：每次执行记录到审计日志
 
-pub mod policy;
+pub mod audit;
 pub mod executor;
 pub mod jail;
-pub mod audit;
+pub mod policy;
 
-pub use policy::{SandboxPolicy, CommandRule, WorkDirPolicy};
-pub use executor::{SandboxedExecutor, SandboxedCommand, SandboxOutput};
+pub use audit::{AuditEntry, AuditLog};
+pub use executor::{SandboxOutput, SandboxedCommand, SandboxedExecutor};
 pub use jail::ResourceLimits;
-pub use audit::{AuditLog, AuditEntry};
+pub use policy::{CommandRule, SandboxPolicy, WorkDirPolicy};

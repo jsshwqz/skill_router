@@ -8,9 +8,9 @@
 //! 全部失败则返回空结果，由调用方决定是否走 Synthesizer 新建。
 
 use anyhow::Result;
+use regex::Regex;
 use serde_json::{json, Value};
 use std::time::Duration;
-use regex::Regex;
 
 use aion_intel::discovery_radar::{DiscoveryRadar, SearchHit};
 use aion_types::types::{ExecutionContext, RouterPaths, SkillDefinition};
@@ -173,9 +173,9 @@ fn hit_to_candidate(hit: &SearchHit) -> Option<Value> {
     let title_lower = hit.title.to_lowercase();
 
     // 判断是否为技能相关
-    let is_skill = SKILL_INDICATORS.iter().any(|&kw| {
-        title_lower.contains(kw) || url_lower.contains(kw)
-    });
+    let is_skill = SKILL_INDICATORS
+        .iter()
+        .any(|&kw| title_lower.contains(kw) || url_lower.contains(kw));
 
     // GitHub 上的技能仓库也收录（即使标题不包含关键词）
     let is_github = url_lower.contains("github.com");

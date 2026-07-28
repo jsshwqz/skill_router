@@ -160,11 +160,46 @@ impl SpecProject {
             .as_secs();
 
         let phases = vec![
-            SpecPhase { kind: PhaseKind::Analyze, status: PhaseStatus::Pending, started_at: None, completed_at: None, output: None, error: None },
-            SpecPhase { kind: PhaseKind::Decompose, status: PhaseStatus::Pending, started_at: None, completed_at: None, output: None, error: None },
-            SpecPhase { kind: PhaseKind::Plan, status: PhaseStatus::Pending, started_at: None, completed_at: None, output: None, error: None },
-            SpecPhase { kind: PhaseKind::Execute, status: PhaseStatus::Pending, started_at: None, completed_at: None, output: None, error: None },
-            SpecPhase { kind: PhaseKind::Learn, status: PhaseStatus::Pending, started_at: None, completed_at: None, output: None, error: None },
+            SpecPhase {
+                kind: PhaseKind::Analyze,
+                status: PhaseStatus::Pending,
+                started_at: None,
+                completed_at: None,
+                output: None,
+                error: None,
+            },
+            SpecPhase {
+                kind: PhaseKind::Decompose,
+                status: PhaseStatus::Pending,
+                started_at: None,
+                completed_at: None,
+                output: None,
+                error: None,
+            },
+            SpecPhase {
+                kind: PhaseKind::Plan,
+                status: PhaseStatus::Pending,
+                started_at: None,
+                completed_at: None,
+                output: None,
+                error: None,
+            },
+            SpecPhase {
+                kind: PhaseKind::Execute,
+                status: PhaseStatus::Pending,
+                started_at: None,
+                completed_at: None,
+                output: None,
+                error: None,
+            },
+            SpecPhase {
+                kind: PhaseKind::Learn,
+                status: PhaseStatus::Pending,
+                started_at: None,
+                completed_at: None,
+                output: None,
+                error: None,
+            },
         ];
 
         Self {
@@ -216,8 +251,9 @@ impl SpecProject {
     /// 检查所有任务是否完成
     pub fn all_tasks_done(&self) -> bool {
         !self.tasks.is_empty()
-            && self.tasks.iter().all(|t| {
-                t.status == PhaseStatus::Completed || t.status == PhaseStatus::Failed
-            })
+            && self
+                .tasks
+                .iter()
+                .all(|t| t.status == PhaseStatus::Completed || t.status == PhaseStatus::Failed)
     }
 }

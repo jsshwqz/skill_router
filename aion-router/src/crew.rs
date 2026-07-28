@@ -49,9 +49,9 @@ impl CrewExecutor {
         let mut context_vars = variables.clone();
 
         for task in config.execution_order() {
-            let agent = config.get_agent(&task.agent).ok_or_else(|| {
-                anyhow::anyhow!("agent '{}' not found for task '{}'", task.agent, task.name)
-            })?;
+            let agent = config
+                .get_agent(&task.agent)
+                .ok_or_else(|| anyhow::anyhow!("agent '{}' not found for task '{}'", task.agent, task.name))?;
 
             tracing::info!(
                 task = %task.name,
@@ -67,23 +67,13 @@ impl CrewExecutor {
             let system_prompt = agent.system_prompt(&context_vars);
 
             // 通过 SkillRouter 执行
-            let result = Self::execute_with_agent(
-                router,
-                agent,
-                &description,
-                &system_prompt,
-                &context_vars,
-            )
-            .await;
+            let result = Self::execute_with_agent(router, agent, &description, &system_prompt, &context_vars).await;
 
             match result {
                 Ok(output) => {
                     // 如果任务有输出变量名，存入上下文供后续任务使用
                     if let Some(ref output_name) = task.output {
-                        let output_str = output["result"]
-                            .as_str()
-                            .unwrap_or(&output.to_string())
-                            .to_string();
+                        let output_str = output["result"].as_str().unwrap_or(&output.to_string()).to_string();
                         context_vars.insert(output_name.clone(), output_str);
                     }
 
@@ -145,9 +135,7 @@ impl CrewExecutor {
             "agent_goal": agent.goal,
         });
 
-        let result = router
-            .route_with_context(task_description, Some(context))
-            .await?;
+        let result = router.route_with_context(task_description, Some(context)).await?;
 
         Ok(json!({
             "task": task_description,
@@ -178,10 +166,7 @@ mod tests {
         vars.insert("topic".to_string(), "Rust".to_string());
         vars.insert("depth".to_string(), "deep".to_string());
 
-        let result = CrewExecutor::interpolate(
-            "Research {topic} at {depth} level",
-            &vars,
-        );
+        let result = CrewExecutor::interpolate("Research {topic} at {depth} level", &vars);
         assert_eq!(result, "Research Rust at deep level");
     }
 
@@ -189,14 +174,12 @@ mod tests {
     fn test_crew_result_structure() {
         let result = CrewResult {
             success: true,
-            task_results: vec![
-                TaskResult {
-                    task_name: "t1".to_string(),
-                    agent_name: "a1".to_string(),
-                    output: json!({"result": "done"}),
-                    success: true,
-                },
-            ],
+            task_results: vec![TaskResult {
+                task_name: "t1".to_string(),
+                agent_name: "a1".to_string(),
+                output: json!({"result": "done"}),
+                success: true,
+            }],
         };
         assert!(result.success);
         assert_eq!(result.task_results.len(), 1);

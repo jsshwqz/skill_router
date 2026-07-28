@@ -88,16 +88,12 @@ impl NamespacedMemoryManager {
         session_id: &str,
         importance: u8,
     ) -> Result<String> {
-        self.for_namespace(ns).remember(category, content, session_id, importance)
+        self.for_namespace(ns)
+            .remember(category, content, session_id, importance)
     }
 
     /// 在指定命名空间中召回记忆
-    pub fn recall(
-        &self,
-        ns: &MemoryNamespace,
-        query: &str,
-        limit: usize,
-    ) -> Result<Vec<MemoryEntry>> {
+    pub fn recall(&self, ns: &MemoryNamespace, query: &str, limit: usize) -> Result<Vec<MemoryEntry>> {
         self.for_namespace(ns).recall(query, limit)
     }
 
@@ -112,13 +108,17 @@ impl NamespacedMemoryManager {
         let mut all_entries = Vec::new();
 
         // 1. 私有记忆（最高优先级）
-        let private_ns = MemoryNamespace::Private { agent_id: agent_id.to_string() };
+        let private_ns = MemoryNamespace::Private {
+            agent_id: agent_id.to_string(),
+        };
         if let Ok(entries) = self.recall(&private_ns, query, limit) {
             all_entries.extend(entries);
         }
 
         // 2. 团队记忆
-        let team_ns = MemoryNamespace::Team { session_id: session_id.to_string() };
+        let team_ns = MemoryNamespace::Team {
+            session_id: session_id.to_string(),
+        };
         if let Ok(entries) = self.recall(&team_ns, query, limit) {
             all_entries.extend(entries);
         }
@@ -144,19 +144,20 @@ impl NamespacedMemoryManager {
     }
 
     /// 将私有记忆提升为团队共享
-    pub fn promote_to_team(
-        &self,
-        agent_id: &str,
-        session_id: &str,
-        memory_id: &str,
-    ) -> Result<()> {
-        let private_ns = MemoryNamespace::Private { agent_id: agent_id.to_string() };
-        let team_ns = MemoryNamespace::Team { session_id: session_id.to_string() };
+    pub fn promote_to_team(&self, agent_id: &str, session_id: &str, memory_id: &str) -> Result<()> {
+        let private_ns = MemoryNamespace::Private {
+            agent_id: agent_id.to_string(),
+        };
+        let team_ns = MemoryNamespace::Team {
+            session_id: session_id.to_string(),
+        };
 
         let private_mgr = self.for_namespace(&private_ns);
         let store = private_mgr.load()?;
 
-        let entry = store.entries.iter()
+        let entry = store
+            .entries
+            .iter()
             .find(|e| e.id == memory_id)
             .ok_or_else(|| anyhow::anyhow!("memory entry '{}' not found in agent '{}'", memory_id, agent_id))?;
 
@@ -181,7 +182,11 @@ impl NamespacedMemoryManager {
         let mut namespaces = Vec::new();
 
         // Global
-        let global_path = self.workspace_root.join("memory").join("global").join("memory_store.json");
+        let global_path = self
+            .workspace_root
+            .join("memory")
+            .join("global")
+            .join("memory_store.json");
         if global_path.exists() {
             namespaces.push(MemoryNamespace::Global);
         }
@@ -192,7 +197,9 @@ impl NamespacedMemoryManager {
             for entry in entries.flatten() {
                 if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
                     if let Some(name) = entry.file_name().to_str() {
-                        namespaces.push(MemoryNamespace::Team { session_id: name.to_string() });
+                        namespaces.push(MemoryNamespace::Team {
+                            session_id: name.to_string(),
+                        });
                     }
                 }
             }
@@ -204,7 +211,9 @@ impl NamespacedMemoryManager {
             for entry in entries.flatten() {
                 if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
                     if let Some(name) = entry.file_name().to_str() {
-                        namespaces.push(MemoryNamespace::Private { agent_id: name.to_string() });
+                        namespaces.push(MemoryNamespace::Private {
+                            agent_id: name.to_string(),
+                        });
                     }
                 }
             }

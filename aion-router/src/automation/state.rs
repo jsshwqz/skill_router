@@ -1,21 +1,42 @@
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use crate::automation::error::AutomationError;
 use crate::automation::verifier::VerificationReport;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum AutomationEvent {
     TaskStarted,
-    StepStarted { step_id: String },
-    StepExecuted { step_id: String },
-    StepVerified { step_id: String, success: bool },
-    SideEffectOccurred { step_id: String, class: SideEffectClass },
-    RecoveryDecision { step_id: String, strategy: String },
-    UserAcknowledgment { step_id: String, token: String },
-    ErrorOccurred { step_id: Option<String>, error_message: String },
+    StepStarted {
+        step_id: String,
+    },
+    StepExecuted {
+        step_id: String,
+    },
+    StepVerified {
+        step_id: String,
+        success: bool,
+    },
+    SideEffectOccurred {
+        step_id: String,
+        class: SideEffectClass,
+    },
+    RecoveryDecision {
+        step_id: String,
+        strategy: String,
+    },
+    UserAcknowledgment {
+        step_id: String,
+        token: String,
+    },
+    ErrorOccurred {
+        step_id: Option<String>,
+        error_message: String,
+    },
     TaskCompleted,
-    TaskFailed { reason: String },
+    TaskFailed {
+        reason: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -141,10 +162,7 @@ impl AutomationState {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis();
-        
-        self.event_stream.push(EventEntry {
-            timestamp_ms,
-            event,
-        });
+
+        self.event_stream.push(EventEntry { timestamp_ms, event });
     }
 }

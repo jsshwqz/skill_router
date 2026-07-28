@@ -83,9 +83,14 @@ impl Engine {
         // Thesis
         info!("Phase 1/3: Thesis...");
         let t = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            THESIS_SYSTEM, &format!("Task: {}", task),
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            THESIS_SYSTEM,
+            &format!("Task: {}", task),
+        )
+        .await?;
         let thesis = parse_pos("thesis", &t);
         info!("Thesis done (confidence: {:.2})", thesis.confidence);
 
@@ -96,9 +101,14 @@ impl Engine {
             task, thesis.content, thesis.strengths, thesis.weaknesses
         );
         let a = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            ANTITHESIS_SYSTEM, &prompt,
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            ANTITHESIS_SYSTEM,
+            &prompt,
+        )
+        .await?;
         let antithesis = parse_pos("antithesis", &a);
         info!("Antithesis done (confidence: {:.2})", antithesis.confidence);
 
@@ -110,19 +120,32 @@ impl Engine {
             antithesis.content, antithesis.strengths, antithesis.weaknesses,
         );
         let s = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            SYNTHESIS_SYSTEM, &prompt,
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            SYNTHESIS_SYSTEM,
+            &prompt,
+        )
+        .await?;
         let synthesis = parse_pos("synthesis", &s);
         info!("Synthesis done (confidence: {:.2})", synthesis.confidence);
 
         let _ = self.remember(
-            &format!("Dialectic on '{}': T={:.2} A={:.2} S={:.2}",
-                task, thesis.confidence, antithesis.confidence, synthesis.confidence),
+            &format!(
+                "Dialectic on '{}': T={:.2} A={:.2} S={:.2}",
+                task, thesis.confidence, antithesis.confidence, synthesis.confidence
+            ),
             MemoryCategory::Decision,
         );
 
-        Ok(DialecticalResult { task: task.into(), thesis, antithesis, synthesis, session_id })
+        Ok(DialecticalResult {
+            task: task.into(),
+            thesis,
+            antithesis,
+            synthesis,
+            session_id,
+        })
     }
 }
 
@@ -130,10 +153,12 @@ fn parse_pos(moment: &str, v: &serde_json::Value) -> Position {
     Position {
         moment: moment.into(),
         content: v["content"].as_str().unwrap_or("").into(),
-        strengths: v["strengths"].as_array()
+        strengths: v["strengths"]
+            .as_array()
             .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
             .unwrap_or_default(),
-        weaknesses: v["weaknesses"].as_array()
+        weaknesses: v["weaknesses"]
+            .as_array()
             .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
             .unwrap_or_default(),
         confidence: v["confidence"].as_f64().unwrap_or(0.5) as f32,

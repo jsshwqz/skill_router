@@ -216,17 +216,14 @@ impl MemoryManager {
             .enumerate()
             .map(|(idx, entry)| {
                 let content_lower = entry.content.to_ascii_lowercase();
-                let keyword_hits = keywords
-                    .iter()
-                    .filter(|kw| content_lower.contains(*kw))
-                    .count();
+                let keyword_hits = keywords.iter().filter(|kw| content_lower.contains(*kw)).count();
                 let importance_bonus = entry.importance as usize;
                 (idx, keyword_hits * 10 + importance_bonus)
             })
             .filter(|(_, score)| *score > 0)
             .collect();
 
-        scored.sort_by(|a, b| b.1.cmp(&a.1));
+        scored.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         scored.truncate(limit);
 
         // Update access counts
@@ -236,26 +233,15 @@ impl MemoryManager {
         }
         self.save(&store)?;
 
-        Ok(scored
-            .iter()
-            .map(|(idx, _)| store.entries[*idx].clone())
-            .collect())
+        Ok(scored.iter().map(|(idx, _)| store.entries[*idx].clone()).collect())
     }
 
     // ── Recall by Category ───────────────────────────────────────────────
 
-    pub fn recall_by_category(
-        &self,
-        category: &MemoryCategory,
-        limit: usize,
-    ) -> Result<Vec<MemoryEntry>> {
+    pub fn recall_by_category(&self, category: &MemoryCategory, limit: usize) -> Result<Vec<MemoryEntry>> {
         let store = self.load()?;
-        let mut matched: Vec<MemoryEntry> = store
-            .entries
-            .into_iter()
-            .filter(|e| e.category == *category)
-            .collect();
-        matched.sort_by(|a, b| b.importance.cmp(&a.importance));
+        let mut matched: Vec<MemoryEntry> = store.entries.into_iter().filter(|e| e.category == *category).collect();
+        matched.sort_by_key(|entry| std::cmp::Reverse(entry.importance));
         matched.truncate(limit);
         Ok(matched)
     }
@@ -265,10 +251,7 @@ impl MemoryManager {
     pub fn generate_context_md(&self) -> Result<String> {
         let store = self.load()?;
         let mut md = String::from("# Project Context (Auto-Generated)\n\n");
-        md.push_str(&format!(
-            "> Last updated: {}\n\n",
-            now_epoch()
-        ));
+        md.push_str(&format!("> Last updated: {}\n\n", now_epoch()));
 
         let categories = [
             (MemoryCategory::Architecture, "Architecture Decisions"),
@@ -280,11 +263,7 @@ impl MemoryManager {
         ];
 
         for (cat, title) in &categories {
-            let entries: Vec<&MemoryEntry> = store
-                .entries
-                .iter()
-                .filter(|e| e.category == *cat)
-                .collect();
+            let entries: Vec<&MemoryEntry> = store.entries.iter().filter(|e| e.category == *cat).collect();
             if entries.is_empty() {
                 continue;
             }
@@ -305,9 +284,7 @@ impl MemoryManager {
     pub fn stats(&self) -> Result<Value> {
         let store = self.load()?;
         let total = store.entries.len();
-        let by_category = |cat: &MemoryCategory| {
-            store.entries.iter().filter(|e| e.category == *cat).count()
-        };
+        let by_category = |cat: &MemoryCategory| store.entries.iter().filter(|e| e.category == *cat).count();
         Ok(json!({
             "total_memories": total,
             "decisions": by_category(&MemoryCategory::Decision),

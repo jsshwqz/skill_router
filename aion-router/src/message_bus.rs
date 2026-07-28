@@ -14,9 +14,9 @@
 use std::sync::Arc;
 use std::sync::OnceLock;
 use tokio::sync::broadcast;
-use tracing::{debug, warn};
 #[cfg(feature = "distributed")]
 use tracing::info;
+use tracing::{debug, warn};
 
 use aion_types::agent_message::AgentMessage;
 
@@ -90,7 +90,15 @@ impl std::fmt::Debug for MessageBus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "MessageBus {{ local_subscribers: {}", self.subscriber_count())?;
         #[cfg(feature = "distributed")]
-        write!(f, ", nats: {}", if self.nats.is_some() { "connected" } else { "disconnected" })?;
+        write!(
+            f,
+            ", nats: {}",
+            if self.nats.is_some() {
+                "connected"
+            } else {
+                "disconnected"
+            }
+        )?;
         write!(f, " }}")
     }
 }
@@ -151,9 +159,7 @@ mod nats_backend {
                     aion_types::agent_message::AgentMessageType::TaskAssignment { capability, .. } => {
                         subjects::task(capability)
                     }
-                    aion_types::agent_message::AgentMessageType::TaskResult { .. } => {
-                        subjects::result(&msg.session_id)
-                    }
+                    aion_types::agent_message::AgentMessageType::TaskResult { .. } => subjects::result(&msg.session_id),
                     _ => subjects::broadcast().to_string(),
                 }
             };
@@ -228,7 +234,7 @@ mod nats_backend {
 }
 
 #[cfg(feature = "distributed")]
-pub use nats_backend::{NatsBackend, subjects as nats_subjects};
+pub use nats_backend::{subjects as nats_subjects, NatsBackend};
 
 // Re-export for bridge subscriber iteration
 #[cfg(feature = "distributed")]

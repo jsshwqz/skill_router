@@ -22,9 +22,7 @@ static ROUTER_DATA: OnceLock<RouterFile> = OnceLock::new();
 /// 从项目根目录或 exe 同级目录加载 router.json
 fn load_router_file() -> RouterFile {
     let candidates = [
-        std::env::current_dir()
-            .unwrap_or_default()
-            .join("router.json"),
+        std::env::current_dir().unwrap_or_default().join("router.json"),
         std::env::current_exe()
             .unwrap_or_default()
             .parent()
@@ -36,11 +34,7 @@ fn load_router_file() -> RouterFile {
             match std::fs::read_to_string(path) {
                 Ok(content) => match serde_json::from_str::<RouterFile>(&content) {
                     Ok(rf) => {
-                        info!(
-                            "route_task: loaded {} rules from {}",
-                            rf.rules.len(),
-                            path.display()
-                        );
+                        info!("route_task: loaded {} rules from {}", rf.rules.len(), path.display());
                         return rf;
                     }
                     Err(e) => warn!("route_task: parse error in {}: {}", path.display(), e),
@@ -65,9 +59,7 @@ fn router_data() -> &'static RouterFile {
 /// 代码文件扩展名正则
 fn code_regex() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r"(?i)(```|\.(?:rs|py|js|ts|go|java|cpp|c|rb|swift|kt)\b)").unwrap()
-    })
+    RE.get_or_init(|| Regex::new(r"(?i)(```|\.(?:rs|py|js|ts|go|java|cpp|c|rb|swift|kt)\b)").unwrap())
 }
 
 /// URL 正则
@@ -77,10 +69,7 @@ fn url_regex() -> &'static Regex {
 }
 
 fn struct_scan(task: &str, hints: &Option<RouteHints>) -> StructFeatures {
-    let has_code_from_hints = hints
-        .as_ref()
-        .and_then(|h| h.has_code)
-        .unwrap_or(false);
+    let has_code_from_hints = hints.as_ref().and_then(|h| h.has_code).unwrap_or(false);
     let has_code = has_code_from_hints || code_regex().is_match(task);
 
     let doc_pages = hints.as_ref().and_then(|h| h.doc_size_pages).unwrap_or(0);
@@ -103,11 +92,7 @@ struct MatchCandidate {
     matched_keywords: Vec<String>,
 }
 
-fn keyword_weight_match(
-    task: &str,
-    features: &StructFeatures,
-    rules: &[RouteRule],
-) -> Vec<MatchCandidate> {
+fn keyword_weight_match(task: &str, features: &StructFeatures, rules: &[RouteRule]) -> Vec<MatchCandidate> {
     let task_lower = task.to_lowercase();
     let mut candidates: Vec<MatchCandidate> = Vec::new();
 
@@ -144,7 +129,7 @@ fn keyword_weight_match(
     }
 
     // 按 weight 降序排列
-    candidates.sort_by(|a, b| b.weight.cmp(&a.weight));
+    candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.weight));
     candidates
 }
 
@@ -212,12 +197,7 @@ fn execution_mode_for(rule: &RouteRule) -> String {
     "agent".to_string()
 }
 
-fn build_decision(
-    rule: &RouteRule,
-    task: &str,
-    config: &RouterConfig,
-    conflict_note: Option<String>,
-) -> RouteDecision {
+fn build_decision(rule: &RouteRule, task: &str, config: &RouterConfig, conflict_note: Option<String>) -> RouteDecision {
     let aion_params = match (&rule.aion_tool, &rule.aion_params_template) {
         (Some(tool), Some(template)) => Some(render_params(template, tool, task)),
         (Some(tool), None) => {
@@ -402,7 +382,10 @@ fn resolve_passthrough(rule_id: &str, task: &str) -> RouteDecision {
     }
 
     // 宿主也选不出来，走默认
-    info!("route_task: passthrough returned unknown rule_id '{}', using default", rule_id);
+    info!(
+        "route_task: passthrough returned unknown rule_id '{}', using default",
+        rule_id
+    );
     default_fallback(task)
 }
 
@@ -416,11 +399,7 @@ impl BuiltinSkill for RouteTaskBuiltin {
         "route_task"
     }
 
-    async fn execute(
-        &self,
-        _skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<Value> {
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         // 提取 task 参数
         let task = context.context["task"]
             .as_str()
@@ -434,8 +413,8 @@ impl BuiltinSkill for RouteTaskBuiltin {
         // 检查是否为 passthrough 回传（宿主 LLM 选择了 rule_id 后回传）
         if let Some(rule_id) = context.context.get("resolve_rule_id").and_then(|v| v.as_str()) {
             let decision = resolve_passthrough(rule_id, task);
-            let result = serde_json::to_value(&decision)
-                .map_err(|e| anyhow!("failed to serialize RouteDecision: {}", e))?;
+            let result =
+                serde_json::to_value(&decision).map_err(|e| anyhow!("failed to serialize RouteDecision: {}", e))?;
             return Ok(json!({
                 "capability": "route_task",
                 "output": result,
@@ -453,8 +432,8 @@ impl BuiltinSkill for RouteTaskBuiltin {
         // 执行路由
         match route_task_core(task, hints) {
             RouteOutcome::Decision(decision) => {
-                let result = serde_json::to_value(&decision)
-                    .map_err(|e| anyhow!("failed to serialize RouteDecision: {}", e))?;
+                let result =
+                    serde_json::to_value(&decision).map_err(|e| anyhow!("failed to serialize RouteDecision: {}", e))?;
                 Ok(json!({
                     "capability": "route_task",
                     "output": result,

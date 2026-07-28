@@ -9,8 +9,8 @@ use anyhow::Result;
 use serde_json::{json, Value};
 use tracing::info;
 
-use aion_types::types::{ExecutionContext, SkillDefinition};
 use crate::builtins::BuiltinSkill;
+use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::orchestrator::call_http_ai_fallback;
 
@@ -55,10 +55,7 @@ impl BuiltinSkill for PromptAudit {
     }
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
-        let prompt = ctx.context["prompt"]
-            .as_str()
-            .unwrap_or(&ctx.task)
-            .to_string();
+        let prompt = ctx.context["prompt"].as_str().unwrap_or(&ctx.task).to_string();
         let model = ctx.context["model"].as_str().unwrap_or("claude");
 
         info!("prompt_audit: {} chars, model={}", prompt.len(), model);

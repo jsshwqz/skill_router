@@ -18,14 +18,10 @@ pub enum LifecycleRecommendation {
 impl LifecycleRecommendation {
     pub fn from_stats(stats: &SkillStats, now: SystemTime) -> Self {
         if let Some(last_used) = stats.last_used {
-            if now.duration_since(last_used).unwrap_or_default()
-                >= Duration::from_secs(180 * 24 * 60 * 60)
-            {
+            if now.duration_since(last_used).unwrap_or_default() >= Duration::from_secs(180 * 24 * 60 * 60) {
                 return Self::PurgeCandidate;
             }
-            if now.duration_since(last_used).unwrap_or_default()
-                >= Duration::from_secs(90 * 24 * 60 * 60)
-            {
+            if now.duration_since(last_used).unwrap_or_default() >= Duration::from_secs(90 * 24 * 60 * 60) {
                 return Self::Deprecate;
             }
         }

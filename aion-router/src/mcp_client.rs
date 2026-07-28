@@ -28,9 +28,7 @@ pub enum McpTransport {
         args: Vec<String>,
     },
     /// SSE 模式（预留）
-    Sse {
-        url: String,
-    },
+    Sse { url: String },
 }
 
 /// MCP 服务器配置
@@ -137,12 +135,8 @@ impl McpClientManager {
     /// 连接一个 MCP 服务器
     pub async fn connect(&mut self, name: &str, config: &McpServerConfig) -> Result<usize> {
         match &config.transport {
-            McpTransport::Stdio { command, args } => {
-                self.connect_stdio(name, command, args, &config.env).await
-            }
-            McpTransport::Sse { url } => {
-                Err(anyhow!("SSE transport not yet implemented for {}", url))
-            }
+            McpTransport::Stdio { command, args } => self.connect_stdio(name, command, args, &config.env).await,
+            McpTransport::Sse { url } => Err(anyhow!("SSE transport not yet implemented for {}", url)),
         }
     }
 
@@ -167,9 +161,9 @@ impl McpClientManager {
             cmd.env(k, resolved);
         }
 
-        let mut child = cmd.spawn().map_err(|e| {
-            anyhow!("failed to start MCP server '{}' ({}): {}", name, command, e)
-        })?;
+        let mut child = cmd
+            .spawn()
+            .map_err(|e| anyhow!("failed to start MCP server '{}' ({}): {}", name, command, e))?;
 
         let stdin = child.stdin.take().ok_or_else(|| anyhow!("no stdin for {}", name))?;
         let stdout = child.stdout.take().ok_or_else(|| anyhow!("no stdout for {}", name))?;
@@ -256,15 +250,11 @@ impl McpClientManager {
     }
 
     /// 调用远程 MCP 工具
-    pub async fn call_tool(
-        &mut self,
-        server_name: &str,
-        tool_name: &str,
-        arguments: Value,
-    ) -> Result<Value> {
-        let handle = self.servers.get_mut(server_name).ok_or_else(|| {
-            anyhow!("MCP server '{}' not connected", server_name)
-        })?;
+    pub async fn call_tool(&mut self, server_name: &str, tool_name: &str, arguments: Value) -> Result<Value> {
+        let handle = self
+            .servers
+            .get_mut(server_name)
+            .ok_or_else(|| anyhow!("MCP server '{}' not connected", server_name))?;
 
         // 验证工具存在
         if !handle.tools.iter().any(|t| t.name == tool_name) {
@@ -346,12 +336,7 @@ impl McpClientManager {
         let mut locked = reader.lock().await;
 
         // 超时读取
-        match tokio::time::timeout(
-            std::time::Duration::from_secs(30),
-            locked.read_line(&mut response_line),
-        )
-        .await
-        {
+        match tokio::time::timeout(std::time::Duration::from_secs(30), locked.read_line(&mut response_line)).await {
             Ok(Ok(0)) => Err(anyhow!("MCP server closed connection")),
             Ok(Ok(_)) => {
                 let response: Value = serde_json::from_str(response_line.trim())?;
@@ -409,14 +394,8 @@ mod tests {
     #[test]
     fn test_resolve_env_var() {
         std::env::set_var("TEST_MCP_VAR", "resolved_value");
-        assert_eq!(
-            McpClientManager::resolve_env_var("${TEST_MCP_VAR}"),
-            "resolved_value"
-        );
-        assert_eq!(
-            McpClientManager::resolve_env_var("literal"),
-            "literal"
-        );
+        assert_eq!(McpClientManager::resolve_env_var("${TEST_MCP_VAR}"), "resolved_value");
+        assert_eq!(McpClientManager::resolve_env_var("literal"), "literal");
         std::env::remove_var("TEST_MCP_VAR");
     }
 

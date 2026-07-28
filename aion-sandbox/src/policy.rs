@@ -24,7 +24,6 @@ pub enum WorkDirPolicy {
     Specified(PathBuf),
 }
 
-
 /// 单条命令规则
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandRule {
@@ -68,11 +67,7 @@ impl CommandRule {
             let re = regex::Regex::new(pattern)
                 .map_err(|e| anyhow::anyhow!("invalid blocked_args pattern '{}': {}", pattern, e))?;
             if re.is_match(&joined) {
-                return Err(anyhow::anyhow!(
-                    "argument blocked by pattern '{}': {}",
-                    pattern,
-                    joined
-                ));
+                return Err(anyhow::anyhow!("argument blocked by pattern '{}': {}", pattern, joined));
             }
         }
 
@@ -88,10 +83,7 @@ impl CommandRule {
                 }
             }
             if !matched {
-                return Err(anyhow::anyhow!(
-                    "arguments not in allowlist: {}",
-                    joined
-                ));
+                return Err(anyhow::anyhow!("arguments not in allowlist: {}", joined));
             }
         }
 
@@ -146,14 +138,12 @@ impl SandboxPolicy {
         // 验证所有正则都能编译
         for (cmd, rule) in &self.allowed_commands {
             for pattern in &rule.allowed_args_patterns {
-                regex::Regex::new(pattern).map_err(|e| {
-                    anyhow::anyhow!("invalid regex in {}.allowed_args: {}", cmd, e)
-                })?;
+                regex::Regex::new(pattern)
+                    .map_err(|e| anyhow::anyhow!("invalid regex in {}.allowed_args: {}", cmd, e))?;
             }
             for pattern in &rule.blocked_args_patterns {
-                regex::Regex::new(pattern).map_err(|e| {
-                    anyhow::anyhow!("invalid regex in {}.blocked_args: {}", cmd, e)
-                })?;
+                regex::Regex::new(pattern)
+                    .map_err(|e| anyhow::anyhow!("invalid regex in {}.blocked_args: {}", cmd, e))?;
             }
         }
         Ok(())
@@ -243,15 +233,18 @@ mod tests {
     #[test]
     fn test_sandbox_policy_serde_roundtrip() {
         let mut commands = BTreeMap::new();
-        commands.insert("curl".to_string(), CommandRule {
-            allowed_args_patterns: vec!["^https://".to_string()],
-            blocked_args_patterns: vec!["--upload".to_string()],
-            timeout_secs: 10,
-            max_output_bytes: 4096,
-            allowed_env_vars: vec!["HOME".to_string()],
-            work_dir_policy: WorkDirPolicy::TempDir,
-            description: "curl for downloads only".to_string(),
-        });
+        commands.insert(
+            "curl".to_string(),
+            CommandRule {
+                allowed_args_patterns: vec!["^https://".to_string()],
+                blocked_args_patterns: vec!["--upload".to_string()],
+                timeout_secs: 10,
+                max_output_bytes: 4096,
+                allowed_env_vars: vec!["HOME".to_string()],
+                work_dir_policy: WorkDirPolicy::TempDir,
+                description: "curl for downloads only".to_string(),
+            },
+        );
         let policy = SandboxPolicy {
             name: "test-policy".to_string(),
             version: "1.0".to_string(),

@@ -67,10 +67,7 @@ mod tests {
         let limits = ResourceLimits {
             timeout: Duration::from_secs(10),
             max_output_bytes: 1024,
-            allowed_env_vars: vec![
-                "SANDBOX_TEST_VAR".to_string(),
-                "NONEXISTENT_VAR".to_string(),
-            ],
+            allowed_env_vars: vec!["SANDBOX_TEST_VAR".to_string(), "NONEXISTENT_VAR".to_string()],
         };
         let env = limits.filtered_env();
         assert_eq!(env.get("SANDBOX_TEST_VAR"), Some(&"test_value".to_string()));

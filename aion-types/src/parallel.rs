@@ -38,7 +38,6 @@ pub struct ParallelInstruction {
     pub dependencies: Vec<String>,
 
     // ── 多 Agent 扩展字段（serde(default) 保证向后兼容）─────────────────────
-
     /// 指定执行此指令的 Agent ID
     /// None = 调度器自动选择（根据能力和负载）
     #[serde(default)]
@@ -57,7 +56,9 @@ pub struct ParallelInstruction {
     pub execution_mode: ExecutionMode,
 }
 
-fn default_timeout_secs() -> u64 { 30 }
+fn default_timeout_secs() -> u64 {
+    30
+}
 
 impl ParallelInstruction {
     /// 创建一个最简化的指令（无 Agent 分配，无依赖）

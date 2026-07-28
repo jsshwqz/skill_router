@@ -45,7 +45,7 @@ fn load_mcp_server_config(server_name: &str) -> Option<McpServerConfigEntry> {
         .ok()
         .map(PathBuf::from)
         .into_iter()
-        .chain(std::env::current_dir().ok().into_iter())
+        .chain(std::env::current_dir().ok())
         .flat_map(|mut dir| {
             // 收集从当前目录往上直到根目录的所有路径
             let mut dirs = Vec::new();
@@ -82,11 +82,7 @@ impl BuiltinSkill for McpCall {
         "mcp_call"
     }
 
-    async fn execute(
-        &self,
-        _skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<Value> {
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let server_name = context.context["server"]
             .as_str()
             .ok_or_else(|| anyhow!("mcp_call requires 'server' in context"))?;
@@ -95,12 +91,13 @@ impl BuiltinSkill for McpCall {
             .as_str()
             .ok_or_else(|| anyhow!("mcp_call requires 'tool' in context"))?;
 
-        let arguments = context.context.get("arguments")
-            .cloned()
-            .unwrap_or_else(|| json!({}));
+        let arguments = context.context.get("arguments").cloned().unwrap_or_else(|| json!({}));
 
         // Validate server_name: only alphanumeric, underscore, hyphen allowed
-        if !server_name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+        if !server_name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
             return Err(anyhow!(
                 "Invalid MCP server name '{}': only [a-zA-Z0-9_-] allowed",
                 server_name
@@ -118,7 +115,11 @@ impl BuiltinSkill for McpCall {
         let (mut child, extra_env) = if let Ok(cmd) = server_cmd {
             // 模式 1: 环境变量 — 使用 shell 包装（向后兼容）
             let child = Command::new(if cfg!(windows) { "cmd" } else { "sh" })
-                .args(if cfg!(windows) { vec!["/c", &cmd] } else { vec!["-c", &cmd] })
+                .args(if cfg!(windows) {
+                    vec!["/c", &cmd]
+                } else {
+                    vec!["-c", &cmd]
+                })
                 .stdin(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
@@ -141,15 +142,23 @@ impl BuiltinSkill for McpCall {
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .spawn()
-                .map_err(|e| anyhow!(
-                    "无法启动 MCP server '{}' (command='{}'): {}",
-                    server_name, config.command, e
-                ))?;
+                .map_err(|e| {
+                    anyhow!(
+                        "无法启动 MCP server '{}' (command='{}'): {}",
+                        server_name,
+                        config.command,
+                        e
+                    )
+                })?;
             (child, config.env)
         } else {
             // 模式 3: 使用 server_name 本身作为命令（fallback）
             let child = Command::new(if cfg!(windows) { "cmd" } else { "sh" })
-                .args(if cfg!(windows) { vec!["/c", server_name] } else { vec!["-c", server_name] })
+                .args(if cfg!(windows) {
+                    vec!["/c", server_name]
+                } else {
+                    vec!["-c", server_name]
+                })
                 .stdin(std::process::Stdio::piped())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
@@ -236,10 +245,8 @@ async fn send_jsonrpc(stdin: &mut tokio::process::ChildStdin, msg: &Value) -> Re
 /// 从 stdout 读取一行 JSON-RPC 响应
 async fn read_jsonrpc(reader: &mut BufReader<tokio::process::ChildStdout>) -> Result<Value> {
     let mut line = String::new();
-    let timeout = tokio::time::timeout(
-        std::time::Duration::from_secs(30),
-        reader.read_line(&mut line),
-    ).await
+    let timeout = tokio::time::timeout(std::time::Duration::from_secs(30), reader.read_line(&mut line))
+        .await
         .map_err(|_| anyhow!("MCP server 响应超时"))?
         .map_err(|e| anyhow!("读取 MCP 响应失败: {}", e))?;
 
@@ -247,6 +254,5 @@ async fn read_jsonrpc(reader: &mut BufReader<tokio::process::ChildStdout>) -> Re
         return Err(anyhow!("MCP server 关闭了连接"));
     }
 
-    serde_json::from_str(line.trim())
-        .map_err(|e| anyhow!("MCP 响应不是有效 JSON: {}", e))
+    serde_json::from_str(line.trim()).map_err(|e| anyhow!("MCP 响应不是有效 JSON: {}", e))
 }

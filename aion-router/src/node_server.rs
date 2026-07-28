@@ -46,9 +46,7 @@ pub mod server {
     }
 
     /// `GET /health`
-    async fn health(
-        State(state): State<Arc<NodeState>>,
-    ) -> Json<HealthResponse> {
+    async fn health(State(state): State<Arc<NodeState>>) -> Json<HealthResponse> {
         Json(HealthResponse {
             status: "ok".to_string(),
             node_id: state.node_id.clone(),
@@ -66,9 +64,7 @@ pub mod server {
     }
 
     /// `GET /capabilities`
-    async fn capabilities(
-        State(state): State<Arc<NodeState>>,
-    ) -> Json<serde_json::Value> {
+    async fn capabilities(State(state): State<Arc<NodeState>>) -> Json<serde_json::Value> {
         let reg = state.router.registry();
         let defs: Vec<_> = reg.definitions().cloned().collect();
         Json(serde_json::json!({
@@ -80,9 +76,7 @@ pub mod server {
     }
 
     /// `GET /agents`
-    async fn agents(
-        State(state): State<Arc<NodeState>>,
-    ) -> Json<serde_json::Value> {
+    async fn agents(State(state): State<Arc<NodeState>>) -> Json<serde_json::Value> {
         Json(serde_json::json!({
             "node_id": state.node_id,
             "role": state.role,
@@ -91,11 +85,12 @@ pub mod server {
     }
 
     /// `POST /execute`
-    async fn execute(
-        State(state): State<Arc<NodeState>>,
-        Json(req): Json<ExecuteRequest>,
-    ) -> Json<serde_json::Value> {
-        match state.router.route_with_capability(&req.task, &req.capability, req.context).await {
+    async fn execute(State(state): State<Arc<NodeState>>, Json(req): Json<ExecuteRequest>) -> Json<serde_json::Value> {
+        match state
+            .router
+            .route_with_capability(&req.task, &req.capability, req.context)
+            .await
+        {
             Ok(result) => Json(serde_json::json!({
                 "status": "ok",
                 "node_id": state.node_id,

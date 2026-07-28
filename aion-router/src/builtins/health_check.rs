@@ -20,11 +20,7 @@ impl BuiltinSkill for HealthCheck {
         "health_check"
     }
 
-    async fn execute(
-        &self,
-        _skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<Value> {
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         // Determine workspace root from context or fall back to current dir
         let workspace_root = context
             .context
@@ -56,10 +52,7 @@ impl BuiltinSkill for HealthCheck {
 
         for name in &engine_names {
             if let Some(engine_data) = engines.get(name) {
-                let status = engine_data
-                    .get("status")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown");
+                let status = engine_data.get("status").and_then(|v| v.as_str()).unwrap_or("unknown");
                 let successes = engine_data.get("successes").and_then(|v| v.as_u64()).unwrap_or(0);
                 let failures = engine_data.get("failures").and_then(|v| v.as_u64()).unwrap_or(0);
                 let consecutive_failures = engine_data
@@ -94,10 +87,7 @@ impl BuiltinSkill for HealthCheck {
                 );
             } else {
                 all_healthy = false;
-                engine_statuses.insert(
-                    name.to_string(),
-                    json!({ "status": "not_configured" }),
-                );
+                engine_statuses.insert(name.to_string(), json!({ "status": "not_configured" }));
             }
         }
 

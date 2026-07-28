@@ -8,9 +8,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
 
-use aion_types::types::{
-    ExecutionContext, PermissionSet, RouterPaths, SkillDefinition, SkillMetadata, SkillSource,
-};
+use aion_types::types::{ExecutionContext, PermissionSet, RouterPaths, SkillDefinition, SkillMetadata, SkillSource};
 
 use super::BuiltinSkill;
 
@@ -32,9 +30,9 @@ fn parse_frontmatter(raw: &str) -> Result<(SkillMdFrontmatter, String)> {
     }
     let after_first = &trimmed[3..];
     // 找到结束的 ---
-    let end_idx = after_first.find("\n---").ok_or_else(|| {
-        anyhow!("SKILL.md frontmatter: missing closing `---`")
-    })?;
+    let end_idx = after_first
+        .find("\n---")
+        .ok_or_else(|| anyhow!("SKILL.md frontmatter: missing closing `---`"))?;
     let yaml_block = &after_first[..end_idx];
     let body = after_first[end_idx + 4..].trim().to_string();
 
@@ -114,7 +112,11 @@ fn skillmd_to_forge(raw: &str, root_dir: &Path) -> Result<SkillDefinition> {
     };
 
     // 版本号从 metadata 中取，没有则默认
-    let version = front.metadata.get("version").cloned().unwrap_or_else(|| "0.1.0".to_string());
+    let version = front
+        .metadata
+        .get("version")
+        .cloned()
+        .unwrap_or_else(|| "0.1.0".to_string());
 
     let mut permissions = PermissionSet::default_deny();
     if needs_network {
@@ -154,8 +156,7 @@ impl BuiltinSkill for SkillConvert {
 
         // 检测是文件路径还是原始内容
         let content: String = if Path::new(&source).exists() {
-            std::fs::read_to_string(&source)
-                .map_err(|e| anyhow!("Failed to read SKILL.md file: {}", e))?
+            std::fs::read_to_string(&source).map_err(|e| anyhow!("Failed to read SKILL.md file: {}", e))?
         } else {
             source.clone()
         };
@@ -195,30 +196,29 @@ impl BuiltinSkill for SkillConvert {
             }
             Err(e) => {
                 // 尝试作为 forge skill.json 反向转换
-                let skill_def = std::fs::read_to_string(&source)
-                    .unwrap_or_else(|_| content.clone());
+                let skill_def = std::fs::read_to_string(&source).unwrap_or_else(|_| content.clone());
                 if let Ok(json_val) = serde_json::from_str::<Value>(&skill_def) {
-                        let name = json_val["name"].as_str().unwrap_or("unnamed");
-                        let _capability = json_val["capabilities"]
-                            .as_array()
-                            .and_then(|a| a[0].as_str())
-                            .unwrap_or(name);
-                        let instruction = json_val["instruction"].as_str().unwrap_or("");
-                        let description = json_val["description"].as_str().unwrap_or(instruction);
+                    let name = json_val["name"].as_str().unwrap_or("unnamed");
+                    let _capability = json_val["capabilities"]
+                        .as_array()
+                        .and_then(|a| a[0].as_str())
+                        .unwrap_or(name);
+                    let instruction = json_val["instruction"].as_str().unwrap_or("");
+                    let description = json_val["description"].as_str().unwrap_or(instruction);
 
-                        // 生成 SKILL.md
-                        let skillmd = format!(
-                            "---\nname: {}\ndescription: {}\n---\n\n{}",
-                            name, description, instruction
-                        );
+                    // 生成 SKILL.md
+                    let skillmd = format!(
+                        "---\nname: {}\ndescription: {}\n---\n\n{}",
+                        name, description, instruction
+                    );
 
-                        return Ok(json!({
-                            "status": "converted",
-                            "format": "skill.json_to_skillmd",
-                            "name": name,
-                            "skillmd": skillmd,
-                        }));
-                    }
+                    return Ok(json!({
+                        "status": "converted",
+                        "format": "skill.json_to_skillmd",
+                        "name": name,
+                        "skillmd": skillmd,
+                    }));
+                }
                 Err(e)
             }
         }

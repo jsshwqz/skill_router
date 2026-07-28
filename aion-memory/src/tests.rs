@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod memory_tests {
-    use crate::memory::{MemoryManager, MemoryCategory};
+    use crate::memory::{MemoryCategory, MemoryManager};
     use std::env;
     use std::fs;
 
@@ -17,12 +17,14 @@ mod memory_tests {
     fn test_memory_remember_recall() {
         let (manager, tmp) = setup_manager("test_basic");
 
-        let id = manager.remember(
-            MemoryCategory::Decision,
-            "Use Rust for all new modules",
-            "test_session",
-            8,
-        ).unwrap();
+        let id = manager
+            .remember(
+                MemoryCategory::Decision,
+                "Use Rust for all new modules",
+                "test_session",
+                8,
+            )
+            .unwrap();
         assert!(!id.is_empty());
 
         let results = manager.recall("Rust modules", 5).unwrap();
@@ -36,9 +38,13 @@ mod memory_tests {
     fn test_memory_recall_by_category() {
         let (manager, tmp) = setup_manager("test_category");
 
-        manager.remember(MemoryCategory::Decision, "Decision A", "s1", 5).unwrap();
+        manager
+            .remember(MemoryCategory::Decision, "Decision A", "s1", 5)
+            .unwrap();
         manager.remember(MemoryCategory::Lesson, "Lesson B", "s1", 7).unwrap();
-        manager.remember(MemoryCategory::Decision, "Decision C", "s1", 9).unwrap();
+        manager
+            .remember(MemoryCategory::Decision, "Decision C", "s1", 9)
+            .unwrap();
         manager.remember(MemoryCategory::Error, "Error D", "s1", 3).unwrap();
 
         let decisions = manager.recall_by_category(&MemoryCategory::Decision, 10).unwrap();
@@ -59,23 +65,33 @@ mod memory_tests {
         let (manager, tmp) = setup_manager("test_scoring");
 
         // 低重要性但关键词匹配 → score = 1*10 + 2 = 12
-        manager.remember(MemoryCategory::Decision, "Use Python scripts", "s1", 2).unwrap();
+        manager
+            .remember(MemoryCategory::Decision, "Use Python scripts", "s1", 2)
+            .unwrap();
         // 高重要性且关键词匹配 → score = 1*10 + 9 = 19
-        manager.remember(MemoryCategory::Decision, "Use Rust for scripts", "s1", 9).unwrap();
+        manager
+            .remember(MemoryCategory::Decision, "Use Rust for scripts", "s1", 9)
+            .unwrap();
         // 不含关键词但 importance > 0 → score = 0*10 + 10 = 10（也通过 > 0 过滤）
-        manager.remember(MemoryCategory::Lesson, "Database is PostgreSQL", "s1", 10).unwrap();
+        manager
+            .remember(MemoryCategory::Lesson, "Database is PostgreSQL", "s1", 10)
+            .unwrap();
 
         let results = manager.recall("scripts", 5).unwrap();
         // 评分逻辑: keyword_hits * 10 + importance，所有 importance > 0 的条目都会返回
         assert_eq!(results.len(), 3);
         // 关键词匹配 + 高 importance 的 "Use Rust for scripts" 应排第一（score=19）
-        assert!(results[0].content.contains("Rust"),
+        assert!(
+            results[0].content.contains("Rust"),
             "Keyword match + high importance should rank first, got: '{}'",
-            results[0].content);
+            results[0].content
+        );
         // "Use Python scripts"（score=12）排第二
-        assert!(results[1].content.contains("Python"),
+        assert!(
+            results[1].content.contains("Python"),
             "Keyword match + low importance should rank second, got: '{}'",
-            results[1].content);
+            results[1].content
+        );
 
         let _ = fs::remove_dir_all(&tmp);
     }
@@ -103,8 +119,12 @@ mod memory_tests {
     fn test_memory_generate_context_md() {
         let (manager, tmp) = setup_manager("test_context_md");
 
-        manager.remember(MemoryCategory::Architecture, "Microservice arch", "s1", 8).unwrap();
-        manager.remember(MemoryCategory::Decision, "Use axum for HTTP", "s1", 7).unwrap();
+        manager
+            .remember(MemoryCategory::Architecture, "Microservice arch", "s1", 8)
+            .unwrap();
+        manager
+            .remember(MemoryCategory::Decision, "Use axum for HTTP", "s1", 7)
+            .unwrap();
 
         let md = manager.generate_context_md().unwrap();
         assert!(md.contains("# Project Context"));
@@ -123,7 +143,9 @@ mod memory_tests {
     fn test_memory_cache_consistency() {
         let (manager, tmp) = setup_manager("test_cache");
 
-        manager.remember(MemoryCategory::Decision, "Cache test entry", "s1", 5).unwrap();
+        manager
+            .remember(MemoryCategory::Decision, "Cache test entry", "s1", 5)
+            .unwrap();
 
         // 第一次 load（从磁盘）
         let store1 = manager.load().unwrap();

@@ -1,10 +1,10 @@
-use anyhow::{Result, anyhow};
-use std::collections::HashMap;
-use aion_types::types::{ExecutionContext, RouterPaths};
-use aion_types::parallel::{ParallelInstruction, TaskGraph, ParallelResponse};
-use aion_types::capability_registry::CapabilityRegistry;
 use crate::executor::Executor;
 use crate::loader::Loader;
+use aion_types::capability_registry::CapabilityRegistry;
+use aion_types::parallel::{ParallelInstruction, ParallelResponse, TaskGraph};
+use aion_types::types::{ExecutionContext, RouterPaths};
+use anyhow::{anyhow, Result};
+use std::collections::HashMap;
 
 pub struct ParallelExecutor;
 
@@ -24,7 +24,9 @@ impl ParallelExecutor {
 
         // Level-based execution (DAG)
         while completed_ids.len() < graph.instructions.len() {
-            let executable: Vec<ParallelInstruction> = graph.instructions.iter()
+            let executable: Vec<ParallelInstruction> = graph
+                .instructions
+                .iter()
                 .filter(|item| !completed_ids.contains(&item.id))
                 .filter(|item| item.dependencies.iter().all(|dep| completed_ids.contains(dep)))
                 .cloned()
@@ -38,7 +40,8 @@ impl ParallelExecutor {
             let mut join_set = tokio::task::JoinSet::new();
 
             for instr in executable {
-                let skill = local_skills.iter()
+                let skill = local_skills
+                    .iter()
                     .find(|s| s.supports_capability(&instr.capability))
                     .cloned();
                 let paths_clone = paths.clone();
@@ -52,7 +55,9 @@ impl ParallelExecutor {
                                 Err(e) => serde_json::json!({"error": e.to_string()}),
                             }
                         }
-                        None => serde_json::json!({"error": format!("no skill found for capability: {}", instr.capability)}),
+                        None => {
+                            serde_json::json!({"error": format!("no skill found for capability: {}", instr.capability)})
+                        }
                     };
                     (instr.id, result_value)
                 });

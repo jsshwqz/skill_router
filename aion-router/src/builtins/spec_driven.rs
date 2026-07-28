@@ -117,8 +117,12 @@ fn render_master_md(p: &SpecProject) -> String {
         for s in &p.super_scores {
             md.push_str(&format!(
                 "| {} | {} | {} | {} | {} | {} | {} |\n",
-                s.module, s.single_purpose, s.unidirectional_flow,
-                s.ports_over_impl, s.environment_agnostic, s.replaceable_parts,
+                s.module,
+                s.single_purpose,
+                s.unidirectional_flow,
+                s.ports_over_impl,
+                s.environment_agnostic,
+                s.replaceable_parts,
                 s.summary,
             ));
         }
@@ -165,18 +169,22 @@ fn epoch_to_ymd(mut days: u64) -> (u64, u64, u64) {
     let mut y = 1970;
     loop {
         let dy = if is_leap(y) { 366 } else { 365 };
-        if days < dy { break; }
+        if days < dy {
+            break;
+        }
         days -= dy;
         y += 1;
     }
     let months: [u64; 12] = if is_leap(y) {
-        [31,29,31,30,31,30,31,31,30,31,30,31]
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     } else {
-        [31,28,31,30,31,30,31,31,30,31,30,31]
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     };
     let mut mo = 1u64;
     for &ml in &months {
-        if days < ml { break; }
+        if days < ml {
+            break;
+        }
         days -= ml;
         mo += 1;
     }
@@ -217,9 +225,7 @@ impl BuiltinSkill for SpecDriven {
     }
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
-        let action = ctx.context.get("action")
-            .and_then(|v| v.as_str())
-            .unwrap_or("status");
+        let action = ctx.context.get("action").and_then(|v| v.as_str()).unwrap_or("status");
 
         match action {
             "analyze" => handle_analyze(ctx),
@@ -235,16 +241,27 @@ impl BuiltinSkill for SpecDriven {
 // ── action: analyze ───────────────────────────────────────────
 
 fn handle_analyze(ctx: &ExecutionContext) -> Result<Value> {
-    let goal = ctx.context.get("goal")
+    let goal = ctx
+        .context
+        .get("goal")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("analyze requires 'goal' parameter"))?;
 
-    let workspace = ctx.context.get("workspace")
+    let workspace = ctx
+        .context
+        .get("workspace")
         .and_then(|v| v.as_str())
         .map(String::from)
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_default().to_string_lossy().to_string());
+        .unwrap_or_else(|| {
+            std::env::current_dir()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string()
+        });
 
-    let project_id = ctx.context.get("project_id")
+    let project_id = ctx
+        .context
+        .get("project_id")
         .and_then(|v| v.as_str())
         .map(String::from)
         .unwrap_or_else(new_project_id);
@@ -268,7 +285,11 @@ fn handle_analyze(ctx: &ExecutionContext) -> Result<Value> {
             for r in risks {
                 project.risks.push(SpecRisk {
                     area: r.get("area").and_then(|v| v.as_str()).unwrap_or("unknown").to_string(),
-                    severity: r.get("severity").and_then(|v| v.as_str()).unwrap_or("medium").to_string(),
+                    severity: r
+                        .get("severity")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("medium")
+                        .to_string(),
                     description: r.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                     mitigation: r.get("mitigation").and_then(|v| v.as_str()).unwrap_or("").to_string(),
                 });
@@ -332,12 +353,15 @@ fn handle_analyze(ctx: &ExecutionContext) -> Result<Value> {
 // ── action: decompose ─────────────────────────────────────────
 
 fn handle_decompose(ctx: &ExecutionContext) -> Result<Value> {
-    let project_id = ctx.context.get("project_id")
+    let project_id = ctx
+        .context
+        .get("project_id")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("decompose requires 'project_id'"))?;
 
     let mut store = spec_store().lock().unwrap();
-    let project = store.get_mut(project_id)
+    let project = store
+        .get_mut(project_id)
         .ok_or_else(|| anyhow!("project '{}' not found", project_id))?;
 
     // 如果提供了任务列表（从 passthrough 回填）
@@ -369,7 +393,8 @@ fn handle_decompose(ctx: &ExecutionContext) -> Result<Value> {
     project.touch();
     persist_project(project)?;
 
-    let analysis_output = project.phase(PhaseKind::Analyze)
+    let analysis_output = project
+        .phase(PhaseKind::Analyze)
         .and_then(|p| p.output.as_ref())
         .cloned()
         .unwrap_or(json!({"goal": project.goal}));
@@ -400,12 +425,15 @@ fn handle_decompose(ctx: &ExecutionContext) -> Result<Value> {
 // ── action: plan ──────────────────────────────────────────────
 
 fn handle_plan(ctx: &ExecutionContext) -> Result<Value> {
-    let project_id = ctx.context.get("project_id")
+    let project_id = ctx
+        .context
+        .get("project_id")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("plan requires 'project_id'"))?;
 
     let mut store = spec_store().lock().unwrap();
-    let project = store.get_mut(project_id)
+    let project = store
+        .get_mut(project_id)
         .ok_or_else(|| anyhow!("project '{}' not found", project_id))?;
 
     // 如果提供了执行计划（从 passthrough 回填）
@@ -417,9 +445,7 @@ fn handle_plan(ctx: &ExecutionContext) -> Result<Value> {
         }
         // 更新任务排序（如果提供了 execution_order）
         if let Some(order) = plan_result.get("execution_order").and_then(|v| v.as_array()) {
-            let order_ids: Vec<String> = order.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect();
+            let order_ids: Vec<String> = order.iter().filter_map(|v| v.as_str().map(String::from)).collect();
             let mut sorted = Vec::new();
             for id in &order_ids {
                 if let Some(pos) = project.tasks.iter().position(|t| t.id == *id) {
@@ -475,12 +501,15 @@ fn handle_plan(ctx: &ExecutionContext) -> Result<Value> {
 // ── action: execute ───────────────────────────────────────────
 
 fn handle_execute(ctx: &ExecutionContext) -> Result<Value> {
-    let project_id = ctx.context.get("project_id")
+    let project_id = ctx
+        .context
+        .get("project_id")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("execute requires 'project_id'"))?;
 
     let mut store = spec_store().lock().unwrap();
-    let project = store.get_mut(project_id)
+    let project = store
+        .get_mut(project_id)
         .ok_or_else(|| anyhow!("project '{}' not found", project_id))?;
 
     // 标记 execute 阶段为进行中
@@ -524,7 +553,11 @@ fn handle_execute(ctx: &ExecutionContext) -> Result<Value> {
         }
         // 自动触发 learn 阶段
         let total = project.tasks.len();
-        let ok = project.tasks.iter().filter(|t| t.status == PhaseStatus::Completed).count();
+        let ok = project
+            .tasks
+            .iter()
+            .filter(|t| t.status == PhaseStatus::Completed)
+            .count();
         let fail = total - ok;
         let lessons_count = project.lessons.len();
         let learn_output = json!({
@@ -603,7 +636,9 @@ fn handle_execute(ctx: &ExecutionContext) -> Result<Value> {
 // ── action: status ────────────────────────────────────────────
 
 fn handle_status(ctx: &ExecutionContext) -> Result<Value> {
-    let workspace = ctx.context.get("workspace")
+    let workspace = ctx
+        .context
+        .get("workspace")
         .and_then(|v| v.as_str())
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
@@ -628,21 +663,26 @@ fn handle_status(ctx: &ExecutionContext) -> Result<Value> {
         }
     } else {
         // 列出所有项目
-        let projects: Vec<Value> = store.values().map(|p| {
-            let current_phase = p.phases.iter()
-                .find(|ph| ph.status == PhaseStatus::InProgress)
-                .map(|ph| ph.kind.to_string())
-                .unwrap_or_else(|| "idle".into());
-            json!({
-                "project_id": p.project_id,
-                "goal": p.goal,
-                "current_phase": current_phase,
-                "task_progress": format!("{}/{}",
-                    p.tasks.iter().filter(|t| t.status == PhaseStatus::Completed).count(),
-                    p.tasks.len()
-                ),
+        let projects: Vec<Value> = store
+            .values()
+            .map(|p| {
+                let current_phase = p
+                    .phases
+                    .iter()
+                    .find(|ph| ph.status == PhaseStatus::InProgress)
+                    .map(|ph| ph.kind.to_string())
+                    .unwrap_or_else(|| "idle".into());
+                json!({
+                    "project_id": p.project_id,
+                    "goal": p.goal,
+                    "current_phase": current_phase,
+                    "task_progress": format!("{}/{}",
+                        p.tasks.iter().filter(|t| t.status == PhaseStatus::Completed).count(),
+                        p.tasks.len()
+                    ),
+                })
             })
-        }).collect();
+            .collect();
 
         Ok(json!({
             "projects": projects,

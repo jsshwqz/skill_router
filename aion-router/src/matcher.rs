@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 
-use aion_types::types::{SkillDefinition, SkillSource};
 use super::learner::SkillLearner;
 use super::registry::RegistryStore;
+use aion_types::types::{SkillDefinition, SkillSource};
 
 pub struct Matcher;
 
@@ -62,9 +62,9 @@ impl Matcher {
     /// - Usage (30d) contributes 0–3 points (log-scaled, caps at 50 uses)
     fn score(skill: &SkillDefinition, registry: Option<&RegistryStore>, learner: Option<&SkillLearner>) -> f64 {
         let source_score = match skill.source {
-            SkillSource::Local           => 4.0,
-            SkillSource::ExternalCli     => 3.0,
-            SkillSource::Generated       => 2.0,
+            SkillSource::Local => 4.0,
+            SkillSource::ExternalCli => 3.0,
+            SkillSource::Generated => 2.0,
             SkillSource::RemoteCandidate => 1.0,
         };
 
@@ -72,7 +72,10 @@ impl Matcher {
         // Fall back to registry's raw success_rate if learner is unavailable.
         let learner_quality = learner.and_then(|l| {
             // Look up by capability name (learner tracks by capability)
-            skill.metadata.capabilities.first()
+            skill
+                .metadata
+                .capabilities
+                .first()
                 .and_then(|cap| l.get_stats(cap))
                 .map(|stats| stats.quality_score())
         });

@@ -98,12 +98,7 @@ mod ai_intel_tests {
         let paths = RouterPaths::for_workspace(&tmp);
         paths.ensure_base_dirs().unwrap();
 
-        let result = Synthesizer::evolve(
-            &paths,
-            "custom_parser",
-            "parse custom",
-            "Must handle nested",
-        );
+        let result = Synthesizer::evolve(&paths, "custom_parser", "parse custom", "Must handle nested");
         assert!(result.is_ok());
 
         let skill = result.unwrap();

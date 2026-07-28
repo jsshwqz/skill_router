@@ -138,9 +138,7 @@ impl BuiltinSkill for AutonomousAgent {
             let turn_output = turn_result.output.unwrap_or_default();
 
             // Check if we're done
-            if turn_output.contains("\"mode\": \"complete\"")
-                || turn_output.contains("\"mode\":\"complete\"")
-            {
+            if turn_output.contains("\"mode\": \"complete\"") || turn_output.contains("\"mode\":\"complete\"") {
                 context.push_str(&format!("Turn {}: COMPLETE\n{}\n", iteration, turn_output));
                 log.push(json!({
                     "phase": "complete",

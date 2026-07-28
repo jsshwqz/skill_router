@@ -46,29 +46,43 @@ impl Synthesizer {
         _task: &str,
         registry: Option<&CapabilityRegistry>,
     ) -> Result<SkillDefinition> {
-        let root_dir = paths
-            .generated_skills_dir
-            .join(format!("{capability}_placeholder"));
+        let root_dir = paths.generated_skills_dir.join(format!("{capability}_placeholder"));
 
         // Determine type from registry metadata (not hardcoded list)
-        let needs_ai = registry
-            .map(|r| r.capability_requires_ai(capability))
-            .unwrap_or(false);
+        let needs_ai = registry.map(|r| r.capability_requires_ai(capability)).unwrap_or(false);
         let needs_network = registry
             .map(|r| r.capability_requires_network(capability))
             .unwrap_or(false);
 
         // AI capabilities that have their own dedicated builtin (not generic ai_task)
         const DEDICATED_AI_BUILTINS: &[&str] = &[
-            "ai_parallel_solve", "ai_triple_vote", "ai_triangle_review",
-            "ai_code_generate", "ai_smart_collaborate", "ai_research",
-            "ai_serial_optimize", "ai_long_context", "ai_cross_review",
-            "code_lint", "code_test", "pdf_parse", "spec_driven",
-            "prompt_audit", "haoojiang_review", "evolver_governance",
-            "strategic_plan", "task_dialectic", "contradiction_analyze",
-            "compile_contract", "check_sufficiency", "verify_result",
-            "detect_drift", "dialectical_retry",
-            "brainstorm", "compare", "discuss",
+            "ai_parallel_solve",
+            "ai_triple_vote",
+            "ai_triangle_review",
+            "ai_code_generate",
+            "ai_smart_collaborate",
+            "ai_research",
+            "ai_serial_optimize",
+            "ai_long_context",
+            "ai_cross_review",
+            "code_lint",
+            "code_test",
+            "pdf_parse",
+            "spec_driven",
+            "prompt_audit",
+            "haoojiang_review",
+            "evolver_governance",
+            "strategic_plan",
+            "task_dialectic",
+            "contradiction_analyze",
+            "compile_contract",
+            "check_sufficiency",
+            "verify_result",
+            "detect_drift",
+            "dialectical_retry",
+            "brainstorm",
+            "compare",
+            "discuss",
         ];
 
         let (entrypoint, instruction) = if DEDICATED_AI_BUILTINS.contains(&capability) {
@@ -82,8 +96,18 @@ impl Synthesizer {
                 .unwrap_or_else(|| {
                     registry
                         .and_then(|r| r.get(capability))
-                        .map(|def| format!("你是一个 {} 工具。{} 按规范格式返回结果。如果不确定，输出 'UNKNOWN'。", capability, def.description))
-                        .unwrap_or_else(|| format!("Execute '{}' on the given input. Output only the result, no explanation.", capability))
+                        .map(|def| {
+                            format!(
+                                "你是一个 {} 工具。{} 按规范格式返回结果。如果不确定，输出 'UNKNOWN'。",
+                                capability, def.description
+                            )
+                        })
+                        .unwrap_or_else(|| {
+                            format!(
+                                "Execute '{}' on the given input. Output only the result, no explanation.",
+                                capability
+                            )
+                        })
                 });
             ("builtin:ai_task".to_string(), Some(instr))
         } else {
@@ -111,11 +135,7 @@ impl Synthesizer {
     }
 
     /// Backward-compatible: no registry awareness.
-    pub fn create_placeholder(
-        paths: &RouterPaths,
-        capability: &str,
-        task: &str,
-    ) -> Result<SkillDefinition> {
+    pub fn create_placeholder(paths: &RouterPaths, capability: &str, task: &str) -> Result<SkillDefinition> {
         Self::create_placeholder_with_context(paths, capability, task, None, None)
     }
 
@@ -163,12 +183,7 @@ impl Synthesizer {
         Ok(definition)
     }
 
-    pub fn evolve(
-        paths: &RouterPaths,
-        capability: &str,
-        task: &str,
-        requirement: &str,
-    ) -> Result<SkillDefinition> {
+    pub fn evolve(paths: &RouterPaths, capability: &str, task: &str, requirement: &str) -> Result<SkillDefinition> {
         Self::evolve_with_failures(paths, capability, task, requirement, "")
     }
 
@@ -192,12 +207,15 @@ impl Synthesizer {
 
         // 生成多个候选 instruction，评分择优
         let candidates = Self::build_candidate_instructions(capability, failure_context);
-        let best = candidates.into_iter()
+        let best = candidates
+            .into_iter()
             .max_by_key(|instr| score_instruction(instr, failure_context))
-            .unwrap_or_else(|| format!(
-                "你是一个改进后的 {} 工具。\n已知失败模式：{}。\n在实现中需参考失败原因规避这些问题。",
-                capability, failure_context
-            ));
+            .unwrap_or_else(|| {
+                format!(
+                    "你是一个改进后的 {} 工具。\n已知失败模式：{}。\n在实现中需参考失败原因规避这些问题。",
+                    capability, failure_context
+                )
+            });
 
         let instruction = Some(best);
 
@@ -224,16 +242,16 @@ impl Synthesizer {
         }
 
         Self::persist_definition(&definition)?;
-        tracing::info!("evolve_with_failures: created {} → {}", capability, definition.metadata.name);
+        tracing::info!(
+            "evolve_with_failures: created {} → {}",
+            capability,
+            definition.metadata.name
+        );
         Ok(definition)
     }
 
     /// 没有失败上下文时的简单进化
-    fn evolve_simple(
-        capability: &str,
-        name: &str,
-        root_dir: &Path,
-    ) -> Result<SkillDefinition> {
+    fn evolve_simple(capability: &str, name: &str, root_dir: &Path) -> Result<SkillDefinition> {
         let definition = SkillDefinition {
             metadata: SkillMetadata {
                 name: name.to_string(),
@@ -257,17 +275,20 @@ impl Synthesizer {
             // 候选 1：超精简（优先，省 token）
             format!(
                 "你是 {t}。\n问题：{c}\n规则：精确，≤15KB，不确定 UNKNOWN。",
-                t = capability, c = failure_context
+                t = capability,
+                c = failure_context
             ),
             // 候选 2：标准
             format!(
                 "你是改进版 {t}。\n已知问题：{c}。\n约束：≤15KB，JSON 输出，UNKNOWN 代替猜测。",
-                t = capability, c = failure_context
+                t = capability,
+                c = failure_context
             ),
             // 候选 3：保守
             format!(
                 "你是 {t}。\n避免：{c}。\n规则：\n- 不确定 → UNKNOWN\n- ≤15KB\n- 本地优先",
-                t = capability, c = failure_context
+                t = capability,
+                c = failure_context
             ),
         ]
     }
@@ -282,7 +303,8 @@ impl Synthesizer {
                 entrypoint: "builtin:ai_task".to_string(),
                 permissions: PermissionSet::default_deny().with_network(true),
                 instruction: Some(format!(
-                    "你是一个改进后的 {} 工具。注意已知问题：{}。", capability, failure_context
+                    "你是一个改进后的 {} 工具。注意已知问题：{}。",
+                    capability, failure_context
                 )),
                 engine_capable: false,
             },

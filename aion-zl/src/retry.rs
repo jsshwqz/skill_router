@@ -74,8 +74,11 @@ impl Engine {
                     warn!(attempt = n, error = %err, "Failed");
                     let (rc, lesson, next) = self.analyze_failure(task, &strategy, &err).await;
                     attempts.push(RetryAttempt {
-                        attempt: n, strategy: strategy.clone(), error: err,
-                        root_cause: Some(rc), lesson: Some(lesson),
+                        attempt: n,
+                        strategy: strategy.clone(),
+                        error: err,
+                        root_cause: Some(rc),
+                        lesson: Some(lesson),
                     });
                     strategy = next;
                 }
@@ -84,8 +87,11 @@ impl Engine {
                     warn!(attempt = n, error = %err, "Route error");
                     let (rc, lesson, next) = self.analyze_failure(task, &strategy, &err).await;
                     attempts.push(RetryAttempt {
-                        attempt: n, strategy: strategy.clone(), error: err,
-                        root_cause: Some(rc), lesson: Some(lesson),
+                        attempt: n,
+                        strategy: strategy.clone(),
+                        error: err,
+                        root_cause: Some(rc),
+                        lesson: Some(lesson),
                     });
                     strategy = next;
                 }
@@ -98,17 +104,20 @@ impl Engine {
         );
 
         Ok(RetryResult {
-            task: task.into(), success: false, final_result: None,
-            attempts, total_attempts: max, final_strategy: strategy,
+            task: task.into(),
+            success: false,
+            final_result: None,
+            attempts,
+            total_attempts: max,
+            final_strategy: strategy,
         })
     }
 
-    async fn analyze_failure(&self, task: &str, strategy: &str, error: &str)
-        -> (String, String, String)
-    {
+    async fn analyze_failure(&self, task: &str, strategy: &str, error: &str) -> (String, String, String) {
         let memories = self.recall(task).unwrap_or_default();
-        let mem_hint = if memories.is_empty() { String::new() }
-        else {
+        let mem_hint = if memories.is_empty() {
+            String::new()
+        } else {
             let s: Vec<_> = memories.iter().map(|m| m.content.as_str()).collect();
             format!("\nPrior lessons: {}", s.join("; "))
         };
@@ -116,9 +125,15 @@ impl Engine {
         let prompt = format!("Task: {}\nStrategy: {}\nError: {}{}", task, strategy, error, mem_hint);
 
         match ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            ROOT_CAUSE_SYSTEM, &prompt,
-        ).await {
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            ROOT_CAUSE_SYSTEM,
+            &prompt,
+        )
+        .await
+        {
             Ok(v) => {
                 let rc = v["root_cause"].as_str().unwrap_or("unknown").to_string();
                 let lesson = v["lesson"].as_str().unwrap_or("").to_string();

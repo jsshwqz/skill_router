@@ -191,22 +191,34 @@ impl Engine {
     pub async fn compile_contract(&self, task: &str) -> Result<TaskContract> {
         info!("Compiling task contract...");
         let raw = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            CONTRACT_SYSTEM, task,
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            CONTRACT_SYSTEM,
+            task,
+        )
+        .await?;
 
         Ok(TaskContract {
             task_summary: raw["task_summary"].as_str().unwrap_or(task).into(),
-            acceptance_criteria: raw["acceptance_criteria"].as_array()
+            acceptance_criteria: raw["acceptance_criteria"]
+                .as_array()
                 .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                 .unwrap_or_default(),
-            expected_outputs: raw["expected_outputs"].as_array()
-                .map(|a| a.iter().map(|v| ExpectedOutput {
-                    output_type: v["type"].as_str().unwrap_or("text").into(),
-                    description: v["description"].as_str().unwrap_or("").into(),
-                }).collect())
+            expected_outputs: raw["expected_outputs"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| ExpectedOutput {
+                            output_type: v["type"].as_str().unwrap_or("text").into(),
+                            description: v["description"].as_str().unwrap_or("").into(),
+                        })
+                        .collect()
+                })
                 .unwrap_or_default(),
-            required_context: raw["required_context"].as_array()
+            required_context: raw["required_context"]
+                .as_array()
                 .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                 .unwrap_or_default(),
             verification_method: raw["verification_method"].as_str().unwrap_or("").into(),
@@ -224,14 +236,20 @@ impl Engine {
             context,
         );
         let raw = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            SUFFICIENCY_SYSTEM, &prompt,
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            SUFFICIENCY_SYSTEM,
+            &prompt,
+        )
+        .await?;
 
         Ok(SufficiencyResult {
             sufficient: raw["sufficient"].as_bool().unwrap_or(false),
             confidence: raw["confidence"].as_f64().unwrap_or(0.5) as f32,
-            missing: raw["missing"].as_array()
+            missing: raw["missing"]
+                .as_array()
                 .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                 .unwrap_or_default(),
             recommendation: raw["recommendation"].as_str().unwrap_or("gather_more").into(),
@@ -247,19 +265,29 @@ impl Engine {
             result,
         );
         let raw = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            VERIFY_SYSTEM, &prompt,
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            VERIFY_SYSTEM,
+            &prompt,
+        )
+        .await?;
 
         Ok(VerifyResult {
             passed: raw["passed"].as_bool().unwrap_or(false),
             score: raw["score"].as_f64().unwrap_or(0.0) as f32,
-            criteria_results: raw["criteria_results"].as_array()
-                .map(|a| a.iter().map(|v| CriterionResult {
-                    criterion: v["criterion"].as_str().unwrap_or("").into(),
-                    met: v["met"].as_bool().unwrap_or(false),
-                    evidence: v["evidence"].as_str().unwrap_or("").into(),
-                }).collect())
+            criteria_results: raw["criteria_results"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| CriterionResult {
+                            criterion: v["criterion"].as_str().unwrap_or("").into(),
+                            met: v["met"].as_bool().unwrap_or(false),
+                            evidence: v["evidence"].as_str().unwrap_or("").into(),
+                        })
+                        .collect()
+                })
                 .unwrap_or_default(),
             verdict: raw["verdict"].as_str().unwrap_or("retry").into(),
             feedback: raw["feedback"].as_str().unwrap_or("").into(),
@@ -275,9 +303,14 @@ impl Engine {
             current_state,
         );
         let raw = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            DRIFT_SYSTEM, &prompt,
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            DRIFT_SYSTEM,
+            &prompt,
+        )
+        .await?;
 
         Ok(DriftResult {
             on_track: raw["on_track"].as_bool().unwrap_or(true),

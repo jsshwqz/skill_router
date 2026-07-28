@@ -7,8 +7,8 @@ use anyhow::Result;
 use serde_json::{json, Value};
 use tracing::info;
 
-use aion_types::types::{ExecutionContext, SkillDefinition};
 use crate::builtins::BuiltinSkill;
+use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::orchestrator::call_http_ai_fallback;
 
@@ -89,7 +89,10 @@ impl BuiltinSkill for HaoJiangReview {
         let lint_context = if lint_issues.is_empty() {
             String::new()
         } else {
-            format!("\n\nStatic analysis pre-check issues:\n{}", serde_json::to_string_pretty(&lint_issues).unwrap_or_default())
+            format!(
+                "\n\nStatic analysis pre-check issues:\n{}",
+                serde_json::to_string_pretty(&lint_issues).unwrap_or_default()
+            )
         };
 
         let prompt = format!(

@@ -46,7 +46,7 @@ impl Verifier for CargoCheckVerifier {
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        
+
         // cargo check usually writes diagnostics to stderr
         let success = output.status.success();
         let message = if success {

@@ -13,7 +13,9 @@ pub struct TextDiff;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for TextDiff {
-    fn name(&self) -> &'static str { "text_diff" }
+    fn name(&self) -> &'static str {
+        "text_diff"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let a = context.context["a"].as_str().unwrap_or("");
@@ -28,11 +30,18 @@ impl BuiltinSkill for TextDiff {
         let mut removed = 0usize;
         let mut unchanged = 0usize;
 
-        lcs_diff(&lcs, &al, &bl, al.len(), bl.len(), &mut |op, line| {
-            match op {
-                '-' => { removed += 1; diff.push(json!({"op": "-", "line": line})); }
-                '+' => { added += 1; diff.push(json!({"op": "+", "line": line})); }
-                _ => { unchanged += 1; diff.push(json!({"op": " ", "line": line})); }
+        lcs_diff(&lcs, &al, &bl, al.len(), bl.len(), &mut |op, line| match op {
+            '-' => {
+                removed += 1;
+                diff.push(json!({"op": "-", "line": line}));
+            }
+            '+' => {
+                added += 1;
+                diff.push(json!({"op": "+", "line": line}));
+            }
+            _ => {
+                unchanged += 1;
+                diff.push(json!({"op": " ", "line": line}));
             }
         });
 
@@ -46,21 +55,20 @@ pub struct TextEmbed;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for TextEmbed {
-    fn name(&self) -> &'static str { "text_embed" }
+    fn name(&self) -> &'static str {
+        "text_embed"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = require_text(context)?;
 
         // 停用词（中英文常见）
         const STOPWORDS: &[&str] = &[
-            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
-            "have", "has", "had", "do", "does", "did", "will", "would", "could",
-            "should", "may", "might", "can", "shall", "to", "of", "in", "for",
-            "on", "with", "at", "by", "from", "as", "into", "through", "and",
-            "but", "or", "not", "no", "if", "then", "than", "that", "this",
-            "it", "its", "they", "them", "their", "we", "our", "you", "your",
-            "的", "了", "是", "在", "和", "有", "我", "他", "她", "它", "们",
-            "这", "那", "就", "也", "都", "被", "把", "让", "用", "不",
+            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does",
+            "did", "will", "would", "could", "should", "may", "might", "can", "shall", "to", "of", "in", "for", "on",
+            "with", "at", "by", "from", "as", "into", "through", "and", "but", "or", "not", "no", "if", "then", "than",
+            "that", "this", "it", "its", "they", "them", "their", "we", "our", "you", "your", "的", "了", "是", "在",
+            "和", "有", "我", "他", "她", "它", "们", "这", "那", "就", "也", "都", "被", "把", "让", "用", "不",
         ];
 
         let mut freq: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
@@ -101,7 +109,9 @@ pub struct MarkdownRender;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for MarkdownRender {
-    fn name(&self) -> &'static str { "markdown_render" }
+    fn name(&self) -> &'static str {
+        "markdown_render"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = require_text(context)?;
@@ -134,7 +144,9 @@ pub struct TextWordcount;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for TextWordcount {
-    fn name(&self) -> &'static str { "text_wordcount" }
+    fn name(&self) -> &'static str {
+        "text_wordcount"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         // 对 text_wordcount 做宽松输入兼容：
@@ -206,14 +218,7 @@ fn lcs_table<'a>(a: &[&'a str], b: &[&'a str]) -> Vec<Vec<usize>> {
 }
 
 /// 回溯 LCS 表生成 diff 操作序列
-fn lcs_diff(
-    table: &[Vec<usize>],
-    a: &[&str],
-    b: &[&str],
-    i: usize,
-    j: usize,
-    emit: &mut impl FnMut(char, &str),
-) {
+fn lcs_diff(table: &[Vec<usize>], a: &[&str], b: &[&str], i: usize, j: usize, emit: &mut impl FnMut(char, &str)) {
     if i > 0 && j > 0 && a[i - 1] == b[j - 1] {
         lcs_diff(table, a, b, i - 1, j - 1, emit);
         emit(' ', a[i - 1]);

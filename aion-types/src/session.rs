@@ -22,10 +22,7 @@ pub enum UndoAction {
         snapshot: Vec<u8>,
     },
     /// 执行补偿命令
-    CompensatingCommand {
-        command: String,
-        args: Vec<String>,
-    },
+    CompensatingCommand { command: String, args: Vec<String> },
     /// 无法撤销（只读操作）
     #[default]
     None,
@@ -51,10 +48,7 @@ mod base64_bytes {
         let hex = String::deserialize(deserializer)?;
         (0..hex.len())
             .step_by(2)
-            .map(|i| {
-                u8::from_str_radix(&hex[i..i + 2], 16)
-                    .map_err(serde::de::Error::custom)
-            })
+            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).map_err(serde::de::Error::custom))
             .collect()
     }
 }
@@ -83,7 +77,6 @@ pub struct SessionStep {
 fn default_undo() -> UndoAction {
     UndoAction::None
 }
-
 
 /// 有状态会话
 #[derive(Debug, Clone, Serialize, Deserialize)]

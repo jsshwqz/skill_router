@@ -11,9 +11,9 @@
 //! 当前实现使用进程内 `MessageBus`（tokio broadcast channel），
 //! Phase 1（D1）将切换为 NATS 后端，接口保持不变。
 
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
 use tokio::sync::broadcast;
@@ -55,7 +55,10 @@ impl MultiAgentCoordinator {
 
     /// 注册一个 Agent
     pub fn register_agent(&mut self, agent: AgentRef) {
-        info!("Coordinator: registered agent [{}] with role {:?}", agent.id, agent.role);
+        info!(
+            "Coordinator: registered agent [{}] with role {:?}",
+            agent.id, agent.role
+        );
         self.agents.insert(agent.id.clone(), agent);
     }
 
@@ -204,8 +207,12 @@ impl MultiAgentCoordinator {
         while !pending_ids.is_empty() && tokio::time::Instant::now() < deadline {
             match tokio::time::timeout_at(deadline, rx.recv()).await {
                 Ok(Ok(msg)) => {
-                    if let AgentMessageType::TaskResult { task_id, success, result, error } =
-                        &msg.message_type
+                    if let AgentMessageType::TaskResult {
+                        task_id,
+                        success,
+                        result,
+                        error,
+                    } = &msg.message_type
                     {
                         if pending_ids.remove(task_id) {
                             opinions.push(ExpertOpinion {
@@ -305,17 +312,18 @@ impl MultiAgentCoordinator {
         while winner.is_none() && tokio::time::Instant::now() < deadline {
             match tokio::time::timeout_at(deadline, rx.recv()).await {
                 Ok(Ok(msg)) => {
-                    if let AgentMessageType::TaskResult { task_id, success, result, .. } =
-                        &msg.message_type
+                    if let AgentMessageType::TaskResult {
+                        task_id,
+                        success,
+                        result,
+                        ..
+                    } = &msg.message_type
                     {
                         if pending_ids.contains(task_id) && *success {
                             winner = Some(result.clone());
                             winner_agent = msg.from_agent.clone();
                             let _ = &winner_agent; // suppress unused warning until cancel loop
-                            info!(
-                                "Competitive winner: agent [{}] for task_id='{}'",
-                                winner_agent, task_id
-                            );
+                            info!("Competitive winner: agent [{}] for task_id='{}'", winner_agent, task_id);
 
                             // 通知其他 Agent 取消任务
                             for cancel_id in pending_ids.iter().filter(|id| *id != task_id) {
@@ -373,8 +381,12 @@ impl MultiAgentCoordinator {
         loop {
             match tokio::time::timeout_at(deadline, rx.recv()).await {
                 Ok(Ok(msg)) => {
-                    if let AgentMessageType::TaskResult { task_id: tid, success, result, error } =
-                        &msg.message_type
+                    if let AgentMessageType::TaskResult {
+                        task_id: tid,
+                        success,
+                        result,
+                        error,
+                    } = &msg.message_type
                     {
                         if tid == &task_id_owned {
                             return if *success {

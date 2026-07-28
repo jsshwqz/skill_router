@@ -8,8 +8,8 @@ use anyhow::Result;
 use serde_json::{json, Value};
 use tracing::info;
 
-use aion_types::types::{ExecutionContext, SkillDefinition};
 use crate::builtins::BuiltinSkill;
+use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::orchestrator::call_http_ai_fallback;
 
@@ -52,9 +52,8 @@ impl BuiltinSkill for EvolverGovernance {
 
         match report.output {
             Some(output) => {
-                let parsed = serde_json::from_str(&output).unwrap_or_else(|_| {
-                    json!({"clarity": "unknown", "risk": "unknown", "raw_output": output})
-                });
+                let parsed = serde_json::from_str(&output)
+                    .unwrap_or_else(|_| json!({"clarity": "unknown", "risk": "unknown", "raw_output": output}));
                 Ok(json!({
                     "governance": parsed,
                     "adapter": {
@@ -76,5 +75,9 @@ impl BuiltinSkill for EvolverGovernance {
 }
 
 fn safe_truncate(s: &str, max: usize) -> String {
-    if s.len() <= max { s.to_string() } else { format!("{}…", &s[..max]) }
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}…", &s[..max])
+    }
 }

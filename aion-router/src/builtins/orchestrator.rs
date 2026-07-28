@@ -120,7 +120,7 @@ fn is_noise_line(engine: &Engine, line: &str) -> bool {
 fn normalize_output(engine: &Engine, raw: &str) -> String {
     strip_ansi(raw)
         .lines()
-        .filter(|line| !is_noise_line(&engine, line))
+        .filter(|line| !is_noise_line(engine, line))
         .map(str::trim_end)
         .collect::<Vec<_>>()
         .join("\n")
@@ -230,7 +230,10 @@ impl Engine {
     /// Filter a slice to only disabled engines (env var override).
     fn filter_enabled(engines: Vec<Engine>) -> Vec<Engine> {
         let disabled = Self::disabled_set();
-        engines.into_iter().filter(|e| !disabled.contains(&e.label().to_lowercase())).collect()
+        engines
+            .into_iter()
+            .filter(|e| !disabled.contains(&e.label().to_lowercase()))
+            .collect()
     }
 
     /// Default CLI name for this engine (before .cmd/.exe suffix on Windows).
@@ -259,20 +262,16 @@ impl Engine {
     /// Matches the resolution logic in `call_engine_detailed`/`run_cli_with_stdin`.
     fn cli_available(&self) -> bool {
         match self {
-            Engine::Local => true, // HTTP-based, no CLI needed
+            Engine::Local => true,    // HTTP-based, no CLI needed
             Engine::Skill(_) => true, // skill definition is already loaded from disk
             _ => {
-                let base = std::env::var(self.cli_env_var())
-                    .unwrap_or_else(|_| self.cli_name().to_string());
-                let resolved = if cfg!(windows)
-                    && !base.contains('\\')
-                    && !base.ends_with(".exe")
-                    && !base.ends_with(".cmd")
-                {
-                    format!("{}.cmd", base)
-                } else {
-                    base.clone()
-                };
+                let base = std::env::var(self.cli_env_var()).unwrap_or_else(|_| self.cli_name().to_string());
+                let resolved =
+                    if cfg!(windows) && !base.contains('\\') && !base.ends_with(".exe") && !base.ends_with(".cmd") {
+                        format!("{}.cmd", base)
+                    } else {
+                        base.clone()
+                    };
                 if resolved.contains('\\') || resolved.contains('/') {
                     std::path::Path::new(&resolved).exists()
                 } else {
@@ -308,7 +307,11 @@ impl Engine {
     fn nth_enabled(n: usize) -> Option<Engine> {
         let enabled = Self::default_enabled();
         let len = enabled.len();
-        if len == 0 { None } else { enabled.get(n % len).cloned() }
+        if len == 0 {
+            None
+        } else {
+            enabled.get(n % len).cloned()
+        }
     }
 
     /// First available engine, or `None` if all are unavailable/disabled.
@@ -342,14 +345,7 @@ impl Engine {
             "gemini" => Some(Self::Gemini),
             "local" => Some(Self::Local),
             "skill" => Some(Self::Skill("skill".to_string())),
-            _ => {
-                // Support "skill:name" format for named skills
-                if let Some(name) = label.strip_prefix("skill:") {
-                    Some(Self::Skill(name.to_string()))
-                } else {
-                    None
-                }
-            }
+            _ => label.strip_prefix("skill:").map(|name| Self::Skill(name.to_string())),
         }
     }
 
@@ -496,7 +492,7 @@ fn cached_success_report(
     cfg: &OrchestratorConfig,
     status_before: &str,
 ) -> Option<EngineCallReport> {
-    let key = cache_key(&engine, phase, prompt, cfg);
+    let key = cache_key(engine, phase, prompt, cfg);
     let now = now_secs();
     let mut store = load_engine_cache();
     store
@@ -531,7 +527,7 @@ fn persist_success_cache(
     output: &str,
     duration_ms: u64,
 ) {
-    let key = cache_key(&engine, phase, prompt, cfg);
+    let key = cache_key(engine, phase, prompt, cfg);
     let now = now_secs();
     let mut store = load_engine_cache();
     store
@@ -742,7 +738,7 @@ fn update_engine_health(report: &EngineCallReport) {
 }
 
 fn engine_in_cooldown(engine: &Engine) -> Option<String> {
-    let state = engine_state(&engine);
+    let state = engine_state(engine);
     match state.cooldown_until {
         Some(until) if until > now_secs() => Some(format!("{} in cooldown until {}", engine.label(), until)),
         _ => None,
@@ -809,7 +805,6 @@ async fn run_cli_with_stdin(cli: &str, args: &[&str], stdin_data: &str, timeout:
 }
 
 async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorConfig, phase: &str) -> EngineCallReport {
-    let engine = engine; // shadow — keep owned for the rest of function
     let status_before = match engine_state(&engine).status {
         HealthStatus::Healthy => "healthy",
         HealthStatus::Degraded => "degraded",
@@ -852,7 +847,7 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
         }
     };
 
-        // Local engine uses HTTP AI endpoints instead of CLI subprocess
+    // Local engine uses HTTP AI endpoints instead of CLI subprocess
     if engine == Engine::Local {
         let mut report = call_http_ai_fallback(prompt, phase).await;
         report.engine = engine.label().to_string();
@@ -1010,7 +1005,7 @@ async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorCo
         },
     };
 
-        update_engine_health(&report);
+    update_engine_health(&report);
     report
 }
 
@@ -1084,7 +1079,12 @@ async fn call_skill_engine(skill_name: &str, prompt: &str, phase: &str, status_b
             };
         }
     };
-    let capability = skill.metadata.capabilities.first().cloned().unwrap_or_else(|| "ai_task".to_string());
+    let capability = skill
+        .metadata
+        .capabilities
+        .first()
+        .cloned()
+        .unwrap_or_else(|| "ai_task".to_string());
     let ctx = ExecutionContext::new(prompt, &capability);
     match Executor::execute(&skill, &ctx, &paths).await {
         Ok(response) => {
@@ -1808,7 +1808,7 @@ SUMMARY: refactor with multi-engine review
 
 fn dispute_review_prompt(task: &str, proposals: &[Proposal]) -> String {
     let mut body = String::from(
-        "你是第二轮争议复审的评审员。请先阅读所有候选方案，比较它们的优劣，再输出评审意见。\n\n候选方案：\n"
+        "你是第二轮争议复审的评审员。请先阅读所有候选方案，比较它们的优劣，再输出评审意见。\n\n候选方案：\n",
     );
     for proposal in proposals {
         body.push_str(&format!(
@@ -1885,7 +1885,7 @@ WINNER_ENGINE: claude | openai | gemini
 RATIONALE: 一句话说明为什么它更好
 VERIFY: 一句话说明如何验证胜出结果
 
-如果所有引擎输出质量相近，选最完整的那个。如果所有输出都有严重问题，WINNER_ENGINE 选 none。\n\n"
+如果所有引擎输出质量相近，选最完整的那个。如果所有输出都有严重问题，WINNER_ENGINE 选 none。\n\n",
     );
     prompt.push_str(&format!("<task>{}</task>\n", task));
     for (engine, output) in execution_outputs {
@@ -2200,8 +2200,8 @@ async fn run_collaboration_workflow(
         } else {
             let fallback_engine = selected_engines
                 .iter()
-                .cloned()
                 .find(|engine| engine.label() != primary_engine.label())
+                .cloned()
                 .unwrap_or_else(|| primary_engine.clone());
             let fallback_report = call_engine_detailed(fallback_engine.clone(), &primary_prompt, &cfg, "execute").await;
             if fallback_report.success {
@@ -2538,10 +2538,7 @@ impl BuiltinSkill for AiTripleVote {
             .unwrap_or("medium")
             .to_string();
         let force = force_triple_execute(ctx);
-        let engines = Engine::default_enabled()
-            .iter()
-            .map(|e| e.label())
-            .collect::<Vec<_>>();
+        let engines = Engine::default_enabled().iter().map(|e| e.label()).collect::<Vec<_>>();
         let input = json!({"task": task, "engines": engines, "risk_level": risk_level, "force_triple_execute": force});
         Ok(spawn_orchestration_with_wait("triple_vote", input, None, |input| {
             Box::pin(async move {
@@ -2626,7 +2623,7 @@ impl BuiltinSkill for AiCodeGenerate {
             .get("primary")
             .and_then(|v| v.as_str())
             .and_then(Engine::from_label)
-            .or_else(|| Engine::first_available())
+            .or_else(Engine::first_available)
             .unwrap_or(Engine::Local); // safety: first_available+Local always available
         let reviewer = ctx
             .context
@@ -2658,7 +2655,7 @@ impl BuiltinSkill for AiCodeGenerate {
                                         let primary = input["primary"]
                         .as_str()
                         .and_then(Engine::from_label)
-                        .or_else(|| Engine::first_available())
+                        .or_else(Engine::first_available)
                         .unwrap_or(Engine::Local)
                         .clone();
                     let reviewer = input["reviewer"]
@@ -2798,10 +2795,7 @@ impl BuiltinSkill for AiSmartCollaborate {
             .unwrap_or(if is_high_risk(&task, ctx) { "high" } else { "medium" })
             .to_string();
         let force = force_triple_execute(ctx);
-        let engines = Engine::default_enabled()
-            .iter()
-            .map(|e| e.label())
-            .collect::<Vec<_>>();
+        let engines = Engine::default_enabled().iter().map(|e| e.label()).collect::<Vec<_>>();
         let input = json!({"task": task, "engines": engines, "risk_level": risk_level, "force_triple_execute": force});
         Ok(
             spawn_orchestration_with_wait("smart_collaborate", input, None, |input| {
@@ -2850,10 +2844,7 @@ impl BuiltinSkill for AiResearch {
         }
 
         let risk = if depth == "deep" { "high" } else { "medium" };
-        let engines = Engine::default_enabled()
-            .iter()
-            .map(|e| e.label())
-            .collect::<Vec<_>>();
+        let engines = Engine::default_enabled().iter().map(|e| e.label()).collect::<Vec<_>>();
         Ok(spawn_orchestration_with_wait("research", json!({"task": format!("研究主题：{}\n深度：{}", topic, depth), "engines": engines, "risk_level": risk, "force_triple_execute": depth == "deep"}), None, |input| Box::pin(async move {
             let task = input["task"].as_str().unwrap_or("").to_string();
             let risk = input["risk_level"].as_str().unwrap_or("medium");
@@ -2890,13 +2881,8 @@ impl BuiltinSkill for AiSerialOptimize {
                     let e0 = Engine::nth_enabled(0).unwrap_or_else(|| Engine::Local.clone()); // Local is always the final safety net
                     let e1 = Engine::nth_enabled(1).unwrap_or_else(|| e0.clone());
                     let e2 = Engine::nth_enabled(2).unwrap_or_else(|| e0.clone());
-                    let analysis = call_engine_detailed(
-                        e0,
-                        &format!("分析代码：\n```\n{}\n```", code),
-                        &cfg,
-                        "analyze",
-                    )
-                    .await;
+                    let analysis =
+                        call_engine_detailed(e0, &format!("分析代码：\n```\n{}\n```", code), &cfg, "analyze").await;
                     let optimized = if let Some(output) = &analysis.output {
                         call_engine_detailed(
                             e1,
@@ -2906,22 +2892,12 @@ impl BuiltinSkill for AiSerialOptimize {
                         )
                         .await
                     } else {
-                        call_engine_detailed(
-                            e1,
-                            &format!("优化代码：\n```{}\n```", code),
-                            &cfg,
-                            "optimize",
-                        )
-                        .await
+                        call_engine_detailed(e1, &format!("优化代码：\n```{}\n```", code), &cfg, "optimize").await
                     };
                     let verify_prompt = optimized.output.clone().unwrap_or_default();
-                    let verify = call_engine_detailed(
-                        e2,
-                        &format!("验证以下优化结果：\n{}", verify_prompt),
-                        &cfg,
-                        "verify",
-                    )
-                    .await;
+                    let verify =
+                        call_engine_detailed(e2, &format!("验证以下优化结果：\n{}", verify_prompt), &cfg, "verify")
+                            .await;
                     let participants = vec![analysis.clone(), optimized.clone(), verify.clone()];
                     json!({
                         "analysis": analysis.output,
@@ -2974,8 +2950,7 @@ impl BuiltinSkill for AiLongContext {
                     let task = input["task"].as_str().unwrap_or("");
                     let engine = Engine::first_available().unwrap_or(Engine::Local);
                     let report =
-                        call_engine_detailed(engine, &format!("{}：\n{}", task, content), &cfg, "execute")
-                            .await;
+                        call_engine_detailed(engine, &format!("{}：\n{}", task, content), &cfg, "execute").await;
                     let participants = vec![report.clone()];
                     json!({
                         "analysis": report.output,
@@ -3041,7 +3016,9 @@ pub struct Brainstorm;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for Brainstorm {
-    fn name(&self) -> &'static str { "brainstorm" }
+    fn name(&self) -> &'static str {
+        "brainstorm"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
         let cfg = OrchestratorConfig::from_env();
@@ -3049,7 +3026,9 @@ impl BuiltinSkill for Brainstorm {
         let count = ctx.context.get("count").and_then(|v| v.as_u64()).unwrap_or(5);
 
         if cfg.passthrough {
-            return Ok(json!({"type":"passthrough","instruction":"多引擎头脑风暴","input":topic,"workflow":"brainstorm"}));
+            return Ok(
+                json!({"type":"passthrough","instruction":"多引擎头脑风暴","input":topic,"workflow":"brainstorm"}),
+            );
         }
 
         let prompt = format!(
@@ -3070,16 +3049,21 @@ pub struct Compare;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for Compare {
-    fn name(&self) -> &'static str { "compare" }
+    fn name(&self) -> &'static str {
+        "compare"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
         let cfg = OrchestratorConfig::from_env();
-        let options = ctx.context["options"].as_array()
+        let options = ctx.context["options"]
+            .as_array()
             .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join("\n"))
             .unwrap_or_else(|| ctx.task.clone());
 
         if cfg.passthrough {
-            return Ok(json!({"type":"passthrough","instruction":"多引擎比较各方案优劣","input":options,"workflow":"compare"}));
+            return Ok(
+                json!({"type":"passthrough","instruction":"多引擎比较各方案优劣","input":options,"workflow":"compare"}),
+            );
         }
 
         let prompt = format!(
@@ -3100,14 +3084,18 @@ pub struct Discuss;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for Discuss {
-    fn name(&self) -> &'static str { "discuss" }
+    fn name(&self) -> &'static str {
+        "discuss"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
         let cfg = OrchestratorConfig::from_env();
         let topic = ctx.context["topic"].as_str().unwrap_or(&ctx.task).to_string();
 
         if cfg.passthrough {
-            return Ok(json!({"type":"passthrough","instruction":"多引擎讨论复杂问题","input":topic,"workflow":"discuss"}));
+            return Ok(
+                json!({"type":"passthrough","instruction":"多引擎讨论复杂问题","input":topic,"workflow":"discuss"}),
+            );
         }
 
         let prompt = format!(

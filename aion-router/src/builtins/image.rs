@@ -6,9 +6,9 @@
 use anyhow::Result;
 use serde_json::{json, Value};
 
+use super::BuiltinSkill;
 use crate::config::candidate_ai_endpoints;
 use aion_types::types::{ExecutionContext, SkillDefinition};
-use super::BuiltinSkill;
 
 pub struct ImageDescribe;
 
@@ -43,7 +43,8 @@ impl BuiltinSkill for ImageDescribe {
 
         let endpoints = candidate_ai_endpoints();
         // 只选 OpenAI 兼容的 endpoint（可能有 Anthropic 等其他协议的端点）
-        let vision_endpoints: Vec<_> = endpoints.iter()
+        let vision_endpoints: Vec<_> = endpoints
+            .iter()
             .filter(|ep| ep.protocol == crate::config::AiProtocol::OpenAiChat)
             .collect();
 

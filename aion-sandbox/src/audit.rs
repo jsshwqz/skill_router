@@ -51,10 +51,7 @@ impl AuditLog {
         if let Some(parent) = self.log_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.log_path)?;
+        let mut file = OpenOptions::new().create(true).append(true).open(&self.log_path)?;
         let line = serde_json::to_string(entry)?;
         writeln!(file, "{}", line)?;
         Ok(())

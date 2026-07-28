@@ -27,8 +27,7 @@ mod ai_native_tests {
 
     #[test]
     fn test_ai_native_serialization() {
-        let payload = AiNativePayload::new("web_search")
-            .with_parameters(json!({"query": "rust programming"}));
+        let payload = AiNativePayload::new("web_search").with_parameters(json!({"query": "rust programming"}));
 
         let json_str = payload.to_json_string().unwrap();
         let restored = AiNativePayload::from_json_str(&json_str).unwrap();

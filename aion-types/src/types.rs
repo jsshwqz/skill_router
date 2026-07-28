@@ -85,10 +85,7 @@ pub struct SkillDefinition {
 
 impl SkillDefinition {
     pub fn supports_capability(&self, capability: &str) -> bool {
-        self.metadata
-            .capabilities
-            .iter()
-            .any(|item| item == capability)
+        self.metadata.capabilities.iter().any(|item| item == capability)
     }
 
     pub fn resolved_entrypoint(&self) -> PathBuf {
@@ -131,7 +128,7 @@ pub struct TokenUsage {
     pub completion_tokens: u64,
     pub total_tokens: u64,
     #[serde(default)]
-    pub cached_tokens: u64,  // Anthropic prompt caching
+    pub cached_tokens: u64, // Anthropic prompt caching
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

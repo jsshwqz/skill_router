@@ -185,10 +185,7 @@ impl DiscoveryRadar {
                 SearchHit {
                     title: format!("Local Skill: {}", skill.metadata.name),
                     url: format!("local://{}", skill.metadata.name),
-                    snippet: format!(
-                        "Capabilities: {}",
-                        skill.metadata.capabilities.join(", ")
-                    ),
+                    snippet: format!("Capabilities: {}", skill.metadata.capabilities.join(", ")),
                     source: SearchSource::LocalTrusted,
                     relevance_score: if cap_match { 0.9 } else { 0.5 },
                 }
@@ -213,7 +210,11 @@ impl DiscoveryRadar {
                 seen.insert(hit.url.clone())
             })
             .collect();
-        deduped.sort_by(|a, b| b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal));
+        deduped.sort_by(|a, b| {
+            b.relevance_score
+                .partial_cmp(&a.relevance_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         deduped
     }
 
@@ -258,9 +259,7 @@ fn urlencoding_simple(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                out.push(b as char)
-            }
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => out.push(b as char),
             b' ' => out.push('+'),
             _ => out.push_str(&format!("%{:02X}", b)),
         }

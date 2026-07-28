@@ -152,9 +152,13 @@ impl SandboxedExecutor {
         }
         // extra_env：允许用户传入额外环境变量，但禁止覆盖系统关键变量
         let blocked_extra_keys: &[&str] = &[
-            "PATH", "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH",
+            "PATH",
+            "LD_LIBRARY_PATH",
+            "DYLD_LIBRARY_PATH",
             #[cfg(target_os = "windows")]
-            "SystemRoot", "WINDIR", "COMSPEC",
+            "SystemRoot",
+            "WINDIR",
+            "COMSPEC",
         ];
         for (k, v) in &cmd.extra_env {
             if blocked_extra_keys.contains(&k.as_str()) {
@@ -180,17 +184,11 @@ impl SandboxedExecutor {
 
         match result {
             Ok(Ok(output)) => {
-                let (stdout_bytes, stdout_truncated) =
-                    truncate_output(&output.stdout, limits.max_output_bytes);
-                let (stderr_bytes, stderr_truncated) =
-                    truncate_output(&output.stderr, limits.max_output_bytes);
+                let (stdout_bytes, stdout_truncated) = truncate_output(&output.stdout, limits.max_output_bytes);
+                let (stderr_bytes, stderr_truncated) = truncate_output(&output.stderr, limits.max_output_bytes);
 
                 let exit_code = output.status.code();
-                let outcome = if output.status.success() {
-                    "success"
-                } else {
-                    "error"
-                };
+                let outcome = if output.status.success() { "success" } else { "error" };
 
                 let entry = AuditLog::make_entry(
                     &self.policy.name,
@@ -273,7 +271,10 @@ mod tests {
     fn test_echo_command() -> (&'static str, Vec<String>) {
         if cfg!(windows) {
             // cmd /c echo hello sandbox
-            ("cmd", vec!["/c".into(), "echo".into(), "hello".into(), "sandbox".into()])
+            (
+                "cmd",
+                vec!["/c".into(), "echo".into(), "hello".into(), "sandbox".into()],
+            )
         } else {
             ("echo", vec!["hello".into(), "sandbox".into()])
         }
@@ -282,7 +283,10 @@ mod tests {
     fn test_sleep_command(secs: u64) -> (&'static str, Vec<String>) {
         if cfg!(windows) {
             // powershell -Command "Start-Sleep -Seconds <secs>"
-            ("powershell", vec!["-Command".into(), format!("Start-Sleep -Seconds {}", secs)])
+            (
+                "powershell",
+                vec!["-Command".into(), format!("Start-Sleep -Seconds {}", secs)],
+            )
         } else {
             ("sleep", vec![secs.to_string()])
         }
@@ -350,7 +354,10 @@ mod tests {
 
         let result = executor.execute(&cmd).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("not in sandbox policy whitelist"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("not in sandbox policy whitelist"));
 
         let _ = std::fs::remove_dir_all(&tmp);
     }

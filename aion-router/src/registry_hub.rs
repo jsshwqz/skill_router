@@ -53,13 +53,11 @@ impl RegistryHub {
     /// 创建注册中心
     pub fn new(skills_dir: &Path) -> Self {
         Self {
-            sources: vec![
-                RegistrySource {
-                    name: "aion-forge-hub".to_string(),
-                    url: "https://hub.aion-forge.dev/api/v1/skills".to_string(),
-                    trusted: true,
-                },
-            ],
+            sources: vec![RegistrySource {
+                name: "aion-forge-hub".to_string(),
+                url: "https://hub.aion-forge.dev/api/v1/skills".to_string(),
+                trusted: true,
+            }],
             skills_dir: skills_dir.to_path_buf(),
         }
     }
@@ -114,10 +112,7 @@ impl RegistryHub {
 
         let resp = client.get(&url).send().await?;
         if !resp.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "registry returned status {}",
-                resp.status()
-            ));
+            return Err(anyhow::anyhow!("registry returned status {}", resp.status()));
         }
 
         let entries: Vec<RemoteSkillEntry> = resp.json().await?;
@@ -143,10 +138,7 @@ impl RegistryHub {
 
         let resp = client.get(&entry.download_url).send().await?;
         if !resp.status().is_success() {
-            return Err(anyhow::anyhow!(
-                "download failed: status {}",
-                resp.status()
-            ));
+            return Err(anyhow::anyhow!("download failed: status {}", resp.status()));
         }
 
         let bytes = resp.bytes().await?;

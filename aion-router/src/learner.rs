@@ -271,7 +271,10 @@ impl SkillStats {
                 // 连续失败达到阈值 → 打开熔断器
                 self.circuit_state = CircuitState::Open;
                 self.circuit_opened_at = now_secs();
-                info!("circuit breaker: Closed → Open (consecutive_failures={})", self.consecutive_failures);
+                info!(
+                    "circuit breaker: Closed → Open (consecutive_failures={})",
+                    self.consecutive_failures
+                );
             }
             _ => {}
         }
@@ -317,15 +320,7 @@ impl SkillLearner {
 
     /// 记录一次执行结果
     pub fn record(&self, capability: &str, success: bool, duration: Duration) {
-        self.record_execution(
-            capability,
-            capability,
-            "unknown",
-            success,
-            duration,
-            None,
-            false,
-        );
+        self.record_execution(capability, capability, "unknown", success, duration, None, false);
     }
 
     /// 记录一次完整执行（含来源、错误分类、空输出标记）
@@ -367,8 +362,7 @@ impl SkillLearner {
         }
 
         // 滑动平均延迟
-        stats.avg_latency_ms =
-            (stats.avg_latency_ms * (stats.total - 1) as f64 + ms as f64) / stats.total as f64;
+        stats.avg_latency_ms = (stats.avg_latency_ms * (stats.total - 1) as f64 + ms as f64) / stats.total as f64;
 
         // 保留最近 20 条延迟记录
         stats.recent_latencies.push(ms);
@@ -479,9 +473,7 @@ impl SkillLearner {
             .iter()
             .filter(|c| {
                 // 排除熔断的能力
-                data.get(c.as_str())
-                    .map(|s| !s.is_circuit_open())
-                    .unwrap_or(true)
+                data.get(c.as_str()).map(|s| !s.is_circuit_open()).unwrap_or(true)
             })
             .max_by(|a, b| {
                 let sa = data.get(a.as_str()).map(|s| s.quality_score()).unwrap_or(0.5);
@@ -496,7 +488,7 @@ impl SkillLearner {
         let data = self.data.lock().unwrap_or_else(|e| e.into_inner());
 
         let mut capabilities: Vec<_> = data.iter().collect();
-        capabilities.sort_by(|a, b| b.1.total.cmp(&a.1.total));
+        capabilities.sort_by_key(|entry| std::cmp::Reverse(entry.1.total));
 
         let entries: Vec<serde_json::Value> = capabilities
             .iter()
@@ -687,39 +679,57 @@ impl SkillLearner {
         }
 
         // 按事件类型分类
-        let changes: Vec<_> = events.iter().filter(|e| e.event_type == "change").map(|e| {
-            json!({
-                "type": e.capability,
-                "file": e.details,
-                "summary": e.summary,
-                "timestamp": e.timestamp,
+        let changes: Vec<_> = events
+            .iter()
+            .filter(|e| e.event_type == "change")
+            .map(|e| {
+                json!({
+                    "type": e.capability,
+                    "file": e.details,
+                    "summary": e.summary,
+                    "timestamp": e.timestamp,
+                })
             })
-        }).collect();
+            .collect();
 
-        let decisions: Vec<_> = events.iter().filter(|e| e.event_type == "decision").map(|e| {
-            json!({
-                "context_choice": e.summary,
-                "rationale": e.details,
-                "timestamp": e.timestamp,
+        let decisions: Vec<_> = events
+            .iter()
+            .filter(|e| e.event_type == "decision")
+            .map(|e| {
+                json!({
+                    "context_choice": e.summary,
+                    "rationale": e.details,
+                    "timestamp": e.timestamp,
+                })
             })
-        }).collect();
+            .collect();
 
-        let executions: Vec<_> = events.iter().filter(|e| e.event_type.is_empty() || e.event_type == "execution").collect();
+        let executions: Vec<_> = events
+            .iter()
+            .filter(|e| e.event_type.is_empty() || e.event_type == "execution")
+            .collect();
         let total_exec = executions.len();
         let ok_exec = executions.iter().filter(|e| e.success).count();
 
         // 最近失败
-        let recent_failures: Vec<_> = executions.iter().rev().filter(|e| !e.success).take(5).map(|e| {
-            json!({
-                "capability": e.capability,
-                "error": e.error_class,
-                "timestamp": e.timestamp,
+        let recent_failures: Vec<_> = executions
+            .iter()
+            .rev()
+            .filter(|e| !e.success)
+            .take(5)
+            .map(|e| {
+                json!({
+                    "capability": e.capability,
+                    "error": e.error_class,
+                    "timestamp": e.timestamp,
+                })
             })
-        }).collect();
+            .collect();
 
         // 反复出现的错误模式（最近 100 次执行中，同 error_class 出现 >=2 次）
         let recent_100 = executions.iter().rev().take(100).collect::<Vec<_>>();
-        let mut pattern_map: std::collections::BTreeMap<String, (u32, u64, Vec<String>)> = std::collections::BTreeMap::new();
+        let mut pattern_map: std::collections::BTreeMap<String, (u32, u64, Vec<String>)> =
+            std::collections::BTreeMap::new();
         for e in recent_100.iter().filter(|e| !e.success && !e.error_class.is_empty()) {
             let key = format!("{}/{}", e.capability, e.error_class);
             let entry = pattern_map.entry(key).or_insert((0, 0, Vec::new()));
@@ -856,10 +866,7 @@ impl SkillLearner {
         if let Some(parent) = self.events_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&self.events_path)?;
+        let mut file = OpenOptions::new().create(true).append(true).open(&self.events_path)?;
         writeln!(file, "{}", serde_json::to_string(event)?)?;
         Ok(())
     }
@@ -876,7 +883,13 @@ impl SkillLearner {
     }
 
     /// 自动进化触发：当连续失败达到阈值时记录 evolve 事件并生成 evolved 技能
-    fn auto_evolve_if_needed(_store_path: &Path, events_path: &Path, workspace_root: &Path, capability: &str, consecutive_failures: u32) {
+    fn auto_evolve_if_needed(
+        _store_path: &Path,
+        events_path: &Path,
+        workspace_root: &Path,
+        capability: &str,
+        consecutive_failures: u32,
+    ) {
         // 读取最近的失败事件以获取错误原因
         let events = Self::read_events_from(events_path);
         let failures: Vec<&str> = events
@@ -914,7 +927,10 @@ impl SkillLearner {
             error_class: error_summary.clone(),
             empty_output: false,
             event_type: "evolve".to_string(),
-            summary: format!("auto_evolve: consecutive_failures={} errors=[{}]", consecutive_failures, error_summary),
+            summary: format!(
+                "auto_evolve: consecutive_failures={} errors=[{}]",
+                consecutive_failures, error_summary
+            ),
             details: String::new(),
         };
 
@@ -933,8 +949,14 @@ impl SkillLearner {
         // 生成 evolved 技能
         let paths = RouterPaths::for_workspace(workspace_root);
         let _ = Synthesizer::evolve_with_failures(
-            &paths, capability, capability, "",
-            &format!("consecutive_failures={} error_types=[{}]", consecutive_failures, error_summary),
+            &paths,
+            capability,
+            capability,
+            "",
+            &format!(
+                "consecutive_failures={} error_types=[{}]",
+                consecutive_failures, error_summary
+            ),
         );
     }
 
@@ -976,8 +998,11 @@ pub fn init_learner(workspace: &Path) {
             .unwrap_or_else(|_| workspace.join("learning"));
 
         let learner = SkillLearner::load(&effective_path, workspace);
-        info!("SkillLearner initialized at {:?}, tracking {} capabilities",
-            effective_path, learner.all_stats().len());
+        info!(
+            "SkillLearner initialized at {:?}, tracking {} capabilities",
+            effective_path,
+            learner.all_stats().len()
+        );
         learner
     });
 }
@@ -993,7 +1018,10 @@ mod tests {
 
     fn make_stats(total: u64, ok: u64, fail: u64, latency: f64, consec_fail: u32) -> SkillStats {
         SkillStats {
-            total, ok, fail, avg_latency_ms: latency,
+            total,
+            ok,
+            fail,
+            avg_latency_ms: latency,
             consecutive_failures: consec_fail,
             ..Default::default()
         }
@@ -1205,16 +1233,23 @@ mod tests {
         let learner = SkillLearner::load(&tmp, &tmp);
         for _i in 0..3 {
             learner.record_execution(
-                "test_fragile", "test_skill", "test",
-                false, Duration::from_millis(1),
-                Some("timeout"), false,
+                "test_fragile",
+                "test_skill",
+                "test",
+                false,
+                Duration::from_millis(1),
+                Some("timeout"),
+                false,
             );
             // 等待异步事件写入
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
         // 检查 stats
         let stats = learner.get_stats("test_fragile").unwrap();
-        assert!(stats.circuit_state == CircuitState::Open, "circuit should be open after 3 failures");
+        assert!(
+            stats.circuit_state == CircuitState::Open,
+            "circuit should be open after 3 failures"
+        );
         // 等待异步线程写入 evolve 事件
         std::thread::sleep(std::time::Duration::from_millis(1000));
         // 检查 evolve 事件

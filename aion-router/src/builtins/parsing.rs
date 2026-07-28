@@ -13,7 +13,9 @@ pub struct YamlParse;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for YamlParse {
-    fn name(&self) -> &'static str { "yaml_parse" }
+    fn name(&self) -> &'static str {
+        "yaml_parse"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = extract_text(context);
@@ -71,7 +73,9 @@ pub struct JsonParse;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for JsonParse {
-    fn name(&self) -> &'static str { "json_parse" }
+    fn name(&self) -> &'static str {
+        "json_parse"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = extract_text(context);
@@ -88,7 +92,9 @@ pub struct TomlParse;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for TomlParse {
-    fn name(&self) -> &'static str { "toml_parse" }
+    fn name(&self) -> &'static str {
+        "toml_parse"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = extract_text(context);
@@ -156,7 +162,9 @@ fn split_csv_line(line: &str) -> Vec<String> {
 
 #[async_trait::async_trait]
 impl BuiltinSkill for CsvParse {
-    fn name(&self) -> &'static str { "csv_parse" }
+    fn name(&self) -> &'static str {
+        "csv_parse"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = extract_text(context);
@@ -172,12 +180,7 @@ impl BuiltinSkill for CsvParse {
                 let obj: serde_json::Map<String, Value> = headers
                     .iter()
                     .enumerate()
-                    .map(|(i, h)| {
-                        (
-                            h.clone(),
-                            yaml_scalar(cells.get(i).map(|s| s.trim()).unwrap_or("")),
-                        )
-                    })
+                    .map(|(i, h)| (h.clone(), yaml_scalar(cells.get(i).map(|s| s.trim()).unwrap_or(""))))
                     .collect();
                 Value::Object(obj)
             })
@@ -200,7 +203,9 @@ pub struct PdfParse;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for PdfParse {
-    fn name(&self) -> &'static str { "pdf_parse" }
+    fn name(&self) -> &'static str {
+        "pdf_parse"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let input = extract_text(context);
@@ -208,8 +213,7 @@ impl BuiltinSkill for PdfParse {
 
         // 读取 PDF 文件
         let data = if std::path::Path::new(path).exists() {
-            std::fs::read(path)
-                .map_err(|e| anyhow!("无法读取文件 '{}': {}", path, e))?
+            std::fs::read(path).map_err(|e| anyhow!("无法读取文件 '{}': {}", path, e))?
         } else {
             return Ok(json!({
                 "error": format!("文件不存在: {}", path),
@@ -242,15 +246,23 @@ fn extract_pdf_text(data: &[u8]) -> Result<String> {
 
     // 方法 1：提取 stream...endstream 中的文本操作符
     let mut pos = 0;
-    while let Some(start) = content[pos..].find("stream\r\n").or_else(|| content[pos..].find("stream\n")) {
-        let stream_start = pos + start + if content[pos + start..].starts_with("stream\r\n") { 8 } else { 7 };
+    while let Some(start) = content[pos..]
+        .find("stream\r\n")
+        .or_else(|| content[pos..].find("stream\n"))
+    {
+        let stream_start = pos
+            + start
+            + if content[pos + start..].starts_with("stream\r\n") {
+                8
+            } else {
+                7
+            };
         if let Some(end) = content[stream_start..].find("endstream") {
             let stream_end = stream_start + end;
             let stream_bytes = &data[stream_start..stream_end.min(data.len())];
 
             // 尝试 FlateDecode 解压
-            let decoded = try_flate_decode(stream_bytes)
-                .unwrap_or_else(|| stream_bytes.to_vec());
+            let decoded = try_flate_decode(stream_bytes).unwrap_or_else(|| stream_bytes.to_vec());
 
             let stream_text = String::from_utf8_lossy(&decoded);
             extract_text_operators(&stream_text, &mut all_text);
@@ -269,15 +281,24 @@ fn extract_pdf_text(data: &[u8]) -> Result<String> {
         let mut current = String::new();
         for ch in content.chars() {
             match ch {
-                '(' if !in_parens => { in_parens = true; depth = 1; current.clear(); }
-                '(' if in_parens => { depth += 1; current.push(ch); }
+                '(' if !in_parens => {
+                    in_parens = true;
+                    depth = 1;
+                    current.clear();
+                }
+                '(' if in_parens => {
+                    depth += 1;
+                    current.push(ch);
+                }
                 ')' if in_parens => {
                     depth -= 1;
                     if depth == 0 {
                         in_parens = false;
                         let cleaned = unescape_pdf_string(&current);
                         if cleaned.len() > 1 && cleaned.chars().any(|c| c.is_alphanumeric()) {
-                            if !all_text.is_empty() { all_text.push(' '); }
+                            if !all_text.is_empty() {
+                                all_text.push(' ');
+                            }
                             all_text.push_str(&cleaned);
                         }
                     } else {
@@ -303,7 +324,11 @@ fn try_flate_decode(data: &[u8]) -> Option<Vec<u8>> {
     let mut decoder = flate2::read::ZlibDecoder::new(data);
     let mut output = Vec::new();
     decoder.read_to_end(&mut output).ok()?;
-    if output.is_empty() { None } else { Some(output) }
+    if output.is_empty() {
+        None
+    } else {
+        Some(output)
+    }
 }
 
 /// 从 PDF content stream 中提取文本操作符（Tj, TJ, ', "）的内容
@@ -341,7 +366,9 @@ fn extract_hex_string_text(line: &str, out: &mut String) {
                         }
                     }
                     if !decoded.is_empty() {
-                        if !out.is_empty() && !out.ends_with(' ') { out.push(' '); }
+                        if !out.is_empty() && !out.ends_with(' ') {
+                            out.push(' ');
+                        }
                         out.push_str(&decoded);
                     }
                 } else {
@@ -357,7 +384,9 @@ fn extract_hex_string_text(line: &str, out: &mut String) {
                         }
                     }
                     if !decoded.is_empty() {
-                        if !out.is_empty() && !out.ends_with(' ') { out.push(' '); }
+                        if !out.is_empty() && !out.ends_with(' ') {
+                            out.push(' ');
+                        }
                         out.push_str(&decoded);
                     }
                 }
@@ -384,13 +413,19 @@ fn extract_parens_text(line: &str, out: &mut String) {
                 '\\' => current.push('\\'),
                 '(' => current.push('('),
                 ')' => current.push(')'),
-                _ => { current.push('\\'); current.push(ch); }
+                _ => {
+                    current.push('\\');
+                    current.push(ch);
+                }
             }
             escape = false;
             continue;
         }
         match ch {
-            '(' if !in_parens => { in_parens = true; current.clear(); }
+            '(' if !in_parens => {
+                in_parens = true;
+                current.clear();
+            }
             ')' if in_parens => {
                 in_parens = false;
                 if !current.is_empty() {

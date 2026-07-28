@@ -51,12 +51,7 @@ pub async fn chat_deterministic(
     chat_inner(http, &url, &body, api_key).await
 }
 
-async fn chat_inner(
-    http: &reqwest::Client,
-    url: &str,
-    body: &serde_json::Value,
-    api_key: &str,
-) -> Result<String> {
+async fn chat_inner(http: &reqwest::Client, url: &str, body: &serde_json::Value, api_key: &str) -> Result<String> {
     let resp = http
         .post(url)
         .header("Authorization", format!("Bearer {}", api_key))
