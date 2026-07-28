@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "aion-forge": {
-      "command": "D:/test/aionui/forge/aion-forge-cli.exe",
+      "command": "D:/test/aionui/forge/aion-forge.exe",
       "args": ["mcp-server"],
       "env": {
         "AI_BASE_URL": "http://127.0.0.1:20128/v1",

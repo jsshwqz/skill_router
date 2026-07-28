@@ -152,6 +152,7 @@ function Main {
     $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture
     Write-Info "Detected platform: Windows $arch"
 
+    $forgeArtifact = "aion-forge-windows-x86_64.exe"
     $cliArtifact = "aion-forge-cli-windows-x86_64.exe"
     $serverArtifact = "aion-server-windows-x86_64.exe"
     $target = "x86_64-pc-windows-msvc"
@@ -173,13 +174,17 @@ function Main {
     # 下载二进制
     $baseUrl = "https://github.com/$Repo/releases/download/$ver"
 
-    Write-Info "Downloading aion-forge-cli..."
+    Write-Info "Downloading aion-forge..."
+    Invoke-WebRequest -Uri "$baseUrl/$forgeArtifact" -OutFile "$InstallDir\aion-forge.exe" -UseBasicParsing
+
+    Write-Info "Downloading aion-forge-cli compatibility command..."
     Invoke-WebRequest -Uri "$baseUrl/$cliArtifact" -OutFile "$InstallDir\aion-forge-cli.exe" -UseBasicParsing
 
     Write-Info "Downloading aion-server..."
     Invoke-WebRequest -Uri "$baseUrl/$serverArtifact" -OutFile "$InstallDir\aion-server.exe" -UseBasicParsing
 
     # SHA256 校验
+    Test-Checksum -File "$InstallDir\aion-forge.exe" -BinaryKey "aion-forge" -Target $target
     Test-Checksum -File "$InstallDir\aion-forge-cli.exe" -BinaryKey "aion-forge-cli" -Target $target
     Test-Checksum -File "$InstallDir\aion-server.exe" -BinaryKey "aion-server" -Target $target
 
@@ -223,11 +228,12 @@ RUST_LOG=info
     Write-Host ""
     Write-Info "Verifying installation... / 验证安装..."
     try {
-        & "$InstallDir\aion-forge-cli.exe" --help | Out-Null
-        Write-Ok "aion-forge-cli is working / aion-forge-cli 正常工作"
+        & "$InstallDir\aion-forge.exe" --version | Out-Null
+        & "$InstallDir\aion-forge-cli.exe" --version | Out-Null
+        Write-Ok "aion-forge and compatibility command are working / 主命令与兼容命令正常工作"
     }
     catch {
-        Write-Warn "aion-forge-cli verification failed"
+        Write-Warn "Aion Forge command verification failed"
     }
 
     # 完成
@@ -243,7 +249,9 @@ RUST_LOG=info
     Write-Host "  Quick Start / 快速开始:" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "    # Restart terminal, then / 重启终端后:"
-    Write-Host "    aion-forge-cli --tool echo --params '{`"text`":`"hello world`"}' --quiet"
+    Write-Host "    aion-forge --tool echo --params '{`"text`":`"hello world`"}' --quiet"
+    Write-Host "    aion-forge acp"
+    Write-Host "    aion-forge mcp-server"
     Write-Host ""
     Write-Host "    # Start HTTP API / 启动 HTTP API:"
     Write-Host "    aion-server"
@@ -253,7 +261,7 @@ RUST_LOG=info
     Write-Host ""
     Write-Host "  AI Platform Integration / AI 平台集成:" -ForegroundColor Yellow
     Write-Host "    aionui  -> Drop skill.json into skills directory"
-    Write-Host "    Claude  -> aion-forge-cli mcp-server (MCP stdio)"
+    Write-Host "    Claude  -> aion-forge mcp-server (MCP stdio)"
     Write-Host "    ChatGPT -> Import openapi.yaml as Custom GPT Action"
     Write-Host "    HTTP    -> curl http://localhost:3000/v1/route"
     Write-Host ""

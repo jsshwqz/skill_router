@@ -4,7 +4,7 @@
 
 Aion Forge 是纯 Rust 实现的 MCP 工具服务器，为 AionUI 和其他 MCP 客户端提供代码、解析、搜索、记忆、RAG、治理及多模型编排能力。
 
-当前正式启动入口为 `aion-forge-cli.exe mcp-server`。AI 请求通过本机 OmniRoute 的 OpenAI-compatible 接口路由，默认模型为 `auto/fast`。
+当前标准 Agent 入口为 `aion-forge acp`，正式 MCP 入口为 `aion-forge mcp-server`。AI 请求通过本机 OmniRoute 的 OpenAI-compatible 接口路由，默认模型为 `auto/fast`。
 
 ## Workspace
 

@@ -15,7 +15,7 @@ Forge 不作为独立聊天 Agent 使用。`aion-forge-acp` 和历史扩展不�
 | 操作 | 目标 |
 |---|---|
 | Release 构建 | workspace 中的 `aion-forge-cli` package |
-| 正式二进制 | `D:/test/aionui/forge/aion-forge-cli.exe` |
+| 正式二进制 | `aion-forge`（开发部署为 `D:/test/aionui/forge/aion-forge.exe`） |
 | AionUI MCP 参数 | `mcp-server` |
 | 模型入口 | OmniRoute 20128，`auto/fast` |
 

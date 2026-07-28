@@ -16,18 +16,22 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
+            forge_name: aion-forge-linux-x86_64
             cli_name: aion-forge-cli-linux-x86_64
             server_name: aion-server-linux-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            forge_name: aion-forge-windows-x86_64.exe
             cli_name: aion-forge-cli-windows-x86_64.exe
             server_name: aion-server-windows-x86_64.exe
           - os: macos-13
             target: x86_64-apple-darwin
+            forge_name: aion-forge-macos-x86_64
             cli_name: aion-forge-cli-macos-x86_64
             server_name: aion-server-macos-x86_64
           - os: macos-latest
             target: aarch64-apple-darwin
+            forge_name: aion-forge-macos-aarch64
             cli_name: aion-forge-cli-macos-aarch64
             server_name: aion-server-macos-aarch64
     runs-on: ${{ matrix.os }}
@@ -53,16 +57,20 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release binaries
-        run: cargo build --release --target ${{ matrix.target }} -p aion-forge-cli -p aion-server
+        run: cargo build --release --target ${{ matrix.target }} -p aion-forge-cli --bin aion-forge --bin aion-forge-cli -p aion-server
 
       # --- Rename CLI ---
       - name: Rename CLI (Unix)
         if: matrix.os != 'windows-latest'
-        run: cp target/${{ matrix.target }}/release/aion-forge-cli ${{ matrix.cli_name }}
+        run: |
+          cp target/${{ matrix.target }}/release/aion-forge ${{ matrix.forge_name }}
+          cp target/${{ matrix.target }}/release/aion-forge-cli ${{ matrix.cli_name }}
 
       - name: Rename CLI (Windows)
         if: matrix.os == 'windows-latest'
-        run: cp target/${{ matrix.target }}/release/aion-forge-cli.exe ${{ matrix.cli_name }}
+        run: |
+          cp target/${{ matrix.target }}/release/aion-forge.exe ${{ matrix.forge_name }}
+          cp target/${{ matrix.target }}/release/aion-forge-cli.exe ${{ matrix.cli_name }}
 
       # --- Rename Server ---
       - name: Rename Server (Unix)
@@ -78,7 +86,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.cli_name }}
-          path: ${{ matrix.cli_name }}
+          path: |
+            ${{ matrix.forge_name }}
+            ${{ matrix.cli_name }}
 
       - name: Upload Server artifact
         uses: actions/upload-artifact@v4

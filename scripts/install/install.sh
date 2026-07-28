@@ -63,14 +63,17 @@ detect_platform() {
 
   # 构建 artifact 名称
   if [[ "$OS" == "linux" ]]; then
+    FORGE_ARTIFACT="aion-forge-linux-x86_64"
     CLI_ARTIFACT="aion-forge-cli-linux-x86_64"
     SERVER_ARTIFACT="aion-server-linux-x86_64"
     TARGET="x86_64-unknown-linux-musl"
   elif [[ "$OS" == "macos" && "$ARCH" == "aarch64" ]]; then
+    FORGE_ARTIFACT="aion-forge-macos-aarch64"
     CLI_ARTIFACT="aion-forge-cli-macos-aarch64"
     SERVER_ARTIFACT="aion-server-macos-aarch64"
     TARGET="aarch64-apple-darwin"
   else
+    FORGE_ARTIFACT="aion-forge-macos-x86_64"
     CLI_ARTIFACT="aion-forge-cli-macos-x86_64"
     SERVER_ARTIFACT="aion-server-macos-x86_64"
     TARGET="x86_64-apple-darwin"
@@ -234,7 +237,11 @@ main() {
   # Step 3: 下载二进制
   local base_url="https://github.com/${REPO}/releases/download/${VERSION}"
 
-  info "Downloading aion-forge-cli..."
+  info "Downloading aion-forge..."
+  download "${base_url}/${FORGE_ARTIFACT}" "${INSTALL_DIR}/aion-forge"
+  chmod +x "${INSTALL_DIR}/aion-forge"
+
+  info "Downloading aion-forge-cli compatibility command..."
   download "${base_url}/${CLI_ARTIFACT}" "${INSTALL_DIR}/aion-forge-cli"
   chmod +x "${INSTALL_DIR}/aion-forge-cli"
 
@@ -243,6 +250,7 @@ main() {
   chmod +x "${INSTALL_DIR}/aion-server"
 
   # Step 4: SHA256 校验
+  verify_checksum "${INSTALL_DIR}/aion-forge" "aion-forge" "$TARGET"
   verify_checksum "${INSTALL_DIR}/aion-forge-cli" "aion-forge-cli" "$TARGET"
   verify_checksum "${INSTALL_DIR}/aion-server" "aion-server" "$TARGET"
 
@@ -297,10 +305,10 @@ ENVEOF
   # Step 7: 验证安装
   echo ""
   info "Verifying installation... / 验证安装..."
-  if "${INSTALL_DIR}/aion-forge-cli" --help &>/dev/null; then
-    ok "aion-forge-cli is working / aion-forge-cli 正常工作"
+  if "${INSTALL_DIR}/aion-forge" --version &>/dev/null && "${INSTALL_DIR}/aion-forge-cli" --version &>/dev/null; then
+    ok "aion-forge and compatibility command are working / 主命令与兼容命令正常工作"
   else
-    warn "aion-forge-cli verification failed — binary may not be compatible with this system"
+    warn "Aion Forge command verification failed — binaries may not be compatible with this system"
   fi
 
   # Step 8: 完成
@@ -319,7 +327,9 @@ ENVEOF
   echo -e "    source ~/.bashrc  # or ~/.zshrc"
   echo ""
   echo -e "    # Try it / 试一试"
-  echo -e "    aion-forge-cli --tool echo --params '{\"text\":\"hello world\"}' --quiet"
+  echo -e "    aion-forge --tool echo --params '{\"text\":\"hello world\"}' --quiet"
+  echo -e "    aion-forge acp"
+  echo -e "    aion-forge mcp-server"
   echo ""
   echo -e "    # Start HTTP API server / 启动 HTTP API"
   echo -e "    aion-server"
@@ -329,7 +339,7 @@ ENVEOF
   echo ""
   echo -e "  ${YELLOW}AI Platform Integration / AI 平台集成:${NC}"
   echo -e "    aionui  → Drop skill.json into skills directory"
-  echo -e "    Claude  → aion-forge-cli mcp-server (MCP stdio)"
+  echo -e "    Claude  → aion-forge mcp-server (MCP stdio)"
   echo -e "    ChatGPT → Import openapi.yaml as Custom GPT Action"
   echo -e "    HTTP    → curl http://localhost:3000/v1/route"
   echo ""

@@ -15,6 +15,10 @@ echo "Updating checksums in $MANIFEST..."
 
 # 定义二进制名称到 JSON 路径的映射
 declare -A BINARY_MAP=(
+  ["aion-forge-linux-x86_64"]="aion-forge.platforms.x86_64-unknown-linux-musl"
+  ["aion-forge-windows-x86_64.exe"]="aion-forge.platforms.x86_64-pc-windows-msvc"
+  ["aion-forge-macos-x86_64"]="aion-forge.platforms.x86_64-apple-darwin"
+  ["aion-forge-macos-aarch64"]="aion-forge.platforms.aarch64-apple-darwin"
   ["aion-forge-cli-linux-x86_64"]="aion-forge-cli.platforms.x86_64-unknown-linux-musl"
   ["aion-forge-cli-windows-x86_64.exe"]="aion-forge-cli.platforms.x86_64-pc-windows-msvc"
   ["aion-forge-cli-macos-x86_64"]="aion-forge-cli.platforms.x86_64-apple-darwin"

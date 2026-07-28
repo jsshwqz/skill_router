@@ -32,7 +32,7 @@ aion-types   — 数据结构与协议定义（无 IO，无 HTTP）
 aion-memory  — 记忆存储管理
 aion-intel   — AI 推断、规划、搜索
 aion-router  — 技能路由、执行、协调核心
-aion-forge-cli — Forge 命令行与 MCP 入口
+aion-forge-cli — 构建 `aion-forge` 主命令与 `aion-forge-cli` 兼容命令
 aion-server  — HTTP REST API（纯 Rust，axum）
 ```
 
@@ -148,7 +148,7 @@ aion-forge 以 MCP 服务器形式暴露 40+ 内置能力。在 Team/Agent 模�
 {
   "mcpServers": {
     "aion-forge": {
-      "command": "D:/test/aionui/forge/aion-forge-cli.exe",
+      "command": "D:/test/aionui/forge/aion-forge.exe",
       "args": ["mcp-server"],
       "env": {
         "AI_SECURITY_FAIL_POLICY": "open",
