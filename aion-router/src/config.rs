@@ -186,6 +186,77 @@ pub fn candidate_ai_endpoints() -> Vec<AiEndpoint> {
     dedupe_endpoints(endpoints)
 }
 
+/// Return only AI endpoints explicitly configured through environment variables.
+pub fn configured_ai_endpoints() -> Vec<AiEndpoint> {
+    let mut endpoints = Vec::new();
+    push_anthropic_endpoint(
+        &mut endpoints,
+        "claude",
+        env_value("ANTHROPIC_BASE_URL").or_else(|| env_value("AION_HOST_AI_BASE_URL")),
+        env_value("ANTHROPIC_API_KEY").or_else(|| env_value("AION_HOST_AI_API_KEY")),
+        env_value("ANTHROPIC_MODEL").or_else(|| env_value("AION_HOST_AI_MODEL")),
+    );
+    push_openai_endpoint(
+        &mut endpoints,
+        "local",
+        env_value("AI_BASE_URL"),
+        env_value("AI_API_KEY"),
+        env_value("AI_MODEL"),
+        "qwen2.5:7b",
+    );
+    push_openai_endpoint(
+        &mut endpoints,
+        "openai",
+        env_value("OPENAI_BASE_URL"),
+        env_value("OPENAI_API_KEY"),
+        env_value("OPENAI_MODEL"),
+        "gpt-4o",
+    );
+    push_openai_endpoint(
+        &mut endpoints,
+        "gemini",
+        env_value("GOOGLE_AI_BASE_URL"),
+        env_value("GOOGLE_AI_API_KEY"),
+        env_value("GOOGLE_AI_MODEL"),
+        "gemini-2.0-flash",
+    );
+    push_openai_endpoint(
+        &mut endpoints,
+        "opencode-zen",
+        env_value("OPENCODE_ZEN_BASE_URL"),
+        env_value("OPENCODE_ZEN_API_KEY"),
+        env_value("OPENCODE_ZEN_MODEL"),
+        "claude-opus-4-6",
+    );
+    push_openai_endpoint(
+        &mut endpoints,
+        "openrouter",
+        env_value("OPENROUTER_BASE_URL")
+            .or_else(|| env_value("OPENROUTER_API_KEY").map(|_| "https://openrouter.ai/api/v1".to_string())),
+        env_value("OPENROUTER_API_KEY"),
+        env_value("OPENROUTER_MODEL"),
+        "inclusionai/ling-2.6-1t:free",
+    );
+    push_openai_endpoint(
+        &mut endpoints,
+        "zhipu",
+        env_value("ZHIPU_AI_BASE_URL"),
+        env_value("ZHIPU_AI_API_KEY"),
+        env_value("ZHIPU_AI_MODEL"),
+        "glm-4.5-air",
+    );
+    push_openai_endpoint(
+        &mut endpoints,
+        "deepseek",
+        env_value("DEEPSEEK_BASE_URL")
+            .or_else(|| env_value("DEEPSEEK_API_KEY").map(|_| "https://api.deepseek.com/v1".to_string())),
+        env_value("DEEPSEEK_API_KEY"),
+        env_value("DEEPSEEK_MODEL"),
+        "deepseek-chat",
+    );
+    dedupe_endpoints(endpoints)
+}
+
 fn push_openai_endpoint(
     endpoints: &mut Vec<AiEndpoint>,
     label: &str,
