@@ -42,22 +42,18 @@ impl PlanValidator {
             }
 
             // 3. Side Effect specific checks
-            match step.side_effect_class {
-                SideEffectClass::HighRiskHumanConfirm => {
-                    // [Phase 1.9] Placeholder: In production, we'd check for a 'confirmed' metadata/token
-                }
+            if matches!(
+                step.side_effect_class,
                 SideEffectClass::LocalWriteReversible
-                | SideEffectClass::ExternalSideEffect
-                | SideEffectClass::Irreversible => {
-                    if step.verifier.is_none() {
-                        return Err(anyhow!(
-                            "Step '{}' (class {:?}) has side effects but no verifier bound",
-                            step.id,
-                            step.side_effect_class
-                        ));
-                    }
-                }
-                _ => {}
+                    | SideEffectClass::ExternalSideEffect
+                    | SideEffectClass::Irreversible
+            ) && step.verifier.is_none()
+            {
+                return Err(anyhow!(
+                    "Step '{}' (class {:?}) has side effects but no verifier bound",
+                    step.id,
+                    step.side_effect_class
+                ));
             }
         }
 

@@ -129,7 +129,7 @@ fn keyword_weight_match(task: &str, features: &StructFeatures, rules: &[RouteRul
     }
 
     // 按 weight 降序排列
-    candidates.sort_by(|a, b| b.weight.cmp(&a.weight));
+    candidates.sort_by_key(|candidate| std::cmp::Reverse(candidate.weight));
     candidates
 }
 

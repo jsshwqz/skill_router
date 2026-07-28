@@ -120,7 +120,7 @@ fn is_noise_line(engine: &Engine, line: &str) -> bool {
 fn normalize_output(engine: &Engine, raw: &str) -> String {
     strip_ansi(raw)
         .lines()
-        .filter(|line| !is_noise_line(&engine, line))
+        .filter(|line| !is_noise_line(engine, line))
         .map(str::trim_end)
         .collect::<Vec<_>>()
         .join("\n")
@@ -345,14 +345,7 @@ impl Engine {
             "gemini" => Some(Self::Gemini),
             "local" => Some(Self::Local),
             "skill" => Some(Self::Skill("skill".to_string())),
-            _ => {
-                // Support "skill:name" format for named skills
-                if let Some(name) = label.strip_prefix("skill:") {
-                    Some(Self::Skill(name.to_string()))
-                } else {
-                    None
-                }
-            }
+            _ => label.strip_prefix("skill:").map(|name| Self::Skill(name.to_string())),
         }
     }
 
@@ -499,7 +492,7 @@ fn cached_success_report(
     cfg: &OrchestratorConfig,
     status_before: &str,
 ) -> Option<EngineCallReport> {
-    let key = cache_key(&engine, phase, prompt, cfg);
+    let key = cache_key(engine, phase, prompt, cfg);
     let now = now_secs();
     let mut store = load_engine_cache();
     store
@@ -534,7 +527,7 @@ fn persist_success_cache(
     output: &str,
     duration_ms: u64,
 ) {
-    let key = cache_key(&engine, phase, prompt, cfg);
+    let key = cache_key(engine, phase, prompt, cfg);
     let now = now_secs();
     let mut store = load_engine_cache();
     store
@@ -745,7 +738,7 @@ fn update_engine_health(report: &EngineCallReport) {
 }
 
 fn engine_in_cooldown(engine: &Engine) -> Option<String> {
-    let state = engine_state(&engine);
+    let state = engine_state(engine);
     match state.cooldown_until {
         Some(until) if until > now_secs() => Some(format!("{} in cooldown until {}", engine.label(), until)),
         _ => None,
@@ -812,7 +805,6 @@ async fn run_cli_with_stdin(cli: &str, args: &[&str], stdin_data: &str, timeout:
 }
 
 async fn call_engine_detailed(engine: Engine, prompt: &str, cfg: &OrchestratorConfig, phase: &str) -> EngineCallReport {
-    let engine = engine; // shadow — keep owned for the rest of function
     let status_before = match engine_state(&engine).status {
         HealthStatus::Healthy => "healthy",
         HealthStatus::Degraded => "degraded",
@@ -2208,8 +2200,8 @@ async fn run_collaboration_workflow(
         } else {
             let fallback_engine = selected_engines
                 .iter()
-                .cloned()
                 .find(|engine| engine.label() != primary_engine.label())
+                .cloned()
                 .unwrap_or_else(|| primary_engine.clone());
             let fallback_report = call_engine_detailed(fallback_engine.clone(), &primary_prompt, &cfg, "execute").await;
             if fallback_report.success {
@@ -2631,7 +2623,7 @@ impl BuiltinSkill for AiCodeGenerate {
             .get("primary")
             .and_then(|v| v.as_str())
             .and_then(Engine::from_label)
-            .or_else(|| Engine::first_available())
+            .or_else(Engine::first_available)
             .unwrap_or(Engine::Local); // safety: first_available+Local always available
         let reviewer = ctx
             .context
@@ -2663,7 +2655,7 @@ impl BuiltinSkill for AiCodeGenerate {
                                         let primary = input["primary"]
                         .as_str()
                         .and_then(Engine::from_label)
-                        .or_else(|| Engine::first_available())
+                        .or_else(Engine::first_available)
                         .unwrap_or(Engine::Local)
                         .clone();
                     let reviewer = input["reviewer"]

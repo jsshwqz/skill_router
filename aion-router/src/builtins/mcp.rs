@@ -45,7 +45,7 @@ fn load_mcp_server_config(server_name: &str) -> Option<McpServerConfigEntry> {
         .ok()
         .map(PathBuf::from)
         .into_iter()
-        .chain(std::env::current_dir().ok().into_iter())
+        .chain(std::env::current_dir().ok())
         .flat_map(|mut dir| {
             // 收集从当前目录往上直到根目录的所有路径
             let mut dirs = Vec::new();

@@ -488,7 +488,7 @@ impl SkillLearner {
         let data = self.data.lock().unwrap_or_else(|e| e.into_inner());
 
         let mut capabilities: Vec<_> = data.iter().collect();
-        capabilities.sort_by(|a, b| b.1.total.cmp(&a.1.total));
+        capabilities.sort_by_key(|entry| std::cmp::Reverse(entry.1.total));
 
         let entries: Vec<serde_json::Value> = capabilities
             .iter()
