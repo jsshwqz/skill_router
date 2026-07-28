@@ -5,6 +5,7 @@ pub mod config;
 pub mod coordinator;
 pub mod crew;
 pub mod distributed_registry;
+pub mod evolution;
 pub mod executor;
 pub mod learner;
 pub mod loader;

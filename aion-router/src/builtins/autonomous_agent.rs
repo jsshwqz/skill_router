@@ -43,6 +43,7 @@ Available tools (use as needed):
 - `text_summarize` — Summarize long content
 - `text_extract` — Extract key information
 - `code_generate` — Generate code
+- `evolution_run` — Apply generated Rust patch candidates in isolated worktrees and select a verified non-regressing winner
 - `json_parse` — Parse and validate JSON
 - `yaml_parse` — Parse YAML
 - `skill_convert` — Convert between SKILL.md and forge skill formats
@@ -102,6 +103,7 @@ COMPLETE mode (when goal is achieved):
 - ACTION mode executes the named tool for real; never invent an OBSERVE result
 - After each ACTION, use the actual observation supplied in the execution log
 - For implementation work, finish with record_change, record_decision, and session_report
+- For recurring code failures, use code_generate to create unified diff candidates, then evolution_run to test and select them
 - If a step fails, try a different approach (max 3 retries per step)
 - Be concrete and specific in tool inputs
 - When the goal is met, switch to COMPLETE mode
