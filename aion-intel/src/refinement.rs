@@ -86,7 +86,7 @@ impl RefinementEngine {
             })
             .collect();
 
-        gaps.sort_by(|a, b| b.frequency.cmp(&a.frequency));
+        gaps.sort_by_key(|gap| std::cmp::Reverse(gap.frequency));
         Ok(gaps)
     }
 

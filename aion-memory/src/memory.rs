@@ -223,7 +223,7 @@ impl MemoryManager {
             .filter(|(_, score)| *score > 0)
             .collect();
 
-        scored.sort_by(|a, b| b.1.cmp(&a.1));
+        scored.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         scored.truncate(limit);
 
         // Update access counts
@@ -241,7 +241,7 @@ impl MemoryManager {
     pub fn recall_by_category(&self, category: &MemoryCategory, limit: usize) -> Result<Vec<MemoryEntry>> {
         let store = self.load()?;
         let mut matched: Vec<MemoryEntry> = store.entries.into_iter().filter(|e| e.category == *category).collect();
-        matched.sort_by(|a, b| b.importance.cmp(&a.importance));
+        matched.sort_by_key(|entry| std::cmp::Reverse(entry.importance));
         matched.truncate(limit);
         Ok(matched)
     }

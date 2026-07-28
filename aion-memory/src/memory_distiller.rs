@@ -116,7 +116,7 @@ impl MemoryDistiller {
         let to_remove = store.entries.len() - max_entries;
         store.entries.drain(0..to_remove);
         // Re-sort by timestamp (newest first)
-        store.entries.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+        store.entries.sort_by_key(|entry| std::cmp::Reverse(entry.timestamp));
     }
 
     /// Merge similar lessons into consolidated entries.
