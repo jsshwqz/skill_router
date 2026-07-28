@@ -86,7 +86,7 @@ impl PlannerAction {
                     .ok()
                     .and_then(|value| Self::from_value(value).ok())
             })
-            .last()
+            .next_back()
             .context("planner output is not valid JSON")
     }
 
