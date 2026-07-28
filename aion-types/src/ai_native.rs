@@ -40,17 +40,13 @@ impl AiBackend {
     pub fn base_url(&self) -> String {
         match self {
             AiBackend::Ollama => {
-                std::env::var("AI_BASE_URL")
-                    .unwrap_or_else(|_| "http://localhost:11434/v1".to_string())
+                std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string())
             }
             AiBackend::OpenAi => {
-                std::env::var("OPENAI_BASE_URL")
-                    .unwrap_or_else(|_| "https://api.openai.com/v1".to_string())
+                std::env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string())
             }
-            AiBackend::GoogleAi => {
-                std::env::var("GOOGLE_AI_BASE_URL")
-                    .unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string())
-            }
+            AiBackend::GoogleAi => std::env::var("GOOGLE_AI_BASE_URL")
+                .unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string()),
             AiBackend::Custom(url) => url.clone(),
         }
     }
@@ -131,7 +127,9 @@ pub struct AutonomousConfig {
     pub max_retries: u32,
 }
 
-fn default_max_retries() -> u32 { 1 }
+fn default_max_retries() -> u32 {
+    1
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -189,7 +187,6 @@ pub struct AiNativePayload {
     pub metadata: PayloadMeta,
 
     // ── 多 Agent 协作扩展字段（serde(default) 保证向后兼容）────────────────
-
     /// 直接寻址目标 Agent ID（None = 由调度器自动路由）
     ///
     /// 设置后跳过能力匹配，直接将任务发送给指定 Agent
@@ -313,10 +310,7 @@ impl AiNativePayload {
 
     /// Convert this native payload into an ExecutionContext for the Executor.
     pub fn to_execution_context(&self) -> ExecutionContext {
-        let capability = self
-            .capability
-            .clone()
-            .unwrap_or_else(|| self.intent.clone());
+        let capability = self.capability.clone().unwrap_or_else(|| self.intent.clone());
 
         let mut context = self.parameters.clone();
         // Inject metadata into context for downstream consumers

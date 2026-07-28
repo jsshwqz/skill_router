@@ -1,7 +1,7 @@
-use std::path::PathBuf;
-use anyhow::{Result, anyhow};
-use aion_types::types::{SkillDefinition, SkillMetadata, SkillSource, RouterPaths};
 use aion_types::ai_native::AiNativePayload;
+use aion_types::types::{RouterPaths, SkillDefinition, SkillMetadata, SkillSource};
+use anyhow::{anyhow, Result};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DiscoveryLayer {
@@ -24,7 +24,7 @@ pub struct DiscoveryRadar {
 
 impl DiscoveryRadar {
     pub fn new(paths: RouterPaths) -> Self {
-        Self { 
+        Self {
             paths,
             project_paths: Vec::new(),
         }
@@ -92,7 +92,12 @@ impl DiscoveryRadar {
         Ok(None)
     }
 
-    fn search_in_dir(&self, dir: &std::path::Path, capability: &str, source: SkillSource) -> Result<Option<SkillDefinition>> {
+    fn search_in_dir(
+        &self,
+        dir: &std::path::Path,
+        capability: &str,
+        source: SkillSource,
+    ) -> Result<Option<SkillDefinition>> {
         if !dir.exists() {
             return Ok(None);
         }
@@ -141,8 +146,8 @@ impl DiscoveryRadar {
         }
 
         let content = std::fs::read_to_string(&metadata_path)?;
-        let metadata: SkillMetadata = serde_json::from_str(&content)
-            .map_err(|e| anyhow!("Failed to parse skill.json at {:?}: {}", path, e))?;
+        let metadata: SkillMetadata =
+            serde_json::from_str(&content).map_err(|e| anyhow!("Failed to parse skill.json at {:?}: {}", path, e))?;
 
         Ok(SkillDefinition {
             metadata,

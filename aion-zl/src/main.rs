@@ -11,13 +11,13 @@
 //! - Direct integration with aion-forge's SkillRouter and MemoryManager
 
 mod ai;
-mod engine;
-mod dialectic;
-mod contradiction;
-mod strategy;
-mod retry;
 mod contract;
+mod contradiction;
+mod dialectic;
+mod engine;
 mod mcp;
+mod retry;
+mod strategy;
 
 use clap::{Parser, Subcommand};
 use engine::Engine;

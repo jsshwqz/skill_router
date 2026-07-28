@@ -35,15 +35,10 @@ fn project_rules_suffix() -> String {
         let rules: Vec<&str> = content
             .lines()
             .map(|l| l.trim())
-            .filter(|l| {
-                l.starts_with("- ") || l.starts_with("* ") || l.starts_with("|")
-            })
+            .filter(|l| l.starts_with("- ") || l.starts_with("* ") || l.starts_with("|"))
             .collect();
         if !rules.is_empty() {
-            return format!(
-                "\n\n## Project Rules (from CLAUDE.md)\n{}\n",
-                rules.join("\n")
-            );
+            return format!("\n\n## Project Rules (from CLAUDE.md)\n{}\n", rules.join("\n"));
         }
     }
 
@@ -62,7 +57,10 @@ impl AiEndpoint {
         if label == "ollama-local" || label == "host-anthropic-proxy" {
             eprintln!(
                 "[FORGE-DEBUG] is_disabled({})={} raw_env={:?} bytes={:02x?}",
-                label, result, raw, raw.as_bytes()
+                label,
+                result,
+                raw,
+                raw.as_bytes()
             );
         }
         result
@@ -100,17 +98,13 @@ impl BuiltinSkill for AiTask {
             .to_string();
 
         // AI_TOON_ENABLED 时，自动将 JSON 数据转 TOON 格式节省 token
-        let text = if toon_enabled() {
-            maybe_toon(&text)
-        } else {
-            text
-        };
+        let text = if toon_enabled() { maybe_toon(&text) } else { text };
 
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(60))
             .build()?;
 
-                // Debug: print AI_PROVIDERS_DISABLED at entry point
+        // Debug: print AI_PROVIDERS_DISABLED at entry point
         eprintln!(
             "[FORGE-DEBUG] ai_task.execute() AI_PROVIDERS_DISABLED={:?}",
             std::env::var("AI_PROVIDERS_DISABLED")
@@ -194,11 +188,17 @@ fn maybe_toon(text: &str) -> String {
             let toon = format::json_to_toon(&val, 0);
             let chars_saved = trimmed.len().saturating_sub(toon.len());
             if chars_saved > 0 {
-                tracing::info!("TOON: saved ~{} chars ({:.0}%)", chars_saved,
-                    chars_saved as f64 / trimmed.len() as f64 * 100.0);
+                tracing::info!(
+                    "TOON: saved ~{} chars ({:.0}%)",
+                    chars_saved,
+                    chars_saved as f64 / trimmed.len() as f64 * 100.0
+                );
             }
             // 如果是纯 JSON 数据（指令里套 JSON），加 TOON 格式提示
-            format!("(以下数据使用 TOON 格式，类似 YAML 但数组用 [N]{{fields}}: 表示)\n{}", toon)
+            format!(
+                "(以下数据使用 TOON 格式，类似 YAML 但数组用 [N]{{fields}}: 表示)\n{}",
+                toon
+            )
         }
         Err(_) => text.to_string(), // 不是有效 JSON，返回原文
     }

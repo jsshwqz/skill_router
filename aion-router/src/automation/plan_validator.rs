@@ -1,14 +1,14 @@
-use anyhow::{anyhow, Result};
 use crate::automation::state::{AutomationState, SideEffectClass};
 use crate::registry::RegistryStore;
 use aion_types::types::RouterPaths;
+use anyhow::{anyhow, Result};
 
 pub struct PlanValidator;
 
 impl PlanValidator {
     pub fn validate(state: &AutomationState, paths: &RouterPaths) -> Result<()> {
         let registry = RegistryStore::load(paths)?;
-        
+
         let mut seen_ids = std::collections::HashSet::new();
         let mut adj = std::collections::HashMap::new();
 
@@ -24,7 +24,11 @@ impl PlanValidator {
         for step in &state.steps {
             // 2.1 Check capability existence
             if !registry.skill_names().any(|name| name == step.capability) {
-                return Err(anyhow!("Unknown capability '{}' required by step '{}'", step.capability, step.id));
+                return Err(anyhow!(
+                    "Unknown capability '{}' required by step '{}'",
+                    step.capability,
+                    step.id
+                ));
             }
 
             // 2.2 Check dependencies exist and no self-dependency
@@ -42,9 +46,15 @@ impl PlanValidator {
                 SideEffectClass::HighRiskHumanConfirm => {
                     // [Phase 1.9] Placeholder: In production, we'd check for a 'confirmed' metadata/token
                 }
-                SideEffectClass::LocalWriteReversible | SideEffectClass::ExternalSideEffect | SideEffectClass::Irreversible => {
+                SideEffectClass::LocalWriteReversible
+                | SideEffectClass::ExternalSideEffect
+                | SideEffectClass::Irreversible => {
                     if step.verifier.is_none() {
-                        return Err(anyhow!("Step '{}' (class {:?}) has side effects but no verifier bound", step.id, step.side_effect_class));
+                        return Err(anyhow!(
+                            "Step '{}' (class {:?}) has side effects but no verifier bound",
+                            step.id,
+                            step.side_effect_class
+                        ));
                     }
                 }
                 _ => {}
@@ -53,10 +63,10 @@ impl PlanValidator {
 
         // 4. Cycle Detection (DFS)
         fn has_cycle(
-            u: &String, 
-            adj: &std::collections::HashMap<String, &Vec<String>>, 
-            visited: &mut std::collections::HashSet<String>, 
-            rec_stack: &mut std::collections::HashSet<String>
+            u: &String,
+            adj: &std::collections::HashMap<String, &Vec<String>>,
+            visited: &mut std::collections::HashSet<String>,
+            rec_stack: &mut std::collections::HashSet<String>,
         ) -> bool {
             visited.insert(u.clone());
             rec_stack.insert(u.clone());
@@ -80,10 +90,12 @@ impl PlanValidator {
         let mut visited = std::collections::HashSet::new();
         let mut rec_stack = std::collections::HashSet::new();
         for step_id in seen_ids {
-            if !visited.contains(&step_id)
-                && has_cycle(&step_id, &adj, &mut visited, &mut rec_stack) {
-                    return Err(anyhow!("Circular dependency detected in the plan involving step '{}'", step_id));
-                }
+            if !visited.contains(&step_id) && has_cycle(&step_id, &adj, &mut visited, &mut rec_stack) {
+                return Err(anyhow!(
+                    "Circular dependency detected in the plan involving step '{}'",
+                    step_id
+                ));
+            }
         }
 
         Ok(())

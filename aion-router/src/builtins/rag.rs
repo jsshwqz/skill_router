@@ -19,11 +19,7 @@ impl BuiltinSkill for RagIngest {
         "rag_ingest"
     }
 
-    async fn execute(
-        &self,
-        _skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<Value> {
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let source = context.context["source"]
             .as_str()
             .or_else(|| context.context["file"].as_str())
@@ -33,8 +29,7 @@ impl BuiltinSkill for RagIngest {
             text.to_string()
         } else {
             // 尝试从文件读取
-            std::fs::read_to_string(source)
-                .map_err(|e| anyhow!("failed to read file '{}': {}", source, e))?
+            std::fs::read_to_string(source).map_err(|e| anyhow!("failed to read file '{}': {}", source, e))?
         };
 
         let state_dir = std::env::current_dir().unwrap_or_default().join(".skill-router");
@@ -59,19 +54,13 @@ impl BuiltinSkill for RagQuery {
         "rag_query"
     }
 
-    async fn execute(
-        &self,
-        _skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<Value> {
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let question = context.context["query"]
             .as_str()
             .or_else(|| context.context["question"].as_str())
             .unwrap_or(&context.task);
 
-        let top_k = context.context["top_k"]
-            .as_u64()
-            .unwrap_or(3) as usize;
+        let top_k = context.context["top_k"].as_u64().unwrap_or(3) as usize;
 
         let state_dir = std::env::current_dir().unwrap_or_default().join(".skill-router");
         let engine = RagEngine::load_or_create(&state_dir)?;
@@ -90,11 +79,7 @@ impl BuiltinSkill for RagStatus {
         "rag_status"
     }
 
-    async fn execute(
-        &self,
-        _skill: &SkillDefinition,
-        _context: &ExecutionContext,
-    ) -> Result<Value> {
+    async fn execute(&self, _skill: &SkillDefinition, _context: &ExecutionContext) -> Result<Value> {
         let state_dir = std::env::current_dir().unwrap_or_default().join(".skill-router");
         let engine = RagEngine::load_or_create(&state_dir)?;
         let status = engine.status();

@@ -76,9 +76,7 @@ async fn health_returns_ok() {
     let state = test_state(tmp.path());
     let app = test_app(state);
 
-    let req = Request::get("/v1/health")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::get("/v1/health").body(Body::empty()).unwrap();
 
     let (status, body) = json_response(app, req).await;
 
@@ -94,9 +92,7 @@ async fn capabilities_returns_array() {
     let state = test_state(tmp.path());
     let app = test_app(state);
 
-    let req = Request::get("/v1/capabilities")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::get("/v1/capabilities").body(Body::empty()).unwrap();
 
     let (status, body) = json_response(app, req).await;
 
@@ -110,9 +106,7 @@ async fn metrics_returns_text() {
     let state = test_state(tmp.path());
     let app = test_app(state);
 
-    let req = Request::get("/v1/metrics")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::get("/v1/metrics").body(Body::empty()).unwrap();
 
     let resp = app.oneshot(req).await.expect("oneshot");
     assert_eq!(resp.status(), StatusCode::OK);
@@ -163,9 +157,7 @@ async fn memory_recall_empty_query_returns_400() {
     let state = test_state(tmp.path());
     let app = test_app(state);
 
-    let req = Request::get("/v1/memory/recall?query=")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::get("/v1/memory/recall?query=").body(Body::empty()).unwrap();
 
     let (status, body) = json_response(app, req).await;
 
@@ -179,9 +171,7 @@ async fn memory_recall_no_query_returns_400() {
     let state = test_state(tmp.path());
     let app = test_app(state);
 
-    let req = Request::get("/v1/memory/recall")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::get("/v1/memory/recall").body(Body::empty()).unwrap();
 
     let (status, body) = json_response(app, req).await;
 
@@ -235,9 +225,7 @@ async fn memory_remember_empty_content_returns_400() {
 
     let req = Request::post("/v1/memory/remember")
         .header("content-type", "application/json")
-        .body(Body::from(
-            r#"{"category": "Lesson", "content": ""}"#,
-        ))
+        .body(Body::from(r#"{"category": "Lesson", "content": ""}"#))
         .unwrap();
 
     let (status, body) = json_response(app, req).await;
@@ -251,9 +239,7 @@ async fn memory_stats_returns_ok() {
     let state = test_state(tmp.path());
     let app = test_app(state);
 
-    let req = Request::get("/v1/memory/stats")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::get("/v1/memory/stats").body(Body::empty()).unwrap();
 
     let (status, body) = json_response(app, req).await;
     assert_eq!(status, StatusCode::OK);
@@ -266,9 +252,7 @@ async fn agents_info_returns_node_info() {
     let state = test_state(tmp.path());
     let app = test_app(state);
 
-    let req = Request::get("/v1/agents")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::get("/v1/agents").body(Body::empty()).unwrap();
 
     let (status, body) = json_response(app, req).await;
     assert_eq!(status, StatusCode::OK);
@@ -329,9 +313,7 @@ async fn unknown_route_returns_404() {
     let state = test_state(tmp.path());
     let app = test_app(state);
 
-    let req = Request::get("/v1/nonexistent")
-        .body(Body::empty())
-        .unwrap();
+    let req = Request::get("/v1/nonexistent").body(Body::empty()).unwrap();
 
     let resp = app.oneshot(req).await.expect("oneshot");
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -350,10 +332,7 @@ async fn route_task_missing_body_returns_4xx() {
 
     let resp = app.oneshot(req).await.expect("oneshot");
     // Missing `task` field → axum deserialization error (422) or our validation (400)
-    assert!(
-        resp.status() == StatusCode::BAD_REQUEST
-            || resp.status() == StatusCode::UNPROCESSABLE_ENTITY
-    );
+    assert!(resp.status() == StatusCode::BAD_REQUEST || resp.status() == StatusCode::UNPROCESSABLE_ENTITY);
 }
 
 #[tokio::test]

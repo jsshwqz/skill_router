@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
-use super::{BuiltinSkill, uuid_simple};
+use super::{uuid_simple, BuiltinSkill};
 
 // ── task_pipeline ───────────────────────────────────────────────────────────
 
@@ -16,7 +16,9 @@ pub struct TaskPipeline;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for TaskPipeline {
-    fn name(&self) -> &'static str { "task_pipeline" }
+    fn name(&self) -> &'static str {
+        "task_pipeline"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let steps: Vec<String> = context.context["steps"]
@@ -67,10 +69,17 @@ impl BuiltinSkill for TaskPipeline {
                 match builtin_impl.execute(&dummy_skill, &step_ctx).await {
                     Ok(val) => {
                         // 提取输出作为下一步的输入
-                        current_input = val.get("text")
+                        current_input = val
+                            .get("text")
                             .or(val.get("output"))
                             .or(val.get("parsed"))
-                            .and_then(|v| if v.is_string() { v.as_str().map(String::from) } else { Some(v.to_string()) })
+                            .and_then(|v| {
+                                if v.is_string() {
+                                    v.as_str().map(String::from)
+                                } else {
+                                    Some(v.to_string())
+                                }
+                            })
                             .unwrap_or_else(|| serde_json::to_string(&val).unwrap_or_default());
                         json!({"step": i, "capability": cap, "status": "ok", "result": val})
                     }
@@ -109,21 +118,19 @@ pub struct TaskRace;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for TaskRace {
-    fn name(&self) -> &'static str { "task_race" }
+    fn name(&self) -> &'static str {
+        "task_race"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
-        let task = context.context["task"]
-            .as_str()
-            .unwrap_or(&context.task)
-            .to_string();
-        let capability = context.context["capability"]
-            .as_str()
-            .unwrap_or("echo")
-            .to_string();
+        let task = context.context["task"].as_str().unwrap_or(&context.task).to_string();
+        let capability = context.context["capability"].as_str().unwrap_or("echo").to_string();
 
         // 用不同的 builtin 竞争同一个任务
         // 如果指定了 agent_ids，按名称查找；否则用 capability 本身
-        let candidates: Vec<String> = context.context.get("agent_ids")
+        let candidates: Vec<String> = context
+            .context
+            .get("agent_ids")
             .and_then(|v| v.as_array())
             .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
             .unwrap_or_else(|| vec![capability.clone()]);

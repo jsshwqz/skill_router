@@ -21,9 +21,7 @@ use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
-use aion_types::agent_message::{
-    AgentInfo, AgentMessage, AgentMessageType, AgentRole,
-};
+use aion_types::agent_message::{AgentInfo, AgentMessage, AgentMessageType, AgentRole};
 use aion_types::types::RouterPaths;
 
 use crate::message_bus::MessageBus;
@@ -110,10 +108,7 @@ impl AgentRuntime {
                         self.handle_message(msg, &bus).await;
                     }
                     Err(broadcast::error::RecvError::Lagged(skipped)) => {
-                        warn!(
-                            "Agent [{}] lagged, skipped {} messages",
-                            agent_id, skipped
-                        );
+                        warn!("Agent [{}] lagged, skipped {} messages", agent_id, skipped);
                     }
                     Err(broadcast::error::RecvError::Closed) => {
                         info!("Agent [{}] message bus closed, shutting down", agent_id);
@@ -129,7 +124,11 @@ impl AgentRuntime {
     /// 处理单条消息
     async fn handle_message(&self, msg: AgentMessage, bus: &MessageBus) {
         match &msg.message_type {
-            AgentMessageType::TaskAssignment { task_id, task, capability } => {
+            AgentMessageType::TaskAssignment {
+                task_id,
+                task,
+                capability,
+            } => {
                 // 检查是否处理该能力
                 if !self.handles_capability(capability) {
                     warn!(
@@ -145,9 +144,7 @@ impl AgentRuntime {
                 );
 
                 // 异步执行路由
-                let result = self.router
-                    .route_with_capability(task, capability, None)
-                    .await;
+                let result = self.router.route_with_capability(task, capability, None).await;
 
                 // 构造结果消息
                 let (success, result_value, error_msg) = match result {
@@ -183,10 +180,7 @@ impl AgentRuntime {
             }
 
             AgentMessageType::TaskCancel { task_id, reason } => {
-                warn!(
-                    "Agent [{}] received cancel for task [{}]: {}",
-                    self.id, task_id, reason
-                );
+                warn!("Agent [{}] received cancel for task [{}]: {}", self.id, task_id, reason);
                 // MVP 阶段：记录日志，不支持实际取消进行中的任务
             }
 
@@ -203,10 +197,7 @@ impl AgentRuntime {
             }
 
             _ => {
-                debug!(
-                    "Agent [{}] ignoring message type from [{}]",
-                    self.id, msg.from_agent
-                );
+                debug!("Agent [{}] ignoring message type from [{}]", self.id, msg.from_agent);
             }
         }
     }

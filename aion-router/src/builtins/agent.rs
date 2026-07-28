@@ -14,15 +14,15 @@ pub struct AgentDelegate;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for AgentDelegate {
-    fn name(&self) -> &'static str { "agent_delegate" }
+    fn name(&self) -> &'static str {
+        "agent_delegate"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let target = context.context["target_agent_id"]
             .as_str()
             .ok_or_else(|| anyhow!("agent_delegate requires 'target_agent_id' in context"))?;
-        let capability = context.context["capability"]
-            .as_str()
-            .unwrap_or(&context.capability);
+        let capability = context.context["capability"].as_str().unwrap_or(&context.capability);
         let task_id = uuid_simple();
 
         let bus = crate::message_bus::global_message_bus();
@@ -56,12 +56,12 @@ pub struct AgentBroadcast;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for AgentBroadcast {
-    fn name(&self) -> &'static str { "agent_broadcast" }
+    fn name(&self) -> &'static str {
+        "agent_broadcast"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
-        let message = context.context["message"]
-            .as_str()
-            .unwrap_or(&context.task);
+        let message = context.context["message"].as_str().unwrap_or(&context.task);
         let bus = crate::message_bus::global_message_bus();
         let msg = AgentMessage {
             message_id: uuid_simple(),
@@ -90,19 +90,15 @@ pub struct AgentGather;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for AgentGather {
-    fn name(&self) -> &'static str { "agent_gather" }
+    fn name(&self) -> &'static str {
+        "agent_gather"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
-        let query = context.context["query"]
-            .as_str()
-            .unwrap_or(&context.task);
+        let query = context.context["query"].as_str().unwrap_or(&context.task);
         let agent_ids: Vec<String> = context.context["agent_ids"]
             .as_array()
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
             .unwrap_or_default();
 
         let bus = crate::message_bus::global_message_bus();
@@ -140,7 +136,9 @@ pub struct AgentStatus;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for AgentStatus {
-    fn name(&self) -> &'static str { "agent_status" }
+    fn name(&self) -> &'static str {
+        "agent_status"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let agent_id = context.context["agent_id"].as_str();

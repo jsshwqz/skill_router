@@ -8,12 +8,7 @@ use std::time::Duration;
 use aion_types::types::TokenUsage;
 
 /// 记录一次技能执行的指标
-pub fn record_skill_execution(
-    skill_name: &str,
-    capability: &str,
-    success: bool,
-    duration: Duration,
-) {
+pub fn record_skill_execution(skill_name: &str, capability: &str, success: bool, duration: Duration) {
     let status = if success { "ok" } else { "error" };
 
     metrics::counter!(
@@ -39,12 +34,7 @@ pub fn record_skill_execution(
 /// - skill_ai_completion_tokens_total: 输出 token 累计
 /// - skill_ai_total_tokens_total: 总 token 累计
 /// - skill_ai_cached_tokens_total: 缓存命中 token（Anthropic prompt caching）
-pub fn record_token_usage(
-    skill_name: &str,
-    capability: &str,
-    provider: &str,
-    usage: &TokenUsage,
-) {
+pub fn record_token_usage(skill_name: &str, capability: &str, provider: &str, usage: &TokenUsage) {
     metrics::counter!(
         "skill_ai_prompt_tokens_total",
         "skill" => skill_name.to_string(),

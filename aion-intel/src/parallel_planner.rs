@@ -1,15 +1,15 @@
-use anyhow::{Result, anyhow};
-use serde_json::{json, Value};
-use aion_types::types::RouterPaths;
 use aion_types::parallel::TaskGraph;
+use aion_types::types::RouterPaths;
+use anyhow::{anyhow, Result};
+use serde_json::{json, Value};
 
 pub struct ParallelPlanner;
 
 impl ParallelPlanner {
     pub async fn split_task(task: &str, _paths: &RouterPaths) -> Result<TaskGraph> {
         let base_url = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
-        let api_key  = std::env::var("AI_API_KEY").unwrap_or_else(|_| "ollama".to_string());
-        let model    = std::env::var("AI_MODEL").unwrap_or_else(|_| "qwen2.5:7b".to_string());
+        let api_key = std::env::var("AI_API_KEY").unwrap_or_else(|_| "ollama".to_string());
+        let model = std::env::var("AI_MODEL").unwrap_or_else(|_| "qwen2.5:7b".to_string());
 
         let prompt = format!(
             "Task: \"{}\"\n\
@@ -34,13 +34,17 @@ impl ParallelPlanner {
             .timeout(std::time::Duration::from_secs(15))
             .build()?;
 
-        let resp: Value = client.post(format!("{}/chat/completions", base_url))
+        let resp: Value = client
+            .post(format!("{}/chat/completions", base_url))
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&body)
-            .send().await?
-            .json().await?;
+            .send()
+            .await?
+            .json()
+            .await?;
 
-        let content = resp["choices"][0]["message"]["content"].as_str()
+        let content = resp["choices"][0]["message"]["content"]
+            .as_str()
             .or_else(|| resp["result"].as_str())
             .ok_or_else(|| anyhow!("AI failed to return task graph"))?;
 

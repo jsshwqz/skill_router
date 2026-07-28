@@ -15,7 +15,9 @@ pub struct MemoryRemember;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for MemoryRemember {
-    fn name(&self) -> &'static str { "memory_remember" }
+    fn name(&self) -> &'static str {
+        "memory_remember"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let content = context.context["content"]
@@ -25,10 +27,7 @@ impl BuiltinSkill for MemoryRemember {
             .to_string();
         let category_str = context.context["category"].as_str().unwrap_or("decision");
         let importance = context.context["importance"].as_u64().unwrap_or(5) as u8;
-        let session = context.context["session"]
-            .as_str()
-            .unwrap_or("unknown")
-            .to_string();
+        let session = context.context["session"].as_str().unwrap_or("unknown").to_string();
 
         let category = parse_category(category_str);
         let workspace = std::env::current_dir().unwrap_or_default();
@@ -49,7 +48,9 @@ pub struct MemoryRecall;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for MemoryRecall {
-    fn name(&self) -> &'static str { "memory_recall" }
+    fn name(&self) -> &'static str {
+        "memory_recall"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let query = context.context["query"]
@@ -90,7 +91,9 @@ pub struct MemoryDistill;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for MemoryDistill {
-    fn name(&self) -> &'static str { "memory_distill" }
+    fn name(&self) -> &'static str {
+        "memory_distill"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let max_entries = context.context["max_entries"].as_u64().unwrap_or(200) as usize;
@@ -110,15 +113,15 @@ pub struct MemoryTeamShare;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for MemoryTeamShare {
-    fn name(&self) -> &'static str { "memory_team_share" }
+    fn name(&self) -> &'static str {
+        "memory_team_share"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let memory_id = context.context["memory_id"]
             .as_str()
             .ok_or_else(|| anyhow!("memory_team_share requires 'memory_id' in context"))?;
-        let team_session = context.context["team_session_id"]
-            .as_str()
-            .unwrap_or("default");
+        let team_session = context.context["team_session_id"].as_str().unwrap_or("default");
 
         // 从个人记忆库读取
         let workspace = std::env::current_dir().unwrap_or_default();
@@ -137,12 +140,18 @@ impl BuiltinSkill for MemoryTeamShare {
         let team_dir = std::path::PathBuf::from(
             std::env::var("USERPROFILE")
                 .or_else(|_| std::env::var("HOME"))
-                .unwrap_or_else(|_| ".".to_string())
-        ).join(".aion").join("team").join(team_session);
+                .unwrap_or_else(|_| ".".to_string()),
+        )
+        .join(".aion")
+        .join("team")
+        .join(team_session);
         std::fs::create_dir_all(&team_dir)?;
 
         let entry = &entries[0];
-        let team_file = team_dir.join(format!("{}.json", memory_id.replace(|c: char| !c.is_alphanumeric(), "_")));
+        let team_file = team_dir.join(format!(
+            "{}.json",
+            memory_id.replace(|c: char| !c.is_alphanumeric(), "_")
+        ));
         let team_entry = json!({
             "original_id": memory_id,
             "content": entry.content,

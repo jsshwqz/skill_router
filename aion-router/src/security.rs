@@ -132,8 +132,17 @@ impl AiSecurityReviewer {
 
         // Block if context contains what looks like an API key or password being passed out
         let sensitive_patterns = [
-            "serpapi_key", "api_key", "api-key", "secret", "password",
-            "passwd", "token", "bearer", "private_key", "sk-", "-----begin",
+            "serpapi_key",
+            "api_key",
+            "api-key",
+            "secret",
+            "password",
+            "passwd",
+            "token",
+            "bearer",
+            "private_key",
+            "sk-",
+            "-----begin",
         ];
         for pat in &sensitive_patterns {
             if ctx_str.contains(pat) {
@@ -152,17 +161,13 @@ impl AiSecurityReviewer {
         }
 
         // Block process_exec permission (with exceptions for builtins that manage their own process safety)
-        if skill.metadata.permissions.process_exec
-            && skill.metadata.entrypoint != "builtin:mcp_call"
-        {
+        if skill.metadata.permissions.process_exec && skill.metadata.entrypoint != "builtin:mcp_call" {
             return Some("skills with process_exec permission are not allowed".to_string());
         }
 
         // Block filesystem_write unless explicitly in generated-skills dir
         if skill.metadata.permissions.filesystem_write {
-            return Some(
-                "skills with filesystem_write permission are blocked by policy".to_string(),
-            );
+            return Some("skills with filesystem_write permission are blocked by policy".to_string());
         }
 
         None
@@ -173,13 +178,18 @@ impl AiSecurityReviewer {
 
         // Extract host from URL (strip scheme + path + port)
         let after_scheme = lower
-            .strip_prefix("https://").or_else(|| lower.strip_prefix("http://"))
+            .strip_prefix("https://")
+            .or_else(|| lower.strip_prefix("http://"))
             .unwrap_or(&lower);
         let host_with_port = after_scheme.split('/').next().unwrap_or("");
         // IPv6 地址用 [] 包裹，不能用 ':' 分割端口
         let host = if host_with_port.starts_with('[') {
             // [::1]:8080 → [::1]
-            host_with_port.split(']').next().map(|s| format!("{}]", s)).unwrap_or_default()
+            host_with_port
+                .split(']')
+                .next()
+                .map(|s| format!("{}]", s))
+                .unwrap_or_default()
         } else {
             // IPv4/域名: host:port → host
             host_with_port.split(':').next().unwrap_or("").to_string()
@@ -188,25 +198,50 @@ impl AiSecurityReviewer {
 
         // IPv4 private/loopback ranges
         let private_ip_prefixes = [
-            "localhost", "127.", "0.",
-            "10.", "172.16.", "172.17.", "172.18.", "172.19.",
-            "172.20.", "172.21.", "172.22.", "172.23.",
-            "172.24.", "172.25.", "172.26.", "172.27.",
-            "172.28.", "172.29.", "172.30.", "172.31.",
-            "192.168.", "169.254.",
+            "localhost",
+            "127.",
+            "0.",
+            "10.",
+            "172.16.",
+            "172.17.",
+            "172.18.",
+            "172.19.",
+            "172.20.",
+            "172.21.",
+            "172.22.",
+            "172.23.",
+            "172.24.",
+            "172.25.",
+            "172.26.",
+            "172.27.",
+            "172.28.",
+            "172.29.",
+            "172.30.",
+            "172.31.",
+            "192.168.",
+            "169.254.",
         ];
 
         // IPv6 loopback + private + IPv4-mapped
         let private_ipv6_prefixes = [
-            "[::1]", "[fc", "[fd",          // loopback + ULA
-            "[::ffff:10.", "[::ffff:192.168.", "[::ffff:172.", // IPv4-mapped private
-            "[::ffff:127.",                 // IPv4-mapped loopback
+            "[::1]",
+            "[fc",
+            "[fd", // loopback + ULA
+            "[::ffff:10.",
+            "[::ffff:192.168.",
+            "[::ffff:172.", // IPv4-mapped private
+            "[::ffff:127.", // IPv4-mapped loopback
         ];
 
         // Domain-based private network patterns
         let private_domains = [
-            ".local", ".internal", ".corp", ".lan",
-            ".intranet", ".private", ".home.arpa",
+            ".local",
+            ".internal",
+            ".corp",
+            ".lan",
+            ".intranet",
+            ".private",
+            ".home.arpa",
         ];
 
         if private_ip_prefixes.iter().any(|p| host.starts_with(p)) {
@@ -237,10 +272,7 @@ impl AiSecurityReviewer {
         ];
         for (pat, label) in key_patterns {
             if output.contains(pat) {
-                return Some(format!(
-                    "output blocked: possible {} detected in response",
-                    label
-                ));
+                return Some(format!("output blocked: possible {} detected in response", label));
             }
         }
 
@@ -339,8 +371,7 @@ impl AiSecurityReviewer {
     }
 
     async fn call_ai(prompt: &str) -> Result<String> {
-        let base_url = std::env::var("AI_BASE_URL")
-            .unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
+        let base_url = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
         let api_key = std::env::var("AI_API_KEY").unwrap_or_else(|_| "ollama".to_string());
         let model = std::env::var("AI_MODEL").unwrap_or_else(|_| "qwen2.5:7b".to_string());
 
@@ -359,8 +390,10 @@ impl AiSecurityReviewer {
             .post(format!("{}/chat/completions", base_url))
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&body)
-            .send().await?
-            .json().await?;
+            .send()
+            .await?
+            .json()
+            .await?;
 
         Ok(resp["choices"][0]["message"]["content"]
             .as_str()
@@ -381,20 +414,17 @@ impl AiSecurityReviewer {
             }
             SecurityFailPolicy::Closed => {
                 tracing::warn!("AI security review ({}) unavailable — fail-CLOSED (deny). Set AI_SECURITY_FAIL_POLICY=open for development.", phase);
-                Verdict::Deny(format!("AI security review ({}) unavailable and fail policy is CLOSED", phase))
+                Verdict::Deny(format!(
+                    "AI security review ({}) unavailable and fail policy is CLOSED",
+                    phase
+                ))
             }
         }
     }
 
     // ── Audit log ─────────────────────────────────────────────────────────────
 
-    fn log_audit(
-        phase: &str,
-        method: &str,
-        verdict: &Verdict,
-        skill: &SkillDefinition,
-        paths: &RouterPaths,
-    ) {
+    fn log_audit(phase: &str, method: &str, verdict: &Verdict, skill: &SkillDefinition, paths: &RouterPaths) {
         let log_path = paths.state_dir.join("security_audit.log");
         if let Some(parent) = log_path.parent() {
             let _ = fs::create_dir_all(parent);

@@ -2,8 +2,8 @@
 mod router_tests {
     use crate::parallel_executor::ParallelExecutor;
     use aion_types::capability_registry::CapabilityRegistry;
-    use aion_types::types::RouterPaths;
     use aion_types::parallel::{ParallelInstruction, TaskGraph};
+    use aion_types::types::RouterPaths;
     use std::env;
     use std::fs;
 
@@ -16,11 +16,7 @@ mod router_tests {
         let reg = CapabilityRegistry::builtin();
 
         let instructions: Vec<ParallelInstruction> = (0..5)
-            .map(|i| ParallelInstruction::simple(
-                &format!("task_{}", i),
-                &format!("echo test {}", i),
-                "echo",
-            ))
+            .map(|i| ParallelInstruction::simple(&format!("task_{}", i), &format!("echo test {}", i), "echo"))
             .collect();
 
         let graph = TaskGraph { instructions };
@@ -48,9 +44,7 @@ mod router_tests {
 
         for i in 0..10 {
             let r = Arc::clone(&router);
-            handles.push(tokio::spawn(async move {
-                r.route(&format!("echo hello {}", i)).await
-            }));
+            handles.push(tokio::spawn(async move { r.route(&format!("echo hello {}", i)).await }));
         }
 
         for h in handles {
@@ -101,8 +95,8 @@ mod router_tests {
     mod security_tests {
         use crate::security::{AiSecurityReviewer, Security, Verdict};
         use aion_types::types::{
-            ExecutionContext, ExecutionResponse, PermissionSet, RouterPaths,
-            SkillDefinition, SkillMetadata, SkillSource,
+            ExecutionContext, ExecutionResponse, PermissionSet, RouterPaths, SkillDefinition, SkillMetadata,
+            SkillSource,
         };
         use serde_json::{json, Value};
         use std::path::PathBuf;
@@ -155,7 +149,9 @@ mod router_tests {
         #[test]
         fn test_private_network_ipv4_loopback() {
             assert!(AiSecurityReviewer::is_private_network_url("http://127.0.0.1/api"));
-            assert!(AiSecurityReviewer::is_private_network_url("https://127.0.0.1:8080/path"));
+            assert!(AiSecurityReviewer::is_private_network_url(
+                "https://127.0.0.1:8080/path"
+            ));
             assert!(AiSecurityReviewer::is_private_network_url("http://localhost/"));
             assert!(AiSecurityReviewer::is_private_network_url("http://localhost:3000"));
         }
@@ -188,7 +184,9 @@ mod router_tests {
         fn test_private_network_ipv4_mapped() {
             assert!(AiSecurityReviewer::is_private_network_url("http://[::ffff:127.0.0.1]/"));
             assert!(AiSecurityReviewer::is_private_network_url("http://[::ffff:10.0.0.1]/"));
-            assert!(AiSecurityReviewer::is_private_network_url("http://[::ffff:192.168.1.1]/"));
+            assert!(AiSecurityReviewer::is_private_network_url(
+                "http://[::ffff:192.168.1.1]/"
+            ));
         }
 
         #[test]
@@ -205,8 +203,12 @@ mod router_tests {
         fn test_private_network_public_allowed() {
             assert!(!AiSecurityReviewer::is_private_network_url("https://google.com/"));
             assert!(!AiSecurityReviewer::is_private_network_url("https://8.8.8.8/"));
-            assert!(!AiSecurityReviewer::is_private_network_url("https://api.github.com/repos"));
-            assert!(!AiSecurityReviewer::is_private_network_url("https://example.com:443/path"));
+            assert!(!AiSecurityReviewer::is_private_network_url(
+                "https://api.github.com/repos"
+            ));
+            assert!(!AiSecurityReviewer::is_private_network_url(
+                "https://example.com:443/path"
+            ));
         }
 
         // ── heuristic_pre 测试 ──────────────────────────────────────────
@@ -317,7 +319,9 @@ mod router_tests {
 
         #[test]
         fn test_heuristic_post_safe_output() {
-            let resp = make_response(json!("The summary of the document is: Rust is a systems programming language."));
+            let resp = make_response(json!(
+                "The summary of the document is: Rust is a systems programming language."
+            ));
             let result = AiSecurityReviewer::heuristic_post(&resp);
             assert!(result.is_none(), "Safe output should pass: {:?}", result);
         }
@@ -492,8 +496,7 @@ mod router_tests {
         #[test]
         fn test_coordinator_timeout_builder() {
             let bus = Arc::new(MessageBus::new(64));
-            let coord = MultiAgentCoordinator::new(bus)
-                .with_timeout(Duration::from_secs(60));
+            let coord = MultiAgentCoordinator::new(bus).with_timeout(Duration::from_secs(60));
             // 验证 builder 模式不 panic
             let _ = coord;
         }

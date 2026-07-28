@@ -156,10 +156,7 @@ impl RagEngine {
             Ok(a) if a != "无法生成回答" => (a, true),
             Ok(_) | Err(_) => {
                 // AI 不可用或返回空回答，fallback 返回原始检索内容
-                let fallback = format!(
-                    "（AI 暂不可用，以下为检索到的原始内容）\n\n{}",
-                    context
-                );
+                let fallback = format!("（AI 暂不可用，以下为检索到的原始内容）\n\n{}", context);
                 (fallback, false)
             }
         };
@@ -264,8 +261,7 @@ impl RagEngine {
 
     /// 获取文本的向量嵌入
     async fn get_embedding(&self, text: &str) -> Result<Vec<f32>> {
-        let base_url =
-            std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
+        let base_url = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
         let api_key = std::env::var("AI_API_KEY").unwrap_or_else(|_| "ollama".to_string());
         let model = std::env::var("AI_EMBEDDING_MODEL")
             .or_else(|_| std::env::var("AI_MODEL"))
@@ -296,10 +292,7 @@ impl RagEngine {
 
         // OpenAI 格式
         if let Some(data) = resp["data"][0]["embedding"].as_array() {
-            let embedding: Vec<f32> = data
-                .iter()
-                .filter_map(|v| v.as_f64().map(|f| f as f32))
-                .collect();
+            let embedding: Vec<f32> = data.iter().filter_map(|v| v.as_f64().map(|f| f as f32)).collect();
             if !embedding.is_empty() {
                 return Ok(embedding);
             }
@@ -307,10 +300,7 @@ impl RagEngine {
 
         // Ollama 格式
         if let Some(emb) = resp["embedding"].as_array() {
-            let embedding: Vec<f32> = emb
-                .iter()
-                .filter_map(|v| v.as_f64().map(|f| f as f32))
-                .collect();
+            let embedding: Vec<f32> = emb.iter().filter_map(|v| v.as_f64().map(|f| f as f32)).collect();
             if !embedding.is_empty() {
                 return Ok(embedding);
             }
@@ -325,7 +315,9 @@ impl RagEngine {
         let words: Vec<&str> = text.split_whitespace().collect();
         let mut vec = vec![0.0f32; 128];
         for word in &words {
-            let hash = word.bytes().fold(0u32, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u32));
+            let hash = word
+                .bytes()
+                .fold(0u32, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u32));
             let idx = (hash as usize) % 128;
             vec[idx] += 1.0;
         }
@@ -356,15 +348,15 @@ impl RagEngine {
 
     /// AI 生成回答
     async fn generate_answer(&self, question: &str, context: &str) -> Result<String> {
-        let base_url =
-            std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
+        let base_url = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
         let api_key = std::env::var("AI_API_KEY").unwrap_or_else(|_| "ollama".to_string());
         let model = std::env::var("AI_MODEL").unwrap_or_else(|_| "qwen2.5:7b".to_string());
 
         let system_prompt = format!(
             "你是一个智能助手。根据以下知识库内容回答用户的问题。\n\
              只使用提供的内容回答，如果内容中没有答案，请说明。\n\n\
-             知识库内容：\n{}", context
+             知识库内容：\n{}",
+            context
         );
 
         let body = json!({
@@ -399,9 +391,9 @@ impl RagEngine {
 
     /// 简易字符串哈希
     fn simple_hash(s: &str) -> String {
-        let hash = s.bytes().fold(0u64, |acc, b| {
-            acc.wrapping_mul(31).wrapping_add(b as u64)
-        });
+        let hash = s
+            .bytes()
+            .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
         format!("{:012x}", hash)
     }
 }

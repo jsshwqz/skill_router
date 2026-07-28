@@ -30,28 +30,34 @@ impl RecoveryEngine {
         }
 
         match error {
-            AutomationError::Transient(_) => {
-                match side_effect_class {
-                    SideEffectClass::LocalWriteReversible => {
-                        if dirty_state { RecoveryDecision::RollbackAndRetry } else { RecoveryDecision::RetryStep }
-                    }
-                    SideEffectClass::LocalWriteBestEffort | SideEffectClass::PureRead => {
+            AutomationError::Transient(_) => match side_effect_class {
+                SideEffectClass::LocalWriteReversible => {
+                    if dirty_state {
+                        RecoveryDecision::RollbackAndRetry
+                    } else {
                         RecoveryDecision::RetryStep
                     }
-                    SideEffectClass::ExternalSideEffect | SideEffectClass::HighRiskHumanConfirm | SideEffectClass::Irreversible => {
-                        RecoveryDecision::Abort(format!("Transient error on sensitive action ({:?})", side_effect_class))
-                    }
                 }
-            }
+                SideEffectClass::LocalWriteBestEffort | SideEffectClass::PureRead => RecoveryDecision::RetryStep,
+                SideEffectClass::ExternalSideEffect
+                | SideEffectClass::HighRiskHumanConfirm
+                | SideEffectClass::Irreversible => {
+                    RecoveryDecision::Abort(format!("Transient error on sensitive action ({:?})", side_effect_class))
+                }
+            },
             AutomationError::Plan(_) | AutomationError::Verification(_) | AutomationError::Execution(_) => {
                 match side_effect_class {
                     SideEffectClass::LocalWriteReversible => {
-                        if dirty_state { RecoveryDecision::RollbackAndReplan } else { RecoveryDecision::Replan }
+                        if dirty_state {
+                            RecoveryDecision::RollbackAndReplan
+                        } else {
+                            RecoveryDecision::Replan
+                        }
                     }
-                    SideEffectClass::LocalWriteBestEffort | SideEffectClass::PureRead => {
-                        RecoveryDecision::Replan
-                    }
-                    SideEffectClass::ExternalSideEffect | SideEffectClass::HighRiskHumanConfirm | SideEffectClass::Irreversible => {
+                    SideEffectClass::LocalWriteBestEffort | SideEffectClass::PureRead => RecoveryDecision::Replan,
+                    SideEffectClass::ExternalSideEffect
+                    | SideEffectClass::HighRiskHumanConfirm
+                    | SideEffectClass::Irreversible => {
                         RecoveryDecision::Abort(format!("Critical failure on action state ({:?})", side_effect_class))
                     }
                 }

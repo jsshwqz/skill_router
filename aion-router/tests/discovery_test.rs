@@ -1,4 +1,4 @@
-use aion_router::automation::discovery::{DiscoveryRadar, DiscoveryLayer};
+use aion_router::automation::discovery::{DiscoveryLayer, DiscoveryRadar};
 use aion_types::types::RouterPaths;
 use serde_json::json;
 use std::fs;
@@ -65,8 +65,7 @@ fn test_project_skill_discovery() -> anyhow::Result<()> {
     fs::write(ext_skill_dir.join("skill.json"), serde_json::to_string(&skill_json)?)?;
 
     // Radar with project paths
-    let radar = DiscoveryRadar::new(paths)
-        .with_project_paths(vec![external_project.clone()]);
+    let radar = DiscoveryRadar::new(paths).with_project_paths(vec![external_project.clone()]);
 
     // Test Project Layer match
     let result = radar.cascade_search("shared_utils")?;
@@ -93,7 +92,7 @@ fn test_search_by_payload() -> anyhow::Result<()> {
 
     // Create a payload with an intent that exists in Central (Mocked)
     let payload = aion_types::ai_native::AiNativePayload::new("advanced_reasoning");
-    
+
     let result = radar.search_by_payload(&payload)?;
     assert!(result.is_some());
     let m = result.unwrap();

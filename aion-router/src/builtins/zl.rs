@@ -10,8 +10,8 @@ use anyhow::Result;
 use serde_json::{json, Value};
 use tracing::info;
 
-use aion_types::types::{ExecutionContext, SkillDefinition};
 use crate::builtins::BuiltinSkill;
+use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::orchestrator::call_http_ai_fallback;
 
@@ -117,11 +117,8 @@ fn require_text(ctx: &ExecutionContext) -> String {
 async fn call_ai(prompt: &str) -> Value {
     let report = call_http_ai_fallback(prompt, "zl").await;
     match report.output {
-        Some(output) => {
-            serde_json::from_str(&output).unwrap_or_else(|_| {
-                json!({"raw_output": output, "parse_error": "response was not valid JSON"})
-            })
-        }
+        Some(output) => serde_json::from_str(&output)
+            .unwrap_or_else(|_| json!({"raw_output": output, "parse_error": "response was not valid JSON"})),
         None => json!({"error": report.error_message.unwrap_or_else(|| "AI call failed".into())}),
     }
 }
@@ -133,7 +130,9 @@ macro_rules! define_zl_skill {
         pub struct $name;
         #[async_trait::async_trait]
         impl BuiltinSkill for $name {
-            fn name(&self) -> &'static str { $display }
+            fn name(&self) -> &'static str {
+                $display
+            }
             async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
                 let task = require_text(ctx);
                 info!("{}: '{}'", $display, safe_truncate(&task, 50));

@@ -176,14 +176,16 @@ impl SkillManifest {
     pub fn parse_from_skill_md(content: &str) -> anyhow::Result<Self> {
         let content = content.trim();
         if !content.starts_with("---") {
-            return Err(anyhow::anyhow!("SKILL.md must start with YAML frontmatter delimiter '---'"));
+            return Err(anyhow::anyhow!(
+                "SKILL.md must start with YAML frontmatter delimiter '---'"
+            ));
         }
 
         // 找到第二个 ---
         let rest = &content[3..];
-        let end = rest.find("---").ok_or_else(|| {
-            anyhow::anyhow!("SKILL.md missing closing YAML frontmatter delimiter '---'")
-        })?;
+        let end = rest
+            .find("---")
+            .ok_or_else(|| anyhow::anyhow!("SKILL.md missing closing YAML frontmatter delimiter '---'"))?;
 
         let yaml_str = rest[..end].trim();
 

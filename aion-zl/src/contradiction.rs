@@ -53,18 +53,31 @@ impl Engine {
     pub async fn contradiction_analyze(&self, task: &str) -> Result<ContradictionReport> {
         info!("Analyzing contradictions...");
         let raw = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            SYSTEM, &format!("Task to analyze:\n{}", task),
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            SYSTEM,
+            &format!("Task to analyze:\n{}", task),
+        )
+        .await?;
 
         let contradictions: Vec<Contradiction> = raw["contradictions"]
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                    .collect()
+            })
             .unwrap_or_default();
 
         let resource_allocation: HashMap<String, f32> = raw["resource_allocation"]
             .as_object()
-            .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.as_f64().unwrap_or(0.0) as f32)).collect())
+            .map(|obj| {
+                obj.iter()
+                    .map(|(k, v)| (k.clone(), v.as_f64().unwrap_or(0.0) as f32))
+                    .collect()
+            })
             .unwrap_or_default();
 
         info!("Found {} contradictions", contradictions.len());

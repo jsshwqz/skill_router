@@ -8,15 +8,17 @@
 use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 
-use aion_types::types::{ExecutionContext, SkillDefinition};
 use super::BuiltinSkill;
+use aion_types::types::{ExecutionContext, SkillDefinition};
 
 /// JSON → TOON 转换
 pub struct TextToon;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for TextToon {
-    fn name(&self) -> &'static str { "text_toon" }
+    fn name(&self) -> &'static str {
+        "text_toon"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
         let input = ctx.context["text"]
@@ -25,8 +27,7 @@ impl BuiltinSkill for TextToon {
             .unwrap_or(&ctx.task)
             .to_string();
 
-        let parsed: Value = serde_json::from_str(&input)
-            .map_err(|e| anyhow!("无效 JSON: {}", e))?;
+        let parsed: Value = serde_json::from_str(&input).map_err(|e| anyhow!("无效 JSON: {}", e))?;
 
         let toon = json_to_toon(&parsed, 0);
         let stats = estimate_savings(&toon, &input);
@@ -55,9 +56,10 @@ pub(super) fn json_to_toon(value: &Value, depth: usize) -> String {
                         lines.push(format!("{}{}[{}]{{{} }}:", indent, key, arr.len(), field_str.join(",")));
                         for item in arr {
                             if let Value::Object(item_map) = item {
-                                let row: Vec<String> = fields.iter().map(|f| {
-                                    item_map.get(*f).map(val_toon).unwrap_or_default()
-                                }).collect();
+                                let row: Vec<String> = fields
+                                    .iter()
+                                    .map(|f| item_map.get(*f).map(val_toon).unwrap_or_default())
+                                    .collect();
                                 lines.push(format!("{}  {}", indent, row.join(",")));
                             }
                         }
@@ -115,9 +117,10 @@ pub(super) fn json_to_toon(value: &Value, depth: usize) -> String {
                 let mut lines = vec![format!("{}[{}]{{{} }}:", indent, arr.len(), field_str.join(","))];
                 for item in arr {
                     if let Value::Object(item_map) = item {
-                        let row: Vec<String> = fields.iter().map(|f| {
-                            item_map.get(*f).map(val_toon).unwrap_or_default()
-                        }).collect();
+                        let row: Vec<String> = fields
+                            .iter()
+                            .map(|f| item_map.get(*f).map(val_toon).unwrap_or_default())
+                            .collect();
                         lines.push(format!("{}  {}", indent, row.join(",")));
                     }
                 }
@@ -148,11 +151,17 @@ fn val_toon(val: &Value) -> String {
 }
 
 fn is_table_array(arr: &[Value]) -> bool {
-    if arr.is_empty() { return false; }
-    let first = match arr[0].as_object() { Some(o) => o, None => return false };
+    if arr.is_empty() {
+        return false;
+    }
+    let first = match arr[0].as_object() {
+        Some(o) => o,
+        None => return false,
+    };
     let keys: Vec<&String> = first.keys().collect();
     arr.iter().all(|item| {
-        item.as_object().is_some_and(|map| map.keys().collect::<Vec<_>>() == keys)
+        item.as_object()
+            .is_some_and(|map| map.keys().collect::<Vec<_>>() == keys)
     })
 }
 
@@ -167,7 +176,9 @@ fn estimate_savings(toon: &str, json: &str) -> Value {
         ((json_tokens - toon_tokens) as f64 / json_tokens as f64 * 100.0).round()
     } else if json_tokens < toon_tokens {
         -((toon_tokens - json_tokens) as f64 / toon_tokens as f64 * 100.0).round()
-    } else { 0.0 };
+    } else {
+        0.0
+    };
 
     json!({
         "json_chars": json.len(),

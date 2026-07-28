@@ -14,18 +14,15 @@ pub struct WebSearch;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for WebSearch {
-    fn name(&self) -> &'static str { "web_search" }
+    fn name(&self) -> &'static str {
+        "web_search"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
-        let query = context.context["query"]
-            .as_str()
-            .unwrap_or(&context.task)
-            .to_string();
+        let query = context.context["query"].as_str().unwrap_or(&context.task).to_string();
         let key = std::env::var("SERPAPI_KEY").unwrap_or_default();
         if key.is_empty() {
-            return Ok(
-                json!({"notice": "SERPAPI_KEY not configured", "query": query, "results": []}),
-            );
+            return Ok(json!({"notice": "SERPAPI_KEY not configured", "query": query, "results": []}));
         }
         let url = format!(
             "https://serpapi.com/search.json?q={}&api_key={}&num=5",
@@ -46,7 +43,9 @@ pub struct HttpFetch;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for HttpFetch {
-    fn name(&self) -> &'static str { "http_fetch" }
+    fn name(&self) -> &'static str {
+        "http_fetch"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let url = context.context["url"]
@@ -72,7 +71,9 @@ pub struct DiscoverySearch;
 
 #[async_trait::async_trait]
 impl BuiltinSkill for DiscoverySearch {
-    fn name(&self) -> &'static str { "discovery_search" }
+    fn name(&self) -> &'static str {
+        "discovery_search"
+    }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let query = context.context["query"]

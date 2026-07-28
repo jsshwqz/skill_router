@@ -131,14 +131,11 @@ pub enum AgentMessageType {
         error: Option<String>,
     },
     /// 取消进行中的任务
-    TaskCancel {
-        task_id: String,
-        reason: String,
-    },
+    TaskCancel { task_id: String, reason: String },
     /// 状态更新（进度通知）
     StatusUpdate {
         task_id: String,
-        progress: f32,   // 0.0 - 1.0
+        progress: f32, // 0.0 - 1.0
         message: String,
     },
     /// 心跳（用于节点存活检测）
@@ -149,10 +146,7 @@ pub enum AgentMessageType {
         available_capabilities: Vec<String>,
     },
     /// 能力公告（新节点上线时广播）
-    CapabilityAnnouncement {
-        capabilities: Vec<String>,
-        role: AgentRole,
-    },
+    CapabilityAnnouncement { capabilities: Vec<String>, role: AgentRole },
     /// 错误上报
     ErrorReport {
         task_id: Option<String>,

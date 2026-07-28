@@ -149,10 +149,7 @@ impl MemoryDistiller {
                 let b = &store.entries[lesson_indices[j]];
                 if Self::content_similarity(&a.content, &b.content) > 0.6 {
                     // Merge b into a
-                    let merged_content = format!(
-                        "{} [merged: {}]",
-                        a.content, b.content
-                    );
+                    let merged_content = format!("{} [merged: {}]", a.content, b.content);
                     let merged_importance = a.importance.max(b.importance);
                     let merged_access = a.access_count + b.access_count;
 
@@ -181,11 +178,9 @@ impl MemoryDistiller {
     /// Simple word-overlap similarity metric (Jaccard-like).
     fn content_similarity(a: &str, b: &str) -> f64 {
         let a_lower = a.to_ascii_lowercase();
-        let words_a: std::collections::HashSet<&str> =
-            a_lower.split_whitespace().collect();
+        let words_a: std::collections::HashSet<&str> = a_lower.split_whitespace().collect();
         let b_lower = b.to_ascii_lowercase();
-        let words_b: std::collections::HashSet<&str> =
-            b_lower.split_whitespace().collect();
+        let words_b: std::collections::HashSet<&str> = b_lower.split_whitespace().collect();
         if words_a.is_empty() && words_b.is_empty() {
             return 1.0;
         }

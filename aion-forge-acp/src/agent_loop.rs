@@ -82,11 +82,7 @@ impl AgentLoop {
     }
 
     /// Run until the planner returns a final answer or a safety bound terminates the turn.
-    pub async fn run(
-        &self,
-        request: TurnRequest,
-        sink: &dyn SessionEventSink,
-    ) -> Result<TurnOutcome> {
+    pub async fn run(&self, request: TurnRequest, sink: &dyn SessionEventSink) -> Result<TurnOutcome> {
         let required_tool = explicit_required_tool(&request.history, &request.capabilities);
         let mut history = request.history;
         let mut repair_error = None;
@@ -170,10 +166,7 @@ impl AgentLoop {
                         return finish(sink, history, "请求已取消。".to_string()).await;
                     }
 
-                    let result = self
-                        .executor
-                        .execute(&tool, arguments.clone(), &request.cwd)
-                        .await;
+                    let result = self.executor.execute(&tool, arguments.clone(), &request.cwd).await;
 
                     if is_cancelled(&request.cancellation) {
                         let cancelled = Err(anyhow!("request cancelled during tool execution"));
@@ -196,12 +189,7 @@ impl AgentLoop {
                             })
                             .to_string();
                             if !failed_calls.insert(failed_call) {
-                                return finish(
-                                    sink,
-                                    history,
-                                    format!("检测到重复失败的工具调用：{tool}。"),
-                                )
-                                .await;
+                                return finish(sink, history, format!("检测到重复失败的工具调用：{tool}。")).await;
                             }
                             history.push(HistoryEntry::Tool {
                                 name: tool,
@@ -215,10 +203,7 @@ impl AgentLoop {
     }
 }
 
-fn explicit_required_tool(
-    history: &[HistoryEntry],
-    capabilities: &[CapabilityEntry],
-) -> Option<String> {
+fn explicit_required_tool(history: &[HistoryEntry], capabilities: &[CapabilityEntry]) -> Option<String> {
     let user = history.iter().rev().find_map(|entry| match entry {
         HistoryEntry::User(message) => Some(message.to_ascii_lowercase()),
         _ => None,
@@ -241,11 +226,7 @@ fn is_cancelled(cancellation: &AtomicBool) -> bool {
     cancellation.load(Ordering::SeqCst)
 }
 
-async fn finish(
-    sink: &dyn SessionEventSink,
-    mut history: Vec<HistoryEntry>,
-    message: String,
-) -> Result<TurnOutcome> {
+async fn finish(sink: &dyn SessionEventSink, mut history: Vec<HistoryEntry>, message: String) -> Result<TurnOutcome> {
     let message = if message.trim().is_empty() {
         "unknown".to_string()
     } else {
@@ -339,10 +320,7 @@ mod tests {
     #[async_trait::async_trait]
     impl ToolExecutor for RecordingExecutor {
         async fn execute(&self, name: &str, arguments: Value, _cwd: &Path) -> Result<Value> {
-            self.calls
-                .lock()
-                .unwrap()
-                .push((name.to_string(), arguments));
+            self.calls.lock().unwrap().push((name.to_string(), arguments));
             if let Some(cancellation) = &self.cancel_during_execute {
                 cancellation.store(true, Ordering::SeqCst);
             }
@@ -420,7 +398,10 @@ mod tests {
 
         assert_eq!(outcome.message, "visible");
         assert_eq!(sink.messages.lock().unwrap().as_slice(), &["visible"]);
-        assert_eq!(outcome.history.last(), Some(&HistoryEntry::Assistant("visible".to_string())));
+        assert_eq!(
+            outcome.history.last(),
+            Some(&HistoryEntry::Assistant("visible".to_string()))
+        );
     }
 
     #[tokio::test]
@@ -457,14 +438,10 @@ mod tests {
         ]);
         let sink = RecordingEventSink::default();
 
-        let outcome = AgentLoop::new(
-            planner.clone(),
-            RecordingExecutor::with_results(Vec::new()),
-            6,
-        )
-        .run(turn_request(Arc::new(AtomicBool::new(false))), &sink)
-        .await
-        .unwrap();
+        let outcome = AgentLoop::new(planner.clone(), RecordingExecutor::with_results(Vec::new()), 6)
+            .run(turn_request(Arc::new(AtomicBool::new(false))), &sink)
+            .await
+            .unwrap();
 
         assert_eq!(outcome.message, "repaired");
         assert!(planner.requests.lock().unwrap()[1]
@@ -568,16 +545,15 @@ mod tests {
         };
         let sink = RecordingEventSink::default();
 
-        let outcome = AgentLoop::new(
-            ScriptedPlanner::new(vec![Ok(call_tool())]),
-            executor,
-            6,
-        )
-        .run(turn_request(cancellation), &sink)
-        .await
-        .unwrap();
+        let outcome = AgentLoop::new(ScriptedPlanner::new(vec![Ok(call_tool())]), executor, 6)
+            .run(turn_request(cancellation), &sink)
+            .await
+            .unwrap();
 
         assert!(outcome.message.contains("取消"));
-        assert!(!outcome.history.iter().any(|entry| matches!(entry, HistoryEntry::Tool { .. })));
+        assert!(!outcome
+            .history
+            .iter()
+            .any(|entry| matches!(entry, HistoryEntry::Tool { .. })));
     }
 }

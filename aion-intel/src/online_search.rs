@@ -48,8 +48,7 @@ impl TrustedSourceSearch {
             return Ok(Vec::new());
         }
 
-        let config: TrustedSourcesFile =
-            serde_json::from_slice(&fs::read(&paths.trusted_sources_path)?)?;
+        let config: TrustedSourcesFile = serde_json::from_slice(&fs::read(&paths.trusted_sources_path)?)?;
         let mut results = Vec::new();
 
         for source in config.sources {
@@ -78,10 +77,7 @@ impl TrustedSourceSearch {
                             instruction: None,
                             engine_capable: false,
                         },
-                        root_dir: absolute
-                            .parent()
-                            .unwrap_or(&paths.workspace_root)
-                            .to_path_buf(),
+                        root_dir: absolute.parent().unwrap_or(&paths.workspace_root).to_path_buf(),
                         source: SkillSource::RemoteCandidate,
                     });
                 }
@@ -129,8 +125,7 @@ impl TrustedSourceSearch {
             return Ok(Vec::new());
         }
 
-        let config: TrustedSourcesFile =
-            serde_json::from_slice(&fs::read(&paths.trusted_sources_path)?)?;
+        let config: TrustedSourcesFile = serde_json::from_slice(&fs::read(&paths.trusted_sources_path)?)?;
         let mut results = Vec::new();
 
         for source in config.sources {
@@ -159,10 +154,7 @@ impl TrustedSourceSearch {
                             instruction: None,
                             engine_capable: false,
                         },
-                        root_dir: absolute
-                            .parent()
-                            .unwrap_or(&paths.workspace_root)
-                            .to_path_buf(),
+                        root_dir: absolute.parent().unwrap_or(&paths.workspace_root).to_path_buf(),
                         source: SkillSource::RemoteCandidate,
                     });
                 }

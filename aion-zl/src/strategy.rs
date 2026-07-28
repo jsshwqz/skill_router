@@ -60,22 +60,35 @@ impl Engine {
         };
 
         let raw = ai::chat_json_deterministic(
-            &self.http, &self.ai_base_url, &self.ai_api_key, &self.ai_model,
-            SYSTEM, &format!("Task:\n{}{}", task, mem_ctx),
-        ).await?;
+            &self.http,
+            &self.ai_base_url,
+            &self.ai_api_key,
+            &self.ai_model,
+            SYSTEM,
+            &format!("Task:\n{}{}", task, mem_ctx),
+        )
+        .await?;
 
         let steps: Vec<StrategicStep> = raw["steps"]
             .as_array()
-            .map(|arr| arr.iter().map(|v| StrategicStep {
-                name: v["name"].as_str().unwrap_or("").into(),
-                phase: v["phase"].as_str().unwrap_or("defense").into(),
-                action: v["action"].as_str().unwrap_or("").into(),
-                capability: v["capability"].as_str().unwrap_or("echo").into(),
-                resource_weight: v["resource_weight"].as_f64().unwrap_or(0.2) as f32,
-            }).collect())
+            .map(|arr| {
+                arr.iter()
+                    .map(|v| StrategicStep {
+                        name: v["name"].as_str().unwrap_or("").into(),
+                        phase: v["phase"].as_str().unwrap_or("defense").into(),
+                        action: v["action"].as_str().unwrap_or("").into(),
+                        capability: v["capability"].as_str().unwrap_or("echo").into(),
+                        resource_weight: v["resource_weight"].as_f64().unwrap_or(0.2) as f32,
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
 
-        info!("Plan: phase={}, steps={}", raw["current_phase"].as_str().unwrap_or("?"), steps.len());
+        info!(
+            "Plan: phase={}, steps={}",
+            raw["current_phase"].as_str().unwrap_or("?"),
+            steps.len()
+        );
 
         Ok(StrategicPlan {
             task: task.into(),

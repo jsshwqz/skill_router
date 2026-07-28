@@ -1,5 +1,5 @@
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
-use anyhow::{Result, anyhow};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ErrorSignature {
@@ -17,7 +17,7 @@ impl ImmunitySystem {
         if command.contains("&&") {
             return Err(anyhow!(
                 "Immunity Violation [ERR-PS-CONJ]: PowerShell does not support '&&'. \
-                Please use ';' instead. Instruction: {}", 
+                Please use ';' instead. Instruction: {}",
                 command
             ));
         }
