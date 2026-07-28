@@ -45,7 +45,7 @@ pub async fn execute(tool_name: &str, raw_params: Option<&str>, quiet: bool) -> 
     let skill = aion_types::types::SkillDefinition {
         metadata: aion_types::types::SkillMetadata {
             name: tool_name.to_string(),
-            version: "0.1.0".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
             capabilities: vec![tool_name.to_string()],
             entrypoint: format!("builtin:{tool_name}"),
             permissions: aion_types::types::PermissionSet::default_deny().with_network(true),

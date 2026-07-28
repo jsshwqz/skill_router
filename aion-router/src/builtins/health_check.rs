@@ -87,7 +87,14 @@ impl BuiltinSkill for HealthCheck {
                 );
             } else {
                 all_healthy = false;
-                engine_statuses.insert(name.to_string(), json!({ "status": "not_configured" }));
+                engine_statuses.insert(
+                    name.to_string(),
+                    json!({
+                        "status": "no_telemetry",
+                        "configuration": engine_configuration(name),
+                        "status_basis": "historical_execution_telemetry",
+                    }),
+                );
             }
         }
 
@@ -102,10 +109,10 @@ impl BuiltinSkill for HealthCheck {
                 Err(e) => json!({ "error": format!("failed to read VERSION.json: {}", e) }),
             }
         } else {
-            // Fall back to Cargo package version
+            // Fall back to the invoking Forge entrypoint version.
             json!({
-                "version": env!("CARGO_PKG_VERSION"),
-                "source": "cargo_pkg"
+                "version": _skill.metadata.version,
+                "source": "skill_metadata"
             })
         };
 
@@ -119,8 +126,70 @@ impl BuiltinSkill for HealthCheck {
             "notice": "Engine statuses summarize prior executions and are not live connectivity probes.",
             "engines": Value::Object(engine_statuses),
             "server_version": server_version,
+            "component_version": {
+                "name": env!("CARGO_PKG_NAME"),
+                "version": env!("CARGO_PKG_VERSION"),
+            },
             "health_file": health_path.to_string_lossy(),
             "timestamp": super::now_epoch_ms(),
         }))
+    }
+}
+
+fn engine_configuration(name: &str) -> &'static str {
+    let variables: &[&str] = match name {
+        "claude" => &["ANTHROPIC_API_KEY", "AION_HOST_AI_API_KEY"],
+        "openai" => &["OPENAI_API_KEY"],
+        "gemini" => &["GOOGLE_AI_API_KEY"],
+        "local" => &["AI_BASE_URL", "AI_API_KEY", "AI_MODEL"],
+        _ => &[],
+    };
+    if variables
+        .iter()
+        .any(|variable| std::env::var(variable).is_ok_and(|value| !value.trim().is_empty()))
+    {
+        "configured"
+    } else {
+        "not_configured"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    use aion_types::types::{ExecutionContext, PermissionSet, SkillDefinition, SkillMetadata, SkillSource};
+    use serde_json::json;
+
+    use super::{BuiltinSkill, HealthCheck};
+
+    #[tokio::test]
+    async fn reports_entrypoint_version_and_distinguishes_missing_telemetry() {
+        let workspace = std::env::temp_dir().join(format!("aion-health-{}", uuid::Uuid::new_v4()));
+        let skill = SkillDefinition {
+            metadata: SkillMetadata {
+                name: "health_check".to_string(),
+                version: "9.8.7".to_string(),
+                capabilities: vec!["health_check".to_string()],
+                entrypoint: "builtin:health_check".to_string(),
+                permissions: PermissionSet::default(),
+                instruction: None,
+                engine_capable: false,
+            },
+            root_dir: PathBuf::new(),
+            source: SkillSource::Local,
+        };
+        let context = ExecutionContext::new("health", "health_check").with_context(json!({"workspace": workspace}));
+
+        let report = HealthCheck.execute(&skill, &context).await.unwrap();
+
+        assert_eq!(report["server_version"]["version"], "9.8.7");
+        assert_eq!(report["server_version"]["source"], "skill_metadata");
+        assert_eq!(report["component_version"]["name"], "aion-router");
+        assert_eq!(report["engines"]["local"]["status"], "no_telemetry");
+        assert!(
+            report["engines"]["local"]["configuration"] == "configured"
+                || report["engines"]["local"]["configuration"] == "not_configured"
+        );
     }
 }
