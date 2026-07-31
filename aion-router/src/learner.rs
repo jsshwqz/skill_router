@@ -352,11 +352,11 @@ impl SkillLearner {
             let consec = stats.consecutive_failures;
             let threshold = auto_evolve_threshold();
             if consec == threshold {
-                let store = self.store_path.clone();
                 let events = self.events_path.clone();
                 let ws = self.workspace_root.clone();
+                let error_summary = Self::record_auto_evolve_event(&events, &cap, consec);
                 let _ = std::thread::spawn(move || {
-                    Self::auto_evolve_if_needed(&store, &events, &ws, &cap, consec);
+                    Self::generate_evolved_skill(&ws, &cap, consec, &error_summary);
                 });
             }
         }
@@ -882,14 +882,8 @@ impl SkillLearner {
             .collect()
     }
 
-    /// 自动进化触发：当连续失败达到阈值时记录 evolve 事件并生成 evolved 技能
-    fn auto_evolve_if_needed(
-        _store_path: &Path,
-        events_path: &Path,
-        workspace_root: &Path,
-        capability: &str,
-        consecutive_failures: u32,
-    ) {
+    /// 记录自动进化触发事件，并返回用于生成技能的错误摘要。
+    fn record_auto_evolve_event(events_path: &Path, capability: &str, consecutive_failures: u32) -> String {
         // 读取最近的失败事件以获取错误原因
         let events = Self::read_events_from(events_path);
         let failures: Vec<&str> = events
@@ -946,7 +940,11 @@ impl SkillLearner {
             capability, consecutive_failures, error_summary
         );
 
-        // 生成 evolved 技能
+        error_summary
+    }
+
+    /// 在后台生成 evolved 技能，避免阻塞执行记录。
+    fn generate_evolved_skill(workspace_root: &Path, capability: &str, consecutive_failures: u32, error_summary: &str) {
         let paths = RouterPaths::for_workspace(workspace_root);
         let _ = Synthesizer::evolve_with_failures(
             &paths,
