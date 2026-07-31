@@ -75,9 +75,22 @@ impl BuiltinSkill for EvolverGovernance {
 }
 
 fn safe_truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
+    if s.chars().count() <= max {
         s.to_string()
     } else {
-        format!("{}…", &s[..max])
+        format!("{}…", s.chars().take(max).collect::<String>())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_safe_truncate() {
+        assert_eq!(safe_truncate("你好世界", 2), "你好…");
+        assert_eq!(safe_truncate("abcdef", 3), "abc…");
+        assert_eq!(safe_truncate("abc", 0), "…");
+        assert_eq!(safe_truncate("hi", 10), "hi");
     }
 }
