@@ -82,7 +82,7 @@ mod tests {
         assert!(catalog.entries().iter().any(|entry| entry.name == "yaml_parse"));
         assert!(catalog.entries().iter().any(|entry| entry.name == "text_summarize"));
         assert!(catalog.entries().iter().any(|entry| entry.name == "code_generate"));
-        assert_eq!(catalog.entries().len(), 76);
+        assert_eq!(catalog.entries().len(), 77);
     }
 
     #[test]

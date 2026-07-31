@@ -6,6 +6,7 @@
 pub mod agent;
 pub mod ai;
 pub mod autonomous_agent;
+pub mod error_knowledge;
 pub mod evolution;
 pub mod evolver;
 pub mod format;
@@ -198,6 +199,7 @@ impl BuiltinRegistry {
         // 自主智能体 (目标驱动 autonomous agent)
         reg.register(Box::new(autonomous_agent::AutonomousAgent));
         reg.register(Box::new(evolution::EvolutionRun));
+        reg.register(Box::new(error_knowledge::ErrorKnowledge));
 
         // 图像分析
         reg.register(Box::new(image::ImageDescribe));
