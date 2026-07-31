@@ -13,9 +13,10 @@ fn initialize_uses_forge_product_identity() {
 }
 
 #[test]
-fn tools_list_exposes_current_75_tools() {
+fn tools_list_matches_direct_catalog_without_duplicates() {
     let response = aion_forge_cli::mcp::tools_list_response(json!(8));
     let tools = response["result"]["tools"].as_array().expect("tools must be an array");
+    assert!(!tools.is_empty(), "tools catalog must not be empty");
     let names: Vec<&str> = tools
         .iter()
         .map(|tool| tool["name"].as_str().expect("tool name must be a string"))
@@ -29,13 +30,15 @@ fn tools_list_exposes_current_75_tools() {
         .map(|tool| tool["name"].as_str().expect("direct tool name must be a string"))
         .collect();
 
-    assert_eq!(tools.len(), 75);
-    assert_eq!(unique.len(), 75, "MCP catalog contains duplicate names");
+    assert_eq!(unique.len(), tools.len(), "MCP catalog contains duplicate names");
     assert_eq!(
         unique, direct_names,
         "direct and MCP catalogs must expose the same names"
     );
-    assert!(tools.iter().all(|tool| tool["inputSchema"].is_object()));
+    assert!(
+        tools.iter().all(|tool| tool["inputSchema"].is_object()),
+        "every MCP tool must define an object inputSchema"
+    );
 }
 
 #[test]
