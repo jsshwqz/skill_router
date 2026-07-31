@@ -16,6 +16,7 @@ use anyhow::{anyhow, Result};
 use serde_json::{json, Value};
 
 use crate::builtins::BuiltinRegistry;
+use crate::error_kb::GateDecision;
 use crate::security::{AiSecurityReviewer, Security, Verdict};
 use aion_intel::immunity::ImmunitySystem;
 use aion_sandbox::{SandboxPolicy, SandboxedCommand, SandboxedExecutor};
@@ -51,6 +52,13 @@ impl Executor {
         paths: &RouterPaths,
     ) -> Result<ExecutionResponse> {
         Self::validate_permissions(skill, paths)?;
+
+        if let Some(learner) = crate::learner::learner() {
+            enforce_prevention_gate(
+                learner.pre_execution_gate(&context.capability, &context.context),
+                &context.context,
+            )?;
+        }
 
         // 可选前置治理（AION_EVOLVER_GOVERNANCE=true 时启用）
         if std::env::var("AION_EVOLVER_GOVERNANCE")
@@ -129,6 +137,18 @@ impl Executor {
                 error.as_deref(),
                 empty_output,
             );
+            if let Some(error) = error.as_deref() {
+                let _ = learner.observe_execution_error(&context.capability, error, &context.context);
+            } else if let Some(fingerprint) = context.context.get("error_fingerprint").and_then(Value::as_str) {
+                let _ = learner.resolve_error_fingerprint(
+                    fingerprint,
+                    env!("CARGO_PKG_VERSION"),
+                    SystemTime::now()
+                        .duration_since(SystemTime::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs(),
+                );
+            }
         }
 
         let response = response?;
@@ -365,6 +385,39 @@ impl Executor {
     }
 }
 
+fn enforce_prevention_gate(decision: GateDecision, context: &Value) -> Result<()> {
+    match decision {
+        GateDecision::Allow => Ok(()),
+        GateDecision::Block { fingerprint, reason } => {
+            let verified_replay = context
+                .get("error_fingerprint")
+                .and_then(Value::as_str)
+                .is_some_and(|value| value == fingerprint);
+            if verified_replay {
+                Ok(())
+            } else {
+                Err(anyhow!(
+                    "known error prevention blocked execution [{fingerprint}]: {reason}"
+                ))
+            }
+        }
+        GateDecision::ApplyKnownMitigation {
+            fingerprint,
+            mitigation,
+        } => {
+            let applied = context
+                .get("applied_mitigation")
+                .and_then(Value::as_str)
+                .is_some_and(|value| value == mitigation);
+            if applied {
+                Ok(())
+            } else {
+                Err(anyhow!("known mitigation required [{fingerprint}]: {mitigation}"))
+            }
+        }
+    }
+}
+
 fn builtin_error(result: &Value) -> Option<String> {
     result
         .get("error")
@@ -377,7 +430,8 @@ fn builtin_error(result: &Value) -> Option<String> {
 #[cfg(test)]
 #[allow(clippy::items_after_test_module)]
 mod tests {
-    use super::builtin_error;
+    use super::{builtin_error, enforce_prevention_gate};
+    use crate::error_kb::GateDecision;
     use serde_json::json;
 
     #[test]
@@ -388,6 +442,27 @@ mod tests {
         );
         assert_eq!(builtin_error(&json!({"error": "  "})), None);
         assert_eq!(builtin_error(&json!({"output": "ok"})), None);
+    }
+
+    #[test]
+    fn prevention_gate_allows_only_explicit_matching_replays() {
+        let decision = || GateDecision::Block {
+            fingerprint: "known".to_string(),
+            reason: "failed before".to_string(),
+        };
+        assert!(enforce_prevention_gate(decision(), &json!({})).is_err());
+        assert!(enforce_prevention_gate(decision(), &json!({"error_fingerprint":"different"})).is_err());
+        assert!(enforce_prevention_gate(decision(), &json!({"error_fingerprint":"known"})).is_ok());
+    }
+
+    #[test]
+    fn prevention_gate_requires_verified_mitigation_evidence() {
+        let decision = || GateDecision::ApplyKnownMitigation {
+            fingerprint: "known".to_string(),
+            mitigation: "restart transport".to_string(),
+        };
+        assert!(enforce_prevention_gate(decision(), &json!({})).is_err());
+        assert!(enforce_prevention_gate(decision(), &json!({"applied_mitigation":"restart transport"})).is_ok());
     }
 }
 

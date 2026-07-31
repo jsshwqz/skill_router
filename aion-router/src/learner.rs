@@ -19,6 +19,8 @@ use tracing::info;
 use aion_intel::synth::Synthesizer;
 use aion_types::types::RouterPaths;
 
+use crate::error_kb::{ErrorKnowledgeBase, ErrorObservation, ErrorRecord, GateDecision, VerifiedFix};
+
 /// 熔断器冷却期（秒）：Open 状态经过此时间后进入 HalfOpen
 const CIRCUIT_COOLDOWN_SECS: u64 = 300; // 5 分钟
 
@@ -291,6 +293,10 @@ pub struct SkillLearner {
     events_path: PathBuf,
     /// 工作区根目录（用于生成 evolved 技能）
     workspace_root: PathBuf,
+    /// Durable error knowledge base.
+    error_kb: Mutex<ErrorKnowledgeBase>,
+    /// Error knowledge base persistence path.
+    error_kb_path: PathBuf,
 }
 
 impl SkillLearner {
@@ -300,6 +306,7 @@ impl SkillLearner {
     pub fn load(learning_dir: &Path, workspace_root: &Path) -> Self {
         let store_path = learning_dir.join("skill_stats.json");
         let events_path = learning_dir.join("execution_events.jsonl");
+        let error_kb_path = learning_dir.join("error_knowledge.json");
 
         let data = if store_path.exists() {
             match fs::read_to_string(&store_path) {
@@ -315,7 +322,109 @@ impl SkillLearner {
             store_path,
             events_path,
             workspace_root: workspace_root.to_path_buf(),
+            error_kb: Mutex::new(ErrorKnowledgeBase::load(&error_kb_path).unwrap_or_default()),
+            error_kb_path,
         }
+    }
+
+    /// Record a durable error observation and return its stable fingerprint.
+    #[allow(clippy::too_many_arguments)]
+    pub fn observe_error(
+        &self,
+        capability: &str,
+        error_class: &str,
+        error: &str,
+        context: &serde_json::Value,
+        version: &str,
+        observed_at: u64,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        let mut knowledge = self.error_kb.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let fingerprint = knowledge.observe(ErrorObservation {
+            capability: capability.to_string(),
+            error_class: error_class.to_string(),
+            error: error.to_string(),
+            context: context.clone(),
+            version: version.to_string(),
+            observed_at,
+        });
+        knowledge.save(&self.error_kb_path)?;
+        Ok(fingerprint)
+    }
+
+    /// Classify and persist an execution failure using its full context.
+    pub fn observe_execution_error(
+        &self,
+        capability: &str,
+        error: &str,
+        context: &serde_json::Value,
+    ) -> Result<String, Box<dyn std::error::Error>> {
+        self.observe_error(
+            capability,
+            classify_error(error),
+            error,
+            context,
+            env!("CARGO_PKG_VERSION"),
+            now_secs(),
+        )
+    }
+
+    /// Check known errors before executing a capability with the same context.
+    pub fn pre_execution_gate(&self, capability: &str, context: &serde_json::Value) -> GateDecision {
+        self.error_kb
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .pre_execution(capability, context)
+    }
+
+    /// Return one durable error record.
+    pub fn error_record(&self, fingerprint: &str) -> Option<ErrorRecord> {
+        self.error_kb
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .get(fingerprint)
+            .cloned()
+    }
+
+    /// Resolve exactly one fingerprint after a successful verified replay.
+    pub fn resolve_error_fingerprint(
+        &self,
+        fingerprint: &str,
+        version: &str,
+        timestamp: u64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut knowledge = self.error_kb.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        knowledge.resolve_fingerprint_success(fingerprint, version, timestamp)?;
+        knowledge.save(&self.error_kb_path)?;
+        Ok(())
+    }
+
+    /// Mark an error fingerprint reproducible and persist it.
+    pub fn mark_error_reproduced(&self, fingerprint: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let mut knowledge = self.error_kb.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        knowledge.mark_reproduced(fingerprint)?;
+        knowledge.save(&self.error_kb_path)?;
+        Ok(())
+    }
+
+    /// Attach verified fix evidence and persist it.
+    pub fn mark_error_fixed(&self, fingerprint: &str, fix: VerifiedFix) -> Result<(), Box<dyn std::error::Error>> {
+        let mut knowledge = self.error_kb.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        knowledge.mark_fixed(fingerprint, fix)?;
+        knowledge.save(&self.error_kb_path)?;
+        Ok(())
+    }
+
+    /// Mark a fixed fingerprint verified for a version and persist it.
+    pub fn mark_error_verified(
+        &self,
+        fingerprint: &str,
+        version: &str,
+        timestamp: u64,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut knowledge = self.error_kb.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        knowledge.mark_verified(fingerprint, version, timestamp)?;
+        knowledge.save(&self.error_kb_path)?;
+        Ok(())
     }
 
     /// 记录一次执行结果

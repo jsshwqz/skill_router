@@ -1163,6 +1163,25 @@ impl CapabilityRegistry {
                 category: "security".to_string(),
             },
             CapabilityDefinition {
+                name: "error_knowledge".to_string(),
+                description: "Read and advance durable error fingerprints through reproduced, fixed, and verified lifecycle states, binding commits, PRs, regression tests, and mitigations.".to_string(),
+                inputs: vec!["action".to_string(), "fingerprint".to_string()],
+                outputs: vec!["status".to_string(), "record".to_string()],
+                parameters_schema: serde_json::json!({
+                    "type":"object",
+                    "properties":{
+                        "action":{"type":"string","enum":["get","reproduced","fixed","verified"]},
+                        "fingerprint":{"type":"string"},
+                        "fix":{"type":"object"},
+                        "version":{"type":"string"}
+                    },
+                    "required":["action","fingerprint"]
+                }),
+                examples: vec![],
+                requires_approval: true,
+                category: "evolution".to_string(),
+            },
+            CapabilityDefinition {
                 name: "evolution_run".to_string(),
                 description: "Evaluate generated Rust patch candidates in isolated git worktrees, run deterministic gates, reject regressions, and return promotion evidence.".to_string(),
                 inputs: vec!["request".to_string(), "candidates".to_string(), "gates".to_string()],
