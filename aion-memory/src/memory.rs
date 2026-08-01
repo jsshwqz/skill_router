@@ -145,6 +145,11 @@ impl MemoryManager {
         Ok(())
     }
 
+    /// 公开接口：从磁盘重新加载（不经过缓存，用于 recall 的场景）
+    pub fn load_raw(&self) -> Result<MemoryStore> {
+        self.load_from_disk()
+    }
+
     // ── Remember ─────────────────────────────────────────────────────────
 
     /// Auto-distillation threshold: when entries exceed this count after a write,
@@ -206,7 +211,7 @@ impl MemoryManager {
     // ── Recall (Keyword Search) ──────────────────────────────────────────
 
     pub fn recall(&self, query: &str, limit: usize) -> Result<Vec<MemoryEntry>> {
-        let mut store = self.load()?;
+        let mut store = self.load_raw()?; // P0-1 FIX: 从磁盘直接加载，不经过可能过期的缓存
         let query_lower = query.to_ascii_lowercase();
         let keywords: Vec<&str> = query_lower.split_whitespace().collect();
 
@@ -226,11 +231,14 @@ impl MemoryManager {
         scored.sort_by_key(|entry| std::cmp::Reverse(entry.1));
         scored.truncate(limit);
 
-        // Update access counts
+        // Update access counts in-place
         for (idx, _) in &scored {
             store.entries[*idx].access_count += 1;
             store.entries[*idx].last_accessed = now_epoch();
         }
+        store.last_updated = now_epoch();
+
+        // Save with cache update — now it contains all the modified entries including recall's access count changes
         self.save(&store)?;
 
         Ok(scored.iter().map(|(idx, _)| store.entries[*idx].clone()).collect())
