@@ -6,6 +6,15 @@
 
 ## 一、核心原则
 
+### 命名约定
+
+> **项目统一名称：Forge**
+> - `D:\test\aionui\forge\` — 整个 Rust 项目（源码 + 全部 70 个能力），称 **Forge**
+> - `D:\test\aionui\config\skills\aion-forge\` — Forge 在 AionUI 中的技能入口（25 个工具子集），称 **Forge 技能**
+> - **无特殊情况，一律说"Forge"**，不再区分 aion-forge / aion-forge 等变体
+>
+> 禁止再出现"AionUi 的 aion-forge"等混淆说法。
+
 - **只使用 Rust** — 禁止 Python、Go、Node.js、Shell 或其他语言。示例代码、文档代码块也必须用 Rust。
 - **专业简洁** — 回答直击要点，不需要开场白和结束语。优先给出代码，再用一句话说明原因。
 - **不确定就问** — 如果不确定某个改动是否正确，先列出两种方案的 trade-off，不要替用户做决定。
