@@ -351,12 +351,27 @@ impl SkillRouter {
                     ref preferred,
                     ref fallback_agents,
                 } => {
+                    // 升级（P3）：distributed feature 下，若存在 NATS 连接则向备份 agents
+                    // 发送任务请求实现跨节点 failover；否则（或无 NATS/超时）保留同进程降级。
+                    #[cfg(feature = "distributed")]
+                    {
+                        let mut targets = fallback_agents.clone();
+                        if !targets.iter().any(|t| t == preferred) {
+                            targets.insert(0, preferred.clone());
+                        }
+                        if let Some(result) = self.agent_failover_nats(&payload, &targets).await? {
+                            return Ok(result);
+                        }
+                        warn!(
+                            "AgentFailover: NATS unavailable or no agent replied, falling back to in-process execution"
+                        );
+                    }
                     let fallback_cap = fallback_agents
                         .first()
                         .map(|s| s.as_str())
                         .unwrap_or(preferred.as_str());
                     warn!(
-                        "AgentFailover: distributed mode not yet available, falling back to capability '{}'",
+                        "AgentFailover: in-process fallback to capability '{}'",
                         fallback_cap
                     );
                     self.route_inner(&payload.intent, fallback_cap, Some(payload.parameters.clone()))
@@ -364,6 +379,126 @@ impl SkillRouter {
                 }
             },
         }
+    }
+
+    /// AgentFailover（distributed）：通过 NATS 向备份 agents 发送任务请求实现跨节点 failover。
+    ///
+    /// 只读全局消息总线的 NATS 后端：
+    /// - 无 NATS 连接 → 返回 `Ok(None)`，调用方降级到同进程执行；
+    /// - 向每个目标 agent 的寻址 subject `aion.agents.{agent_id}.tasks` 发布
+    ///   `AgentMessage::TaskAssignment`（request-reply，correlation_id = task_id），
+    ///   然后订阅 `aion.results.{task_id}` 等待任一节点回复 `TaskResult`。
+    /// - 30s 内无人回复或执行失败 → 返回 `Ok(None)` 让调用方降级。
+    ///
+    /// 接收端（agent 侧 worker）需订阅 `aion.agents.*.tasks`、执行任务并向
+    /// `aion.results.{task_id}` 回复 TaskResult——该 worker 不属于本 crate，
+    /// 属于部署侧的 agent 运行时（参见 `message_bus::nats_subjects`）。
+    #[cfg(feature = "distributed")]
+    async fn agent_failover_nats(
+        &self,
+        payload: &AiNativePayload,
+        targets: &[String],
+    ) -> Result<Option<RouteResult>> {
+        use aion_types::agent_message::{AgentMessage, AgentMessageType};
+        use aion_types::lifecycle::LifecycleRecommendation;
+        use aion_types::types::{PermissionSet, SkillMetadata, SkillSource};
+        use futures_util::StreamExt;
+
+        // 通过全局消息总线获取 NATS 后端（无连接 → 降级同进程执行）
+        let bus = crate::message_bus::global_message_bus();
+        let Some(nats) = bus.nats_backend() else {
+            warn!("AgentFailover: no NATS connection, falling back to in-process execution");
+            return Ok(None);
+        };
+        if targets.is_empty() {
+            return Ok(None);
+        }
+
+        let capability = payload.capability.clone().unwrap_or_else(|| payload.intent.clone());
+        let task_id = uuid::Uuid::new_v4().to_string();
+        let reply_subject = format!("aion.results.{}", task_id);
+        let client = nats.client();
+
+        // 向每个 fallback agent 的寻址 subject 发布 TaskAssignment（request-reply 模式）
+        for agent in targets {
+            let subject = format!("aion.agents.{}.tasks", agent);
+            let msg = AgentMessage::new("aion-router", agent, AgentMessageType::TaskAssignment {
+                task_id: task_id.clone(),
+                task: payload.intent.clone(),
+                capability: capability.clone(),
+            })
+            .with_session(&payload.metadata.session_id)
+            .with_correlation(&task_id);
+            let bytes = serde_json::to_vec(&msg)?;
+            client.publish(subject, bytes.into()).await?;
+            info!(
+                "AgentFailover: task '{}' delegated to agent '{}' via NATS",
+                task_id, agent
+            );
+        }
+
+        // 订阅 reply subject，等待任一节点返回 TaskResult
+        let mut subscriber = match client.subscribe(reply_subject.clone()).await {
+            Ok(sub) => sub,
+            Err(e) => {
+                warn!("AgentFailover: failed to subscribe '{}': {}", reply_subject, e);
+                return Ok(None);
+            }
+        };
+        let outcome = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            while let Some(nats_msg) = subscriber.next().await {
+                let Ok(agent_msg) = serde_json::from_slice::<AgentMessage>(&nats_msg.payload) else {
+                    continue;
+                };
+                match agent_msg.message_type {
+                    AgentMessageType::TaskResult {
+                        task_id: t,
+                        success,
+                        result,
+                        error,
+                    } if t == task_id => return Some((success, result, error)),
+                    _ => {}
+                }
+            }
+            None
+        })
+        .await;
+
+        let Ok(Some((success, result, error))) = outcome else {
+            warn!("AgentFailover: no agent replied for task '{}' within timeout", task_id);
+            return Ok(None);
+        };
+
+        info!("AgentFailover: remote execution for '{}' success={}", task_id, success);
+        // 构造代表远程执行的 RouteResult（skill 为 RemoteCandidate 占位，保留真实执行结果）
+        let status = if success { "ok" } else { "error" };
+        let metadata = SkillMetadata {
+            name: format!("remote_agent.{}", task_id),
+            version: "0.1.0".to_string(),
+            capabilities: vec![capability.clone()],
+            entrypoint: "builtin:ai_task".to_string(),
+            permissions: PermissionSet::default(),
+            instruction: None,
+            engine_capable: false,
+        };
+        let skill = SkillDefinition {
+            metadata,
+            root_dir: self.paths.skills_dir.clone(),
+            source: SkillSource::RemoteCandidate,
+        };
+        let execution = ExecutionResponse {
+            status: status.to_string(),
+            result,
+            artifacts: serde_json::Value::Object(Default::default()),
+            error,
+            token_usage: None,
+        };
+        Ok(Some(RouteResult {
+            capability,
+            skill,
+            execution,
+            lifecycle: LifecycleRecommendation::Observe,
+        }))
     }
 
     /// Record significant execution results to the memory system for cross-session learning.

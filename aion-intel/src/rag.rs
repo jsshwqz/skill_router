@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
 
 /// 文档块
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -52,7 +53,13 @@ pub struct RagEngine {
     chunks: Vec<DocumentChunk>,
     /// 存储路径
     store_path: PathBuf,
+    /// usearch HNSW 索引（余弦相似度检索加速层）。
+    /// `None` 表示索引不可用，检索降级为手写全量余弦扫描。
+    index: Option<Index>,
 }
+
+/// usearch 索引文件名（存于 rag/ 目录下）
+const INDEX_FILE: &str = "usearch.index";
 
 impl RagEngine {
     /// 创建或加载 RAG 引擎
@@ -68,7 +75,13 @@ impl RagEngine {
             Vec::new()
         };
 
-        Ok(Self { chunks, store_path })
+        let mut engine = Self {
+            chunks,
+            store_path,
+            index: None,
+        };
+        engine.restore_index();
+        Ok(engine)
     }
 
     /// 摄入文档
@@ -98,6 +111,7 @@ impl RagEngine {
             count += 1;
         }
 
+        self.rebuild_index();
         self.save()?;
         tracing::info!(
             source = %source,
@@ -111,21 +125,40 @@ impl RagEngine {
 
     /// 检索最相关的文档块
     pub fn search(&self, query_embedding: &[f32], top_k: usize) -> Vec<RetrievalResult> {
-        let mut scored: Vec<RetrievalResult> = self
-            .chunks
-            .iter()
-            .map(|chunk| {
-                let score = Self::cosine_similarity(query_embedding, &chunk.embedding);
-                RetrievalResult {
-                    chunk: chunk.clone(),
-                    score,
-                }
-            })
-            .collect();
+        if top_k == 0 {
+            return Vec::new();
+        }
 
-        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-        scored.truncate(top_k);
-        scored
+        // 优先使用 usearch HNSW 索引加速（仅当查询维度与索引维度一致时）
+        if let Some(index) = &self.index {
+            if index.dimensions() == query_embedding.len() {
+                if let Ok(matches) = index.search(query_embedding, top_k) {
+                    let mut results: Vec<RetrievalResult> = matches
+                        .keys
+                        .iter()
+                        .zip(matches.distances.iter())
+                        .filter_map(|(&key, _dist)| {
+                            let pos = key as usize;
+                            self.chunks.get(pos).map(|chunk| RetrievalResult {
+                                chunk: chunk.clone(),
+                                // 分数用手写余弦计算，保证与降级路径分数语义完全一致
+                                score: Self::cosine_similarity(query_embedding, &chunk.embedding),
+                            })
+                        })
+                        .collect();
+                    results.sort_by(|a, b| {
+                        b.score
+                            .partial_cmp(&a.score)
+                            .unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                    results.truncate(top_k);
+                    return results;
+                }
+            }
+        }
+
+        // 降级：usearch 不可用或维度不匹配时，使用手写全量余弦扫描
+        self.bruteforce_search(query_embedding, top_k)
     }
 
     /// 检索并用 AI 生成增强回答
@@ -206,7 +239,124 @@ impl RagEngine {
         let chunks_file = self.store_path.join("chunks.json");
         let content = serde_json::to_string(&self.chunks)?;
         std::fs::write(chunks_file, content)?;
+        if let Some(index) = &self.index {
+            self.save_index(index)?;
+        }
         Ok(())
+    }
+
+    /// 保存 usearch 索引到磁盘
+    fn save_index(&self, index: &Index) -> Result<()> {
+        let index_file = self.store_path.join(INDEX_FILE);
+        let path = index_file
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("RAG: index path is not valid UTF-8"))?;
+        index.save(path)?;
+        Ok(())
+    }
+
+    /// 尝试从磁盘恢复 usearch 索引；文件缺失/损坏/与 chunks 不一致时重建；
+    /// usearch 不可用时保持 `None`（降级手写全量余弦扫描）。
+    fn restore_index(&mut self) {
+        let index_file = self.store_path.join(INDEX_FILE);
+        if index_file.exists() {
+            if let Ok(index) = Self::open_index(&index_file) {
+                let dim = index.dimensions();
+                let expected = self
+                    .chunks
+                    .iter()
+                    .filter(|c| !c.embedding.is_empty() && c.embedding.len() == dim)
+                    .count();
+                if index.size() == expected {
+                    self.index = Some(index);
+                    return;
+                }
+                tracing::warn!(
+                    expected,
+                    actual = index.size(),
+                    "RAG: usearch index size mismatch, rebuilding"
+                );
+            }
+        }
+        self.rebuild_index();
+    }
+
+    /// 从磁盘加载 usearch 索引（一步完成 metadata 读取 + 构造 + 加载）
+    fn open_index(index_file: &Path) -> Result<Index> {
+        let path = index_file
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("RAG: index path is not valid UTF-8"))?;
+        Ok(Index::restore(path)?)
+    }
+
+    /// 从当前 chunks 全量重建 usearch 索引；失败时置 `None`（不传播，降级手写）。
+    fn rebuild_index(&mut self) {
+        self.index = Self::build_index(&self.chunks);
+    }
+
+    /// 用 usearch 构建 HNSW 索引（Cosine 度量）。
+    /// key 为 chunk 在 `chunks` 中的位置；跳过空 embedding 或维度不一致的块。
+    /// 返回 `None` 表示索引不可用。
+    fn build_index(chunks: &[DocumentChunk]) -> Option<Index> {
+        let dim = chunks
+            .iter()
+            .find(|c| !c.embedding.is_empty())
+            .map(|c| c.embedding.len())?;
+
+        let options = IndexOptions {
+            dimensions: dim,
+            metric: MetricKind::Cos,
+            quantization: ScalarKind::F32,
+            connectivity: 16,
+            expansion_add: 128,
+            expansion_search: 64,
+            multi: false,
+        };
+
+        let index = match Index::new(&options) {
+            Ok(i) => i,
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    "RAG: usearch index creation failed, falling back to brute-force search"
+                );
+                return None;
+            }
+        };
+        let _ = index.reserve(chunks.len());
+
+        for (pos, chunk) in chunks.iter().enumerate() {
+            if chunk.embedding.is_empty() || chunk.embedding.len() != dim {
+                continue;
+            }
+            if let Err(e) = index.add(pos as u64, &chunk.embedding) {
+                tracing::warn!(
+                    error = %e,
+                    "RAG: usearch index add failed, falling back to brute-force search"
+                );
+                return None;
+            }
+        }
+        Some(index)
+    }
+
+    /// 手写全量余弦相似度检索（降级路径，保留原有检索语义）
+    fn bruteforce_search(&self, query_embedding: &[f32], top_k: usize) -> Vec<RetrievalResult> {
+        let mut scored: Vec<RetrievalResult> = self
+            .chunks
+            .iter()
+            .map(|chunk| {
+                let score = Self::cosine_similarity(query_embedding, &chunk.embedding);
+                RetrievalResult {
+                    chunk: chunk.clone(),
+                    score,
+                }
+            })
+            .collect();
+
+        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scored.truncate(top_k);
+        scored
     }
 
     /// 文本分块（按段落，每块约 max_chars 字）
@@ -481,5 +631,47 @@ mod tests {
         let h3 = RagEngine::simple_hash("other.md");
         assert_eq!(h1, h2);
         assert_ne!(h1, h3);
+    }
+
+    #[test]
+    fn test_usearch_index_roundtrip() {
+        // usearch 不可用时自动跳过（降级路径由其余测试覆盖）
+        if Index::new(&IndexOptions {
+            dimensions: 8,
+            metric: MetricKind::Cos,
+            quantization: ScalarKind::F32,
+            connectivity: 16,
+            expansion_add: 128,
+            expansion_search: 64,
+            multi: false,
+        })
+        .is_err()
+        {
+            return;
+        }
+
+        let chunks: Vec<DocumentChunk> = vec![
+            DocumentChunk {
+                id: "a_0".into(),
+                source: "a.md".into(),
+                content: "rust programming".into(),
+                embedding: RagEngine::fallback_embedding("rust programming language"),
+                metadata: json!({}),
+            },
+            DocumentChunk {
+                id: "b_0".into(),
+                source: "b.md".into(),
+                content: "cooking recipes".into(),
+                embedding: RagEngine::fallback_embedding("cooking recipes dessert"),
+                metadata: json!({}),
+            },
+        ];
+
+        let index = RagEngine::build_index(&chunks).expect("usearch index should build");
+        let query = RagEngine::fallback_embedding("rust programming tutorial");
+        let matches = index.search(&query, 2).unwrap();
+        assert!(!matches.keys.is_empty());
+        // 相关文本块应被命中
+        assert_eq!(matches.keys[0], 0);
     }
 }

@@ -36,12 +36,9 @@ impl Engine {
         let memory = MemoryManager::new(&workspace);
 
         let http = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(
-                std::env::var("REQUEST_TIMEOUT")
-                    .ok()
-                    .and_then(|v| v.parse().ok())
-                    .unwrap_or(120),
-            ))
+            .timeout(std::time::Duration::from_secs(timeout_secs(
+                std::env::var("REQUEST_TIMEOUT").ok(),
+            )))
             .build()?;
 
         let ai_base_url = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".into());
@@ -71,5 +68,32 @@ impl Engine {
     /// Route a task through aion-router (in-process, no HTTP)
     pub async fn route(&self, task: &str) -> anyhow::Result<aion_types::types::RouteResult> {
         self.router.route(task).await
+    }
+}
+
+/// Resolve the request timeout (seconds) from the `REQUEST_TIMEOUT` env var.
+/// Falls back to 120s for a missing or non-numeric value.
+fn timeout_secs(env: Option<String>) -> u64 {
+    env.and_then(|v| v.parse().ok()).unwrap_or(120)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::timeout_secs;
+
+    #[test]
+    fn timeout_defaults_to_120_seconds() {
+        assert_eq!(timeout_secs(None), 120);
+    }
+
+    #[test]
+    fn timeout_parses_valid_value() {
+        assert_eq!(timeout_secs(Some("30".into())), 30);
+    }
+
+    #[test]
+    fn timeout_ignores_non_numeric_value() {
+        assert_eq!(timeout_secs(Some("fast".into())), 120);
+        assert_eq!(timeout_secs(Some("-5".into())), 120);
     }
 }

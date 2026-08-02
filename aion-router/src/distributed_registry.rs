@@ -70,9 +70,12 @@ mod nats_registry {
             use futures_util::StreamExt;
             while let Some(key) = keys.next().await {
                 if let Ok(key) = key {
-                    match kv.get(&key).await {
-                        Ok(Some(bytes)) => {
-                            if let Ok(def) = serde_json::from_slice::<CapabilityDefinition>(&bytes) {
+                    // async-nats 0.50（docs.rs/async-nats/0.50.0/async_nats/jetstream/kv/struct.Store.html）：
+                    // `Store::get` 已移除，改由 `Store::entry` 返回 `Result<Option<Entry>>`，
+                    // `Entry.value: bytes::Bytes` 承载值。
+                    match kv.entry(&key).await {
+                        Ok(Some(entry)) => {
+                            if let Ok(def) = serde_json::from_slice::<CapabilityDefinition>(&entry.value) {
                                 debug!("NatsRegistry: synced capability '{}'", def.name);
                                 self.cache.insert(def.name.clone(), def);
                                 count += 1;

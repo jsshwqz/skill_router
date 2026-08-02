@@ -28,9 +28,24 @@ metrics = { workspace = true }
 flate2 = { workspace = true }
 glitch-filter = { workspace = true }
 jsonschema = { workspace = true }
+yaml-rust2 = { workspace = true }
+toml = { workspace = true }
+csv = { workspace = true }
+pdf-extract = { workspace = true }
+pulldown-cmark = { workspace = true }
+similar = { workspace = true }
+jsonpath-rust = { workspace = true }
 
 # D1: distributed mode dependencies (feature-gated)
 async-nats = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 tower-http = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
+
+# MCP client (rmcp 3.1，替换手写 JSON-RPC over stdio)
+# 说明（升级依据：docs.rs/rmcp/3.1.0）：
+# - workspace 已声明 features = ["client","server","transport-io"]（server 端 stdio）。
+#   client 端 stdio 需要额外的 transport-child-process；streamable HTTP client（SSE 替代）
+#   需要 transport-streamable-http-client-reqwest。member 声明的 features 与 workspace
+#   声明的 features 取并集，不会覆盖。
+rmcp = { workspace = true, features = ["transport-child-process", "transport-streamable-http-client-reqwest"] }

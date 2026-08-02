@@ -60,30 +60,30 @@ impl BuiltinSkill for TextDiff {
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let a = context.context["a"].as_str().unwrap_or("");
         let b = context.context["b"].as_str().unwrap_or("");
-        let al: Vec<&str> = a.lines().collect();
-        let bl: Vec<&str> = b.lines().collect();
 
-        // LCS-based unified diff
-        let lcs = lcs_table(&al, &bl);
+        // similar 库的行级 diff
+        let text_diff = similar::TextDiff::from_lines(a, b);
         let mut diff: Vec<Value> = Vec::new();
         let mut added = 0usize;
         let mut removed = 0usize;
         let mut unchanged = 0usize;
-
-        lcs_diff(&lcs, &al, &bl, al.len(), bl.len(), &mut |op, line| match op {
-            '-' => {
-                removed += 1;
-                diff.push(json!({"op": "-", "line": line}));
+        for change in text_diff.iter_all_changes() {
+            let line = change.value().trim_end_matches('\n');
+            match change.tag() {
+                similar::ChangeTag::Delete => {
+                    removed += 1;
+                    diff.push(json!({"op": "-", "line": line}));
+                }
+                similar::ChangeTag::Insert => {
+                    added += 1;
+                    diff.push(json!({"op": "+", "line": line}));
+                }
+                similar::ChangeTag::Equal => {
+                    unchanged += 1;
+                    diff.push(json!({"op": " ", "line": line}));
+                }
             }
-            '+' => {
-                added += 1;
-                diff.push(json!({"op": "+", "line": line}));
-            }
-            _ => {
-                unchanged += 1;
-                diff.push(json!({"op": " ", "line": line}));
-            }
-        });
+        }
 
         Ok(json!({"added": added, "removed": removed, "unchanged": unchanged, "diff": diff}))
     }
@@ -155,22 +155,68 @@ impl BuiltinSkill for MarkdownRender {
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = require_text(context)?;
+        let parser = pulldown_cmark::Parser::new(&text);
         let mut sections: Vec<Value> = Vec::new();
         let mut heading = String::new();
         let mut body: Vec<String> = Vec::new();
-        for line in text.lines() {
-            if let Some(stripped) = line.strip_prefix("# ") {
-                if !heading.is_empty() {
-                    sections.push(json!({"heading": heading, "body": body.join("\n")}));
-                    body.clear();
+        let mut heading_buf = String::new();
+        let mut heading_level: Option<u8> = None;
+        let mut line_buf = String::new();
+
+        macro_rules! flush_line {
+            () => {
+                if !line_buf.is_empty() {
+                    body.push(std::mem::take(&mut line_buf));
+                } else {
+                    line_buf.clear();
                 }
-                heading = stripped.to_string();
-            } else if let Some(stripped) = line.strip_prefix("## ") {
-                body.push(format!("[{}]", stripped));
-            } else {
-                body.push(line.to_string());
+            };
+        }
+
+        for event in parser {
+            match event {
+                pulldown_cmark::Event::Start(pulldown_cmark::Tag::Heading { level, .. }) => {
+                    heading_level = Some(level as u8);
+                    if level as u8 == 1 {
+                        flush_line!();
+                        if !heading.is_empty() {
+                            sections.push(json!({"heading": heading, "body": body.join("\n")}));
+                            body.clear();
+                        }
+                        heading.clear();
+                    }
+                }
+                pulldown_cmark::Event::End(pulldown_cmark::TagEnd::Heading(_)) => {
+                    if let Some(level) = heading_level.take() {
+                        let title = std::mem::take(&mut heading_buf).trim().to_string();
+                        if level == 1 {
+                            heading = title;
+                        } else if !title.is_empty() {
+                            flush_line!();
+                            body.push(format!("[{}]", title));
+                        }
+                    }
+                }
+                pulldown_cmark::Event::Text(t) => {
+                    if heading_level.is_some() {
+                        if !heading_buf.is_empty() {
+                            heading_buf.push(' ');
+                        }
+                        heading_buf.push_str(&t);
+                    } else {
+                        line_buf.push_str(&t);
+                    }
+                }
+                pulldown_cmark::Event::SoftBreak | pulldown_cmark::Event::HardBreak => {
+                    flush_line!();
+                }
+                pulldown_cmark::Event::End(pulldown_cmark::TagEnd::Paragraph) => {
+                    flush_line!();
+                }
+                _ => {}
             }
         }
+        flush_line!();
         if !heading.is_empty() {
             sections.push(json!({"heading": heading, "body": body.join("\n")}));
         }
@@ -238,35 +284,3 @@ mod tests {
     }
 }
 
-// ── LCS diff 算法 ──────────────────────────────────────────────────────────
-
-/// 构建 LCS 长度表
-fn lcs_table<'a>(a: &[&'a str], b: &[&'a str]) -> Vec<Vec<usize>> {
-    let m = a.len();
-    let n = b.len();
-    let mut table = vec![vec![0usize; n + 1]; m + 1];
-    for i in 1..=m {
-        for j in 1..=n {
-            table[i][j] = if a[i - 1] == b[j - 1] {
-                table[i - 1][j - 1] + 1
-            } else {
-                table[i - 1][j].max(table[i][j - 1])
-            };
-        }
-    }
-    table
-}
-
-/// 回溯 LCS 表生成 diff 操作序列
-fn lcs_diff(table: &[Vec<usize>], a: &[&str], b: &[&str], i: usize, j: usize, emit: &mut impl FnMut(char, &str)) {
-    if i > 0 && j > 0 && a[i - 1] == b[j - 1] {
-        lcs_diff(table, a, b, i - 1, j - 1, emit);
-        emit(' ', a[i - 1]);
-    } else if j > 0 && (i == 0 || table[i][j - 1] >= table[i - 1][j]) {
-        lcs_diff(table, a, b, i, j - 1, emit);
-        emit('+', b[j - 1]);
-    } else if i > 0 {
-        lcs_diff(table, a, b, i - 1, j, emit);
-        emit('-', a[i - 1]);
-    }
-}

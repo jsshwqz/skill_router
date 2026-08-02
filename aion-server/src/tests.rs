@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use axum::routing::{get, post};
 use axum::Router;
 use http_body_util::BodyExt;
 use serde_json::Value;
@@ -18,8 +17,8 @@ use aion_memory::memory::MemoryManager;
 use aion_router::SkillRouter;
 use aion_types::types::RouterPaths;
 
+use crate::build_app;
 use crate::events::EventBus;
-use crate::handlers;
 use crate::AppState;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -43,20 +42,9 @@ fn test_state(tmp: &Path) -> Arc<AppState> {
     })
 }
 
-/// Build the axum Router with all routes and the given state.
+/// Build the axum Router with all routes and the given state (authentication disabled).
 fn test_app(state: Arc<AppState>) -> Router {
-    Router::new()
-        .route("/v1/health", get(handlers::health))
-        .route("/v1/metrics", get(handlers::metrics))
-        .route("/v1/capabilities", get(handlers::list_capabilities))
-        .route("/v1/route", post(handlers::route_task))
-        .route("/v1/route/native", post(handlers::route_native))
-        .route("/v1/memory/recall", get(handlers::memory_recall))
-        .route("/v1/memory/remember", post(handlers::memory_remember))
-        .route("/v1/memory/stats", get(handlers::memory_stats))
-        .route("/v1/agents", get(handlers::agents_info))
-        .route("/v1/agents/delegate", post(handlers::agent_delegate))
-        .with_state(state)
+    build_app(state, None)
 }
 
 /// Send a request and return (StatusCode, parsed JSON body).
@@ -362,4 +350,59 @@ async fn memory_remember_default_importance() {
     let entries = body2["entries"].as_array().unwrap();
     assert!(!entries.is_empty());
     assert_eq!(entries[0]["importance"], 5);
+}
+
+// ── Authentication (Bearer token) ───────────────────────────────────────────
+
+#[tokio::test]
+async fn auth_requires_token_on_protected_routes() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = test_state(tmp.path());
+    let app = build_app(state, Some("secret-token".to_string()));
+
+    // 无 Authorization 头 → 401
+    let req = Request::get("/v1/capabilities").body(Body::empty()).unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
+    // 错误 token → 401
+    let req = Request::get("/v1/capabilities")
+        .header("authorization", "Bearer wrong-token")
+        .body(Body::empty())
+        .unwrap();
+    let resp = app.clone().oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
+    // 正确 token → 200
+    let req = Request::get("/v1/capabilities")
+        .header("authorization", "Bearer secret-token")
+        .body(Body::empty())
+        .unwrap();
+    let (status, _body) = json_response(app, req).await;
+    assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn auth_health_stays_public() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = test_state(tmp.path());
+    let app = build_app(state, Some("secret-token".to_string()));
+
+    // 即使配置了 token，/v1/health 仍可匿名访问
+    let req = Request::get("/v1/health").body(Body::empty()).unwrap();
+    let (status, body) = json_response(app, req).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ok");
+}
+
+#[tokio::test]
+async fn no_auth_when_token_unset() {
+    let tmp = tempfile::tempdir().unwrap();
+    let state = test_state(tmp.path());
+    let app = test_app(state);
+
+    // AION_API_TOKEN 未设置（None）时，路由无需认证即可访问
+    let req = Request::get("/v1/capabilities").body(Body::empty()).unwrap();
+    let (status, _body) = json_response(app, req).await;
+    assert_eq!(status, StatusCode::OK);
 }

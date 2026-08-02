@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
 use glitch_filter::Sanitizer;
+use jsonpath_rust::JsonPath;
 
 use super::{extract_text, BuiltinSkill};
 
@@ -87,8 +88,18 @@ impl BuiltinSkill for JsonQuery {
 
         let data: Value = serde_json::from_str(data_str).map_err(|e| anyhow!("invalid JSON in 'data': {}", e))?;
 
-        // 简易 JSONPath 实现：支持 $.key.subkey[N] 格式
-        let results = simple_jsonpath(&data, path);
+        // jsonpath-rust 库查询（兼容无 $ 前缀的路径形式，如 [*]）
+        let query_path = if path.starts_with('$') || path.starts_with('@') {
+            path.to_string()
+        } else {
+            format!("${}", path)
+        };
+        let results: Vec<Value> = data
+            .query(&query_path)
+            .unwrap_or_default()
+            .into_iter()
+            .cloned()
+            .collect();
 
         Ok(json!({
             "path": path,
@@ -96,74 +107,6 @@ impl BuiltinSkill for JsonQuery {
             "count": results.len(),
         }))
     }
-}
-
-/// 简易 JSONPath 查询（支持 $.a.b[0].c 风格路径）
-fn simple_jsonpath(data: &Value, path: &str) -> Vec<Value> {
-    let path = path.trim_start_matches('$').trim_start_matches('.');
-    if path.is_empty() {
-        return vec![data.clone()];
-    }
-
-    let mut current = vec![data.clone()];
-    for segment in split_path(path) {
-        let mut next = Vec::new();
-        for val in &current {
-            if let Some(idx_str) = segment.strip_prefix('[').and_then(|s| s.strip_suffix(']')) {
-                // 数组索引
-                if let Ok(idx) = idx_str.parse::<usize>() {
-                    if let Some(item) = val.as_array().and_then(|arr| arr.get(idx)) {
-                        next.push(item.clone());
-                    }
-                } else if idx_str == "*" {
-                    if let Some(arr) = val.as_array() {
-                        next.extend(arr.iter().cloned());
-                    }
-                }
-            } else {
-                // 对象 key
-                if let Some(v) = val.get(&segment) {
-                    next.push(v.clone());
-                }
-            }
-        }
-        current = next;
-    }
-    current
-}
-
-/// 将 JSONPath 路径分割为段
-fn split_path(path: &str) -> Vec<String> {
-    let mut segments = Vec::new();
-    let mut current = String::new();
-    let mut in_bracket = false;
-
-    for ch in path.chars() {
-        match ch {
-            '[' => {
-                if !current.is_empty() {
-                    segments.push(std::mem::take(&mut current));
-                }
-                in_bracket = true;
-                current.push('[');
-            }
-            ']' => {
-                current.push(']');
-                segments.push(std::mem::take(&mut current));
-                in_bracket = false;
-            }
-            '.' if !in_bracket => {
-                if !current.is_empty() {
-                    segments.push(std::mem::take(&mut current));
-                }
-            }
-            _ => current.push(ch),
-        }
-    }
-    if !current.is_empty() {
-        segments.push(current);
-    }
-    segments
 }
 
 // ── regex_match ─────────────────────────────────────────────────────────────

@@ -139,13 +139,24 @@ impl Engine {
             MemoryCategory::Decision,
         );
 
-        Ok(DialecticalResult {
-            task: task.into(),
-            thesis,
-            antithesis,
-            synthesis,
-            session_id,
-        })
+        Ok(build_dialectical_result(task, session_id, &t, &a, &s))
+    }
+}
+
+/// Compose a [`DialecticalResult`] from the three AI passes' raw JSON.
+fn build_dialectical_result(
+    task: &str,
+    session_id: String,
+    thesis: &serde_json::Value,
+    antithesis: &serde_json::Value,
+    synthesis: &serde_json::Value,
+) -> DialecticalResult {
+    DialecticalResult {
+        task: task.into(),
+        thesis: parse_pos("thesis", thesis),
+        antithesis: parse_pos("antithesis", antithesis),
+        synthesis: parse_pos("synthesis", synthesis),
+        session_id,
     }
 }
 
@@ -162,5 +173,74 @@ fn parse_pos(moment: &str, v: &serde_json::Value) -> Position {
             .map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect())
             .unwrap_or_default(),
         confidence: v["confidence"].as_f64().unwrap_or(0.5) as f32,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn position_json(content: &str, strengths: &[&str], weaknesses: &[&str], confidence: f64) -> serde_json::Value {
+        json!({
+            "content": content,
+            "strengths": strengths,
+            "weaknesses": weaknesses,
+            "confidence": confidence
+        })
+    }
+
+    #[test]
+    fn parse_pos_maps_all_fields() {
+        let v = position_json("proposed solution", &["a", "b"], &["c"], 0.9);
+        let p = parse_pos("thesis", &v);
+        assert_eq!(p.moment, "thesis");
+        assert_eq!(p.content, "proposed solution");
+        assert_eq!(p.strengths, vec!["a", "b"]);
+        assert_eq!(p.weaknesses, vec!["c"]);
+        assert_eq!(p.confidence, 0.9);
+    }
+
+    #[test]
+    fn parse_pos_uses_defaults_for_missing_fields() {
+        let p = parse_pos("antithesis", &json!({}));
+        assert_eq!(p.moment, "antithesis");
+        assert_eq!(p.content, "");
+        assert!(p.strengths.is_empty());
+        assert!(p.weaknesses.is_empty());
+        assert_eq!(p.confidence, 0.5);
+    }
+
+    #[test]
+    fn dialectical_result_has_thesis_antithesis_synthesis_structure() {
+        let t = position_json("do A", &["fast"], &["risky"], 0.8);
+        let a = position_json("do B", &["safe"], &["slow"], 0.6);
+        let s = position_json("do A then B", &["fast", "safe"], &["complex"], 0.9);
+
+        let result = build_dialectical_result("task", "session-1".into(), &t, &a, &s);
+        assert_eq!(result.task, "task");
+        assert_eq!(result.session_id, "session-1");
+        assert_eq!(result.thesis.moment, "thesis");
+        assert_eq!(result.antithesis.moment, "antithesis");
+        assert_eq!(result.synthesis.moment, "synthesis");
+        assert_eq!(result.thesis.content, "do A");
+        assert_eq!(result.antithesis.content, "do B");
+        assert_eq!(result.synthesis.content, "do A then B");
+        assert_eq!(result.synthesis.confidence, 0.9);
+    }
+
+    #[test]
+    fn dialectical_result_serde_roundtrip() {
+        let t = position_json("t", &["x"], &["y"], 0.7);
+        let a = position_json("a", &[], &["z"], 0.4);
+        let s = position_json("s", &["x", "z"], &[], 0.8);
+        let result = build_dialectical_result("task", "uuid-123".into(), &t, &a, &s);
+
+        let back: DialecticalResult = serde_json::from_str(&serde_json::to_string(&result).unwrap()).unwrap();
+        assert_eq!(back.task, "task");
+        assert_eq!(back.session_id, "uuid-123");
+        assert_eq!(back.thesis.moment, "thesis");
+        assert_eq!(back.synthesis.moment, "synthesis");
+        assert_eq!(back.antithesis.weaknesses, vec!["z"]);
     }
 }

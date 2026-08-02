@@ -2,20 +2,34 @@
 //!
 //! 支持两种传输方式：
 //! - **Stdio**：启动子进程，通过 stdin/stdout 交换 JSON-RPC
-//! - **Sse**：HTTP SSE 连接（预留，MVP 先实现 Stdio）
+//! - **Streamable HTTP**：HTTP 传输（旧 SSE 模式的现代等价物）
 //!
 //! 连接后自动发现工具并注册到 CapabilityRegistry。
+//!
+//! # 实现说明（升级 2026-08-02）
+//! 底层由手写 JSON-RPC-over-stdio 替换为 **rmcp 3.1**（官方 Rust SDK，docs.rs/rmcp/3.1.0）：
+//! - `rmcp::client::ClientHandler`（handler trait）+ `rmcp::service::serve_client`
+//! - 客户端 stdio 传输：`rmcp::transport::child_process::TokioChildProcess`
+//! - streamable HTTP 传输（原 SSE 预留位）：`rmcp::transport::StreamableHttpClientTransport::from_uri`
+//!   （feature `transport-streamable-http-client-reqwest`）
+//! 公开结构与方法签名保持不变（`McpClientManager::new / load_from_config / connect /
+//! connect_stdio / call_tool / all_tools / connected_servers / disconnect / shutdown`）。
+//! initialize 握手、协议版本协商、tools/list 分页等由 rmcp 自动处理。
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
+use std::process::Stdio;
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, Command};
-use tokio::sync::Mutex;
+use tokio::process::Command;
+
+use rmcp::model::{CallToolRequestParams, Tool};
+use rmcp::service::{serve_client, RunningService};
+use rmcp::transport::child_process::TokioChildProcess;
+use rmcp::transport::StreamableHttpClientTransport;
+use rmcp::{ClientHandler, RoleClient};
 
 /// MCP 传输方式
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,7 +41,7 @@ pub enum McpTransport {
         #[serde(default)]
         args: Vec<String>,
     },
-    /// SSE 模式（预留）
+    /// Streamable HTTP 模式（旧 SSE 的现代等价物，rmcp 支持）
     Sse { url: String },
 }
 
@@ -58,18 +72,21 @@ pub struct McpTool {
     pub server_name: String,
 }
 
+/// rmcp 客户端 handler（处理 MCP server 发来的回调请求）。
+///
+/// 使用默认行为（ping 应答、通知忽略等）；`get_info` 返回默认 ClientInfo。
+/// 因 `ClientHandler` 的 `get_info` 有默认实现，空实现即可。
+#[derive(Debug, Clone, Copy, Default)]
+struct AionMcpClientHandler;
+
+impl ClientHandler for AionMcpClientHandler {}
+
 /// 活跃的 MCP 服务器连接
 struct McpServerHandle {
-    /// 子进程（Stdio 模式）
-    child: Child,
-    /// stdin writer
-    stdin: tokio::process::ChildStdin,
-    /// stdout reader
-    stdout: Arc<Mutex<BufReader<tokio::process::ChildStdout>>>,
+    /// rmcp 运行中的客户端服务（内部持有传输与后台任务）
+    service: RunningService<RoleClient, AionMcpClientHandler>,
     /// 发现的工具
     tools: Vec<McpTool>,
-    /// 下一个请求 ID
-    next_id: u64,
 }
 
 /// MCP 配置文件结构
@@ -136,11 +153,13 @@ impl McpClientManager {
     pub async fn connect(&mut self, name: &str, config: &McpServerConfig) -> Result<usize> {
         match &config.transport {
             McpTransport::Stdio { command, args } => self.connect_stdio(name, command, args, &config.env).await,
-            McpTransport::Sse { url } => Err(anyhow!("SSE transport not yet implemented for {}", url)),
+            // 升级：rmcp 3.1 支持 streamable HTTP client（SSE 传输的现代规范替代），
+            // 不再返回 "not yet implemented"。
+            McpTransport::Sse { url } => self.connect_streamable_http(name, url).await,
         }
     }
 
-    /// Stdio 模式连接
+    /// Stdio 模式连接（rmcp `TokioChildProcess` + `serve_client`）
     async fn connect_stdio(
         &mut self,
         name: &str,
@@ -150,9 +169,9 @@ impl McpClientManager {
     ) -> Result<usize> {
         let mut cmd = Command::new(command);
         cmd.args(args)
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::null())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
             .kill_on_drop(true);
 
         // 设置环境变量（支持 ${VAR} 引用系统变量）
@@ -161,92 +180,68 @@ impl McpClientManager {
             cmd.env(k, resolved);
         }
 
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| anyhow!("failed to start MCP server '{}' ({}): {}", name, command, e))?;
+        let transport = TokioChildProcess::new(cmd).map_err(|e| {
+            anyhow!("failed to start MCP server '{}' ({}): {}", name, command, e)
+        })?;
 
-        let stdin = child.stdin.take().ok_or_else(|| anyhow!("no stdin for {}", name))?;
-        let stdout = child.stdout.take().ok_or_else(|| anyhow!("no stdout for {}", name))?;
-        let stdout = Arc::new(Mutex::new(BufReader::new(stdout)));
+        // serve_client 自动完成 initialize 握手与协议版本协商
+        let service = serve_client(AionMcpClientHandler, transport)
+            .await
+            .map_err(|e| {
+                anyhow!("failed to initialize MCP server '{}' ({}): {}", name, command, e)
+            })?;
 
-        let mut handle = McpServerHandle {
-            child,
-            stdin,
-            stdout,
-            tools: Vec::new(),
-            next_id: 1,
-        };
+        // 记录协商出的协议版本（rmcp 内部已完成握手）
+        if let Some(info) = service.peer().peer_info() {
+            tracing::info!(
+                server = %name,
+                protocol = %info.protocol_version,
+                "MCP initialized"
+            );
+        }
 
-        // 初始化握手
-        Self::initialize(&mut handle, name).await?;
-
-        // 发现工具
-        let tools = Self::list_tools(&mut handle, name).await?;
+        // 发现工具（tools/list，rmcp 自动处理分页）
+        let list = service.peer().list_tools(None).await.map_err(|e| {
+            anyhow!("failed to list tools on MCP server '{}': {}", name, e)
+        })?;
+        let tools: Vec<McpTool> = list
+            .tools
+            .into_iter()
+            .map(|tool| mcp_tool_from_rmcp(tool, name))
+            .collect();
         let tool_count = tools.len();
-        handle.tools = tools;
 
-        self.servers.insert(name.to_string(), handle);
+        self.servers.insert(name.to_string(), McpServerHandle { service, tools });
         Ok(tool_count)
     }
 
-    /// 发送 initialize 请求
-    async fn initialize(handle: &mut McpServerHandle, name: &str) -> Result<()> {
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": handle.next_id,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {
-                    "name": "aion-forge",
-                    "version": "0.5.0"
-                }
-            }
-        });
-        handle.next_id += 1;
+    /// Streamable HTTP 模式连接（rmcp `StreamableHttpClientTransport`，替代旧 SSE）
+    async fn connect_streamable_http(&mut self, name: &str, url: &str) -> Result<usize> {
+        let transport = StreamableHttpClientTransport::from_uri(url.to_string());
+        let service = serve_client(AionMcpClientHandler, transport)
+            .await
+            .map_err(|e| anyhow!("failed to initialize MCP server '{}' ({}): {}", name, url, e))?;
 
-        let response = Self::send_request(handle, &request).await?;
-
-        tracing::info!(
-            server = %name,
-            protocol = %response["result"]["protocolVersion"].as_str().unwrap_or("unknown"),
-            "MCP initialized"
-        );
-
-        Ok(())
-    }
-
-    /// 发送 tools/list 请求
-    async fn list_tools(handle: &mut McpServerHandle, name: &str) -> Result<Vec<McpTool>> {
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": handle.next_id,
-            "method": "tools/list",
-            "params": {}
-        });
-        handle.next_id += 1;
-
-        let response = Self::send_request(handle, &request).await?;
-
-        let tools_array = response["result"]["tools"]
-            .as_array()
-            .ok_or_else(|| anyhow!("tools/list returned no tools array for {}", name))?;
-
-        let mut tools = Vec::new();
-        for tool_val in tools_array {
-            let tool = McpTool {
-                name: tool_val["name"].as_str().unwrap_or("").to_string(),
-                description: tool_val["description"].as_str().unwrap_or("").to_string(),
-                input_schema: tool_val["inputSchema"].clone(),
-                server_name: name.to_string(),
-            };
-            if !tool.name.is_empty() {
-                tools.push(tool);
-            }
+        if let Some(info) = service.peer().peer_info() {
+            tracing::info!(
+                server = %name,
+                protocol = %info.protocol_version,
+                "MCP streamable-http initialized"
+            );
         }
 
-        Ok(tools)
+        let list = service.peer().list_tools(None).await.map_err(|e| {
+            anyhow!("failed to list tools on MCP server '{}': {}", name, e)
+        })?;
+        let tools: Vec<McpTool> = list
+            .tools
+            .into_iter()
+            .map(|tool| mcp_tool_from_rmcp(tool, name))
+            .collect();
+        let tool_count = tools.len();
+
+        self.servers.insert(name.to_string(), McpServerHandle { service, tools });
+        Ok(tool_count)
     }
 
     /// 调用远程 MCP 工具
@@ -265,27 +260,36 @@ impl McpClientManager {
             ));
         }
 
-        let request = json!({
-            "jsonrpc": "2.0",
-            "id": handle.next_id,
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments
-            }
-        });
-        handle.next_id += 1;
+        let args = match arguments {
+            Value::Object(map) => map,
+            _ => return Err(anyhow!("tool arguments for '{}' must be a JSON object", tool_name)),
+        };
+        let params = CallToolRequestParams::new(tool_name.to_string()).with_arguments(args);
 
-        let response = Self::send_request(handle, &request).await?;
+        let result = handle.service.call_tool(params).await.map_err(|e| {
+            anyhow!("MCP tool call '{}' on '{}' failed: {}", tool_name, server_name, e)
+        })?;
 
-        if let Some(error) = response.get("error") {
+        // rmcp 3.1 的 CallToolResult（SEP-2322）：is_error 标记工具级错误
+        if result.is_error == Some(true) {
+            let detail = result
+                .structured_content
+                .clone()
+                .unwrap_or_else(|| json!({ "content": result.content }));
             return Err(anyhow!(
-                "MCP tool error: {}",
-                error["message"].as_str().unwrap_or("unknown error")
+                "MCP tool '{}' on '{}' returned error: {}",
+                tool_name,
+                server_name,
+                detail
             ));
         }
 
-        Ok(response["result"].clone())
+        // 优先返回 structuredContent（新协议的结构化结果），否则返回完整协议结果
+        if let Some(structured) = result.structured_content {
+            Ok(structured)
+        } else {
+            serde_json::to_value(result).map_err(|e| anyhow!("failed to serialize tool result: {}", e))
+        }
     }
 
     /// 获取所有已发现的工具
@@ -306,10 +310,13 @@ impl McpClientManager {
         self.servers.keys().cloned().collect()
     }
 
-    /// 断开指定服务器
+    /// 断开指定服务器（rmcp `RunningService::close` 会优雅关闭传输并终止子进程）
     pub async fn disconnect(&mut self, name: &str) -> Result<()> {
         if let Some(mut handle) = self.servers.remove(name) {
-            let _ = handle.child.kill().await;
+            // close() 关闭传输（stdio 下会先等子进程正常退出，超时则 kill）
+            if let Err(e) = handle.service.close().await {
+                tracing::warn!(server = %name, error = %e, "MCP server close failed");
+            }
             tracing::info!(server = %name, "MCP server disconnected");
         }
         Ok(())
@@ -323,30 +330,6 @@ impl McpClientManager {
         }
     }
 
-    /// 发送 JSON-RPC 请求并读取响应
-    async fn send_request(handle: &mut McpServerHandle, request: &Value) -> Result<Value> {
-        let mut line = serde_json::to_string(request)?;
-        line.push('\n');
-
-        handle.stdin.write_all(line.as_bytes()).await?;
-        handle.stdin.flush().await?;
-
-        let mut response_line = String::new();
-        let reader = handle.stdout.clone();
-        let mut locked = reader.lock().await;
-
-        // 超时读取
-        match tokio::time::timeout(std::time::Duration::from_secs(30), locked.read_line(&mut response_line)).await {
-            Ok(Ok(0)) => Err(anyhow!("MCP server closed connection")),
-            Ok(Ok(_)) => {
-                let response: Value = serde_json::from_str(response_line.trim())?;
-                Ok(response)
-            }
-            Ok(Err(e)) => Err(anyhow!("read error: {}", e)),
-            Err(_) => Err(anyhow!("MCP server response timeout")),
-        }
-    }
-
     /// 解析环境变量引用 ${VAR}
     fn resolve_env_var(value: &str) -> String {
         if value.starts_with("${") && value.ends_with('}') {
@@ -355,6 +338,19 @@ impl McpClientManager {
         } else {
             value.to_string()
         }
+    }
+}
+
+/// 将 rmcp 3.1 的 `Tool` 转换为本 crate 的 `McpTool`。
+///
+/// 依据 docs.rs/rmcp/3.1.0/rmcp/model/struct.Tool.html：
+/// `Tool { name: Cow<'static,str>, description: Option<Cow>, input_schema: Arc<JsonObject>, .. }`
+fn mcp_tool_from_rmcp(tool: Tool, server_name: &str) -> McpTool {
+    McpTool {
+        name: tool.name.to_string(),
+        description: tool.description.as_deref().unwrap_or("").to_string(),
+        input_schema: tool.schema_as_json_value(),
+        server_name: server_name.to_string(),
     }
 }
 

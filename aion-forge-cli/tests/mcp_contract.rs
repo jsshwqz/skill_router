@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 
 use serde_json::{json, Value};
@@ -68,11 +68,38 @@ fn tools_call_routes_the_sanitize_catalog_entry() {
         .spawn()
         .expect("Forge MCP must start");
     let mut stdin = child.stdin.take().expect("stdin must be piped");
+    let mut stdout = BufReader::new(child.stdout.take().expect("stdout must be piped"));
+
+    // rmcp serves the MCP lifecycle, so the initialize handshake must happen
+    // before any tools/call request.
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","id":9,"method":"initialize","params":{{"protocolVersion":"2025-11-25","capabilities":{{}},"clientInfo":{{"name":"aion-forge-cli-test","version":"0.0.0"}}}}}}"#
+    )
+    .expect("initialize request must be written");
+    let mut init_line = String::new();
+    stdout
+        .read_line(&mut init_line)
+        .expect("initialize response must be read");
+    let init_response: Value = serde_json::from_str(init_line.trim()).expect("initialize response must be JSON");
+    assert_eq!(init_response["result"]["serverInfo"]["name"], "aion-forge");
+    assert_eq!(init_response["result"]["protocolVersion"], "2025-11-25");
+
+    writeln!(
+        stdin,
+        r#"{{"jsonrpc":"2.0","method":"notifications/initialized"}}"#
+    )
+    .expect("initialized notification must be written");
+
     writeln!(
         stdin,
         r#"{{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{{"name":"sanitize","arguments":{{"text":"safe contract"}}}}}}"#
     )
     .expect("sanitize request must be written");
+    let mut call_line = String::new();
+    stdout
+        .read_line(&mut call_line)
+        .expect("sanitize response must be read");
     drop(stdin);
 
     let output = child.wait_with_output().expect("Forge MCP must exit on EOF");
@@ -82,8 +109,7 @@ fn tools_call_routes_the_sanitize_catalog_entry() {
         "stderr: {}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let stdout = String::from_utf8(output.stdout).expect("stdout must be UTF-8");
-    let response: Value = serde_json::from_str(stdout.trim()).expect("stdout must contain one JSON-RPC response");
+    let response: Value = serde_json::from_str(call_line.trim()).expect("stdout must contain one JSON-RPC response");
     assert_eq!(response["result"]["isError"], false, "response: {response}");
     let content: Value = serde_json::from_str(
         response["result"]["content"][0]["text"]

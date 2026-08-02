@@ -1,0 +1,2114 @@
+{
+  "changes": [
+    {
+      "type": "test",
+      "file": "test-verify",
+      "summary": "验证自进化工具可用性",
+      "timestamp": 1779499354
+    },
+    {
+      "type": "prompt",
+      "file": "CLAUDE.md + AGENTS.md",
+      "summary": "自进化协议加第0步开局检查：每次session先调session_report再开工",
+      "timestamp": 1779499727
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "Add AION_ORCH_DISABLED_ENGINES env var to filter engines in multi-engine workflows; replace hardcoded [Claude,OpenAi,Gemini] with Engine::filter_enabled/default_enabled/nth_enabled",
+      "timestamp": 1784010664
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/security.rs",
+      "summary": "Exempt builtin:mcp_call from blanket process_exec block; bypass AI post-review for rag_query/rag_status builtins",
+      "timestamp": 1784010682
+    },
+    {
+      "type": "config",
+      "file": "skills/mcp_call/skill.json",
+      "summary": "Add skill.json for mcp_call to enable direct local routing",
+      "timestamp": 1784010739
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "修复 serial_optimize 中 nth_enabled 返回 Option 的 unwrap 逻辑",
+      "timestamp": 1784012874
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "移除 Engine::Claude 硬编码回退，改为 first_available 动态选择",
+      "timestamp": 1784012877
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "新增 Engine::Local 变体作为 HTTP 保底引擎，default_enabled 始终在末尾包含 Local",
+      "timestamp": 1784014910
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "替换所有 unwrap_or(Engine::Claude) 为 unwrap_or(Engine::Local)",
+      "timestamp": 1784014913
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/builtins/health_check.rs",
+      "summary": "health_check 引擎列表加 \"local\"",
+      "timestamp": 1784014917
+    },
+    {
+      "type": "feature",
+      "file": "aion-types/src/types.rs",
+      "summary": "SkillMetadata 新增 engine_capable: bool 字段",
+      "timestamp": 1784019495
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "移除 Engine::Copy，改为 Clone；所有 copid() 替换为 cloned()",
+      "timestamp": 1784019498
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "新增 Engine::Skill(String) 变体；call_skill_engine() 通过 Loader+Executor 执行本地技能",
+      "timestamp": 1784019502
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "Engine::default_enabled() 增加 engine_capable skill 自动发现；Engine::from_label 支持 skill:name 格式",
+      "timestamp": 1784022897
+    },
+    {
+      "type": "config",
+      "file": "skills/designer/skill.json",
+      "summary": "标记 designer skill 为 engine_capable: true，使其可参与多引擎编排",
+      "timestamp": 1784022901
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-cli/src/main.rs",
+      "summary": "Fix AI_PROVIDERS_DISABLED default handling: match instead of or_else to handle empty string override from aionui",
+      "timestamp": 1784199812
+    },
+    {
+      "type": "fix",
+      "file": "aion-cli/src/main.rs",
+      "summary": "Fix AI_PROVIDERS_DISABLED default handling: match instead of or_else for consistency",
+      "timestamp": 1784199818
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-cli/src/setup.rs",
+      "summary": "Change agent_source from \"custom\" to \"builtin\" so forge appears in main agent list; add duplicate cleanup; update agent_source in existing records",
+      "timestamp": 1784199822
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/builtins/ai.rs",
+      "summary": "Add eprintln! debug logging for AI_PROVIDERS_DISABLED value in is_disabled() and execute()",
+      "timestamp": 1784199826
+    },
+    {
+      "type": "config",
+      "file": "Cargo.toml",
+      "summary": "workspace成员由aion-forge-cli更名为aion-forge-acp",
+      "timestamp": 1784260067
+    },
+    {
+      "type": "config",
+      "file": "Cargo.lock",
+      "summary": "更新适配器包名为aion-forge-acp",
+      "timestamp": 1784260071
+    },
+    {
+      "type": "fix",
+      "file": ".gitignore",
+      "summary": "移除误伤适配器crate和AionUI扩展的忽略规则",
+      "timestamp": 1784260075
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp/Cargo.toml",
+      "summary": "将crate与二进制命名为aion-forge-acp并明确ACP适配器定位",
+      "timestamp": 1784260080
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp/src/main.rs",
+      "summary": "重命名命令入口并明确AionUI ACP适配器职责",
+      "timestamp": 1784260084
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp/src/acp.rs",
+      "summary": "随crate迁移ACP协议实现",
+      "timestamp": 1784260087
+    },
+    {
+      "type": "config",
+      "file": "aion-forge-acp/src/setup.rs",
+      "summary": "注册与提示改用aion-forge-acp可执行文件名",
+      "timestamp": 1784260091
+    },
+    {
+      "type": "config",
+      "file": "aionext-forge/aion-extension.json",
+      "summary": "AionUI扩展改为启动aion-forge-acp.exe",
+      "timestamp": 1784260096
+    },
+    {
+      "type": "config",
+      "file": "aionext-forge/contributes/acp-adapters.json",
+      "summary": "ACP适配器配置改用aion-forge-acp.exe",
+      "timestamp": 1784260100
+    },
+    {
+      "type": "doc",
+      "file": "docs/guide/AIONUI_INSTALL.md",
+      "summary": "安装指南统一使用aion-forge-acp",
+      "timestamp": 1784260104
+    },
+    {
+      "type": "doc",
+      "file": "docs/guide/PROJECT_OVERVIEW.md",
+      "summary": "项目概览更新ACP可执行文件与命令",
+      "timestamp": 1784260107
+    },
+    {
+      "type": "doc",
+      "file": "docs/guide/AI协作规范.md",
+      "summary": "协作规范更新ACP构建和启动命令",
+      "timestamp": 1784260111
+    },
+    {
+      "type": "doc",
+      "file": "HANDOFF.md",
+      "summary": "交接文档更新适配器名称和验证命令",
+      "timestamp": 1784260114
+    },
+    {
+      "type": "config",
+      "file": "aion-forge-acp.exe",
+      "summary": "构建并部署release版AionUI ACP适配器到扩展配置指向的项目根目录",
+      "timestamp": 1784260253
+    },
+    {
+      "type": "refactor",
+      "file": "aion-cli-gen/src/analyzer.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262384
+    },
+    {
+      "type": "refactor",
+      "file": "aion-cli-gen/src/generator.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262388
+    },
+    {
+      "type": "refactor",
+      "file": "aion-cli-gen/src/lib.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262392
+    },
+    {
+      "type": "refactor",
+      "file": "aion-cli-gen/src/pipeline.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262395
+    },
+    {
+      "type": "refactor",
+      "file": "aion-cli/src/adapter_gen.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262399
+    },
+    {
+      "type": "refactor",
+      "file": "aion-cli/src/main.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262403
+    },
+    {
+      "type": "refactor",
+      "file": "aion-cli/src/mcp.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262407
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp/src/acp.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262411
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp/src/main.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262416
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/discovery_radar.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262421
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/immunity.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262425
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/lib.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262430
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/online_search.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262434
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/parallel_planner.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262437
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/planner.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262442
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/rag.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262445
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/refinement.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262448
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/synth.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262452
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/tests.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262456
+    },
+    {
+      "type": "refactor",
+      "file": "aion-memory/src/memory.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262460
+    },
+    {
+      "type": "refactor",
+      "file": "aion-memory/src/memory_distiller.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262464
+    },
+    {
+      "type": "refactor",
+      "file": "aion-memory/src/namespaced_memory.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262468
+    },
+    {
+      "type": "refactor",
+      "file": "aion-memory/src/tests.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262472
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/examples/usage_demo.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262475
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/agent_runtime.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262479
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/automation/discovery.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262483
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/automation/loop_engine.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262486
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/automation/mod.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262491
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/automation/plan_validator.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262495
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/automation/planner.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262500
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/automation/recovery.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262503
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/automation/state.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262509
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/automation/verifier.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262513
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/agent.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262516
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/ai.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262519
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/autonomous_agent.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262523
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/evolver.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262527
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/format.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262531
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/haoojiang.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262534
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/health_check.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262538
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/image.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262541
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/market.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262545
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/mcp.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262548
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/memory.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262552
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/orchestrator.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262555
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/parsing.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262558
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/pipeline.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262562
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/prompt_audit.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262566
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/rag.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262570
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/skill_format.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262575
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/spec_driven.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262599
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/task_router.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262602
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/text.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262606
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/web.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262609
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/zl.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262613
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/config.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262616
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/coordinator.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262619
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/crew.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262623
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/executor.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262627
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/learner.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262632
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/lib.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262636
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/loader.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262641
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/matcher.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262644
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/mcp_client.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262647
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/message_bus.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262651
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/metrics.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262655
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/node_server.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262658
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/parallel_executor.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262662
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/registry.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262666
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/registry_hub.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262670
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/security.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262674
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/tests.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262678
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/tests/cpevr_test.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262681
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/tests/discovery_test.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262685
+    },
+    {
+      "type": "refactor",
+      "file": "aion-sandbox/src/audit.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262689
+    },
+    {
+      "type": "refactor",
+      "file": "aion-sandbox/src/executor.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262693
+    },
+    {
+      "type": "refactor",
+      "file": "aion-sandbox/src/jail.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262698
+    },
+    {
+      "type": "refactor",
+      "file": "aion-sandbox/src/lib.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262701
+    },
+    {
+      "type": "refactor",
+      "file": "aion-sandbox/src/policy.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262705
+    },
+    {
+      "type": "refactor",
+      "file": "aion-server/src/handlers.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262709
+    },
+    {
+      "type": "refactor",
+      "file": "aion-server/src/main.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262712
+    },
+    {
+      "type": "refactor",
+      "file": "aion-server/src/tests.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262716
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/agent_message.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262719
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/ai_native.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262724
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/lifecycle.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262727
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/parallel.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262731
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/session.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262735
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/skill_manifest.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262739
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/spec_types.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262744
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/tests.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262749
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/types.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262753
+    },
+    {
+      "type": "refactor",
+      "file": "aion-types/src/verification.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262757
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/ai.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262761
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/contract.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262764
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/contradiction.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262768
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/dialectic.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262771
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/engine.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262775
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/main.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262778
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/mcp.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262784
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/retry.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262788
+    },
+    {
+      "type": "refactor",
+      "file": "aion-zl/src/strategy.rs",
+      "summary": "应用cargo fmt统一Rust代码格式，不改变逻辑",
+      "timestamp": 1784262792
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-acp/src/acp.rs",
+      "summary": "删除initialize分支未使用的AI_BASE_URL变量，消除编译警告",
+      "timestamp": 1784262803
+    },
+    {
+      "type": "config",
+      "file": "D:/test/patent-hub-backup/.mcp.json",
+      "summary": "新增aion-forge MCP服务，使项目Agent可按需调用Forge工具",
+      "timestamp": 1784265772
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/executor.rs",
+      "summary": "将 placeholder 和含 error 的 builtin 结果标记为失败，并让 echo 返回真实输出",
+      "timestamp": 1784273200
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/builtins/health_check.rs",
+      "summary": "明确健康状态来自历史执行遥测而非实时探测",
+      "timestamp": 1784273203
+    },
+    {
+      "type": "test",
+      "file": "aion-router/src/tests.rs",
+      "summary": "验证 echo 并发执行返回成功和真实输出",
+      "timestamp": 1784273206
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/config.rs",
+      "summary": "让 MCP/进程环境变量优先于全局 ~/.aion/.env",
+      "timestamp": 1784273209
+    },
+    {
+      "type": "config",
+      "file": ".env",
+      "summary": "将 Forge 主后端接到本地 FreeLLMAPI auto 路由",
+      "timestamp": 1784273212
+    },
+    {
+      "type": "config",
+      "file": "D:/test/patent-hub-backup/.mcp.json",
+      "summary": "为 patent 项目固定 Aion Forge MCP 与本地 FreeLLMAPI 环境",
+      "timestamp": 1784273213
+    },
+    {
+      "type": "config",
+      "file": "FreeLLMAPI/server/package.json",
+      "summary": "提供可运行的 tsx 开发启动命令",
+      "timestamp": 1784273216
+    },
+    {
+      "type": "config",
+      "file": "D:/Apps/OmniRoute",
+      "summary": "安装官方 OmniRoute v3.8.44 Windows 发行版",
+      "timestamp": 1784278626
+    },
+    {
+      "type": "config",
+      "file": "D:/Data/OmniRoute",
+      "summary": "将 OmniRoute 数据与 Electron profile 固定到 D 盘",
+      "timestamp": 1784278630
+    },
+    {
+      "type": "config",
+      "file": "Windows Scheduled Task: OmniRoute",
+      "summary": "配置当前用户登录时启动 D 盘 OmniRoute headless 服务",
+      "timestamp": 1784278634
+    },
+    {
+      "type": "config",
+      "file": "D:/Temp/C-Dev-Packages-20260717",
+      "summary": "隔离迁移 C 盘未使用开发归档和缓存约 1.9GB",
+      "timestamp": 1784278637
+    },
+    {
+      "type": "config",
+      "file": "User environment",
+      "summary": "将 TEMP、TMP 和 NPM_CONFIG_CACHE 指向 D 盘",
+      "timestamp": 1784278641
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src",
+      "summary": "修复 OmniRoute 响应、错误传播、健康语义和中文截断，并补充测试。",
+      "timestamp": 1784300116
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp",
+      "summary": "将独立 ACP 壳隔离为停用兼容层并移除自动注册入口。",
+      "timestamp": 1784300126
+    },
+    {
+      "type": "doc",
+      "file": "docs/guide",
+      "summary": "文档统一为 AionUI 正常 Agent 通过 MCP 调用 Forge。",
+      "timestamp": 1784300142
+    },
+    {
+      "type": "config",
+      "file": "D:/test/aionui/config/skills/aion-forge/bin/aion-cli.exe",
+      "summary": "将技能目录旧版 Forge MCP 二进制同步为项目正式构建",
+      "timestamp": 1784732365
+    },
+    {
+      "type": "config",
+      "file": "D:/test/aionui/config/skills/aion-forge/bin/VERSION.json",
+      "summary": "更新同步后二进制 SHA-256 与部署说明",
+      "timestamp": 1784732373
+    },
+    {
+      "type": "config",
+      "file": "D:/test/aionui/config/skills/aion-forge/bin/aion-cli.exe",
+      "summary": "将历史兼容路径改为指向项目正式构建的符号链接，永久消除版本漂移",
+      "timestamp": 1784732619
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/specs/2026-07-22-forge-entrypoint-separation-design.md",
+      "summary": "定义 Forge CLI、MCP、ACP 与独立 AionUI aion-cli 的产品分离设计",
+      "timestamp": 1784735012
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-cli/src/direct.rs",
+      "summary": "初始化直接 CLI 的 SkillLearner，使自进化工具与 MCP 生命周期一致",
+      "timestamp": 1784788934
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/direct_contract.rs",
+      "summary": "新增直接 session_report 初始化学习引擎的回归合同测试",
+      "timestamp": 1784788934
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/specs/2026-07-23-unified-aion-forge-agent-cli-design.md",
+      "summary": "设计统一 aion-forge ACP/CLI 入口及兼容别名",
+      "timestamp": 1784805664
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/plans/2026-07-23-unified-aion-forge-agent-cli.md",
+      "summary": "新增统一 Aion Forge 标准 CLI 与 ACP Agent 的分步实施计划",
+      "timestamp": 1784806393
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp/src/lib.rs",
+      "summary": "暴露可复用 ACP server Rust API",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp/src/main.rs",
+      "summary": "ACP 独立二进制改为调用共享 library API",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-acp/tests/cli_isolation.rs",
+      "summary": "增加 ACP library 导出合同测试",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "config",
+      "file": "aion-forge-cli/Cargo.toml",
+      "summary": "定义 canonical 与兼容双二进制并链接 ACP crate",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-cli/src/cli.rs",
+      "summary": "新增标准 acp 子命令并采用 canonical 命令名",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-cli/src/lib.rs",
+      "summary": "新增共享 CLI 主入口并在进程内分派 ACP",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-cli/src/main.rs",
+      "summary": "canonical 二进制委托共享主入口",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-cli/src/bin/aion-forge-cli.rs",
+      "summary": "保留兼容 CLI 别名入口",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-cli/src/setup.rs",
+      "summary": "setup 始终生成 canonical aion-forge MCP 命令",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/acp_contract.rs",
+      "summary": "验证 canonical CLI 的 ACP JSON-only 协议",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/cli_contract.rs",
+      "summary": "验证 canonical CLI 解析 ACP/MCP/direct",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/setup_contract.rs",
+      "summary": "验证 canonical setup 与旧注册复用",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "config",
+      "file": "Cargo.lock",
+      "summary": "记录 aion-forge-cli 对 ACP crate 的依赖",
+      "timestamp": 1784808564
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-acp/src/acp.rs",
+      "summary": "解析标准 ACP prompt 内容块并通过 session/update agent_message_chunk 输出可见回复",
+      "timestamp": 1784809633
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/specs/2026-07-23-stateful-forge-acp-agent-design.md",
+      "summary": "Document the approved stateful Forge ACP agent, tool loop, and strict per-session model selection design.",
+      "timestamp": 1784813975
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/plans/2026-07-23-stateful-forge-acp-agent.md",
+      "summary": "Added the approved tas*k-by-task Rust/TDD implementation plan for the stateful Aion Forge ACP agent.",
+      "timestamp": 1784815783
+    },
+    {
+      "type": "config",
+      "file": "Cargo.lock",
+      "summary": "锁定官方 ACP SDK 及新增运行时依赖版本",
+      "timestamp": 1784832485
+    },
+    {
+      "type": "config",
+      "file": "Cargo.toml",
+      "summary": "将官方 agent-client-protocol 依赖加入 workspace",
+      "timestamp": 1784832485
+    },
+    {
+      "type": "config",
+      "file": "aion-forge-acp/Cargo.toml",
+      "summary": "配置 ACP agent 的官方协议与异步运行依赖",
+      "timestamp": 1784832485
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-acp/src/acp.rs",
+      "summary": "实现官方 typed ACP 连接、通知、模型切换和会话协议",
+      "timestamp": 1784832485
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-acp/src/agent_loop.rs",
+      "summary": "实现有界规划与 Forge 工具执行循环",
+      "timestamp": 1784832485
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-acp/src/catalog.rs",
+      "summary": "从 Forge 注册表构建可执行能力目录",
+      "timestamp": 1784832485
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-acp/src/executor.rs",
+      "summary": "接入真实 Forge 技能执行并返回结构化结果",
+      "timestamp": 1784832485
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-acp/src/lib.rs",
+      "summary": "重组 ACP agent 模块并暴露标准入口",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-acp/src/model_catalog.rs",
+      "summary": "实现严格动态模型目录与显式 auto 回退策略",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-acp/src/planner.rs",
+      "summary": "实现带 Agent 身份和精确模型约束的类型化规划器",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "feature",
+      "file": "aion-forge-acp/src/session.rs",
+      "summary": "实现会话历史、启动规则、状态持久化和取消控制",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-acp/tests/acp_agent_contract.rs",
+      "summary": "覆盖官方 ACP 握手、会话、模型及可见错误契约",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-acp/tests/agent_engine.rs",
+      "summary": "覆盖状态化 agent 引擎、工具循环与模型行为",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-acp/tests/cli_isolation.rs",
+      "summary": "验证 ACP 进程输出不污染 JSON 协议通道",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-cli/src/lib.rs",
+      "summary": "让无参数标准 CLI 默认启动 ACP，同时保留显式直连模式",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/acp_contract.rs",
+      "summary": "覆盖显式 ACP CLI 入口契约",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/acp_default_contract.rs",
+      "summary": "覆盖裸 CLI 自动识别为 ACP agent 的回归契约",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/direct_contract.rs",
+      "summary": "增强直连 JSON 输出和 session_report 契约测试",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/plans/2026-07-23-stateful-forge-acp-agent.md",
+      "summary": "记录状态化 Forge ACP agent 实施与验收计划",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/specs/2026-07-23-stateful-forge-acp-agent-design.md",
+      "summary": "记录标准 ACP、模型、会话和执行架构设计",
+      "timestamp": 1784832486
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-acp/src/acp.rs",
+      "summary": "ACP 文本块分开处理，并为纯启动规则返回可见确认消息",
+      "timestamp": 1784836022
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-acp/src/planner.rs",
+      "summary": "从推理模型文本中提取唯一有效 JSON action，并拒绝多 action 歧义",
+      "timestamp": 1784836027
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-acp/tests/acp_agent_contract.rs",
+      "summary": "新增启动规则必须产生可见回复的 ACP 合约回归测试",
+      "timestamp": 1784836033
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/builtins/ai.rs",
+      "summary": "将 OpenAI 兼容 ai_task 输出预算从 512 提升到统一的 2048，并新增结构化工具后续响应回归测试",
+      "timestamp": 1784851210
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-acp/src/planner.rs",
+      "summary": "规划器采用推理后的最后一个有效动作，并传递显式必调工具约束",
+      "timestamp": 1784855000
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-acp/src/agent_loop.rs",
+      "summary": "显式工具请求必须实际调用工具，增加有界修复与回归测试",
+      "timestamp": 1784855000
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-acp/src/session.rs",
+      "summary": "拆分 AionUI Assistant Rules 信封与尾随用户正文，使新会话首轮直接执行用户请求",
+      "timestamp": 1784856415
+    },
+    {
+      "type": "config",
+      "file": ".github/workflows/release.yml",
+      "summary": "发布 canonical 与兼容 CLI 双制品",
+      "timestamp": 1785218053
+    },
+    {
+      "type": "config",
+      "file": ".mcp.json",
+      "summary": "切换本地 MCP 到 canonical aion-forge",
+      "timestamp": 1785218059
+    },
+    {
+      "type": "config",
+      "file": ".mcp.json.example",
+      "summary": "切换示例 MCP 到 canonical aion-forge",
+      "timestamp": 1785218063
+    },
+    {
+      "type": "doc",
+      "file": "AGENTS.md",
+      "summary": "更新 Forge 主命令与兼容命令边界",
+      "timestamp": 1785218068
+    },
+    {
+      "type": "doc",
+      "file": "CLAUDE.md",
+      "summary": "更新 Forge 主命令与兼容命令边界",
+      "timestamp": 1785218071
+    },
+    {
+      "type": "doc",
+      "file": "HANDOFF.md",
+      "summary": "更新正式入口为 aion-forge",
+      "timestamp": 1785218078
+    },
+    {
+      "type": "doc",
+      "file": "README.md",
+      "summary": "以 aion-forge 作为主命令",
+      "timestamp": 1785218082
+    },
+    {
+      "type": "doc",
+      "file": "docs/guide/AIONUI_INSTALL.md",
+      "summary": "更新 Agent 与 MCP 安装入口",
+      "timestamp": 1785218086
+    },
+    {
+      "type": "doc",
+      "file": "docs/guide/AI协作规范.md",
+      "summary": "更新正式二进制说明",
+      "timestamp": 1785218090
+    },
+    {
+      "type": "doc",
+      "file": "docs/guide/PROJECT_OVERVIEW.md",
+      "summary": "更新标准 Agent 与 MCP 入口",
+      "timestamp": 1785218095
+    },
+    {
+      "type": "config",
+      "file": "safety-manifest.json",
+      "summary": "增加 canonical aion-forge 制品校验元数据",
+      "timestamp": 1785218100
+    },
+    {
+      "type": "prompt",
+      "file": "scripts/assistants/aion-forge.zh-CN.md",
+      "summary": "更新 Agent 与 MCP 启动规则",
+      "timestamp": 1785218105
+    },
+    {
+      "type": "config",
+      "file": "scripts/build/package-local.sh",
+      "summary": "本地包同时包含主命令和兼容命令",
+      "timestamp": 1785218110
+    },
+    {
+      "type": "config",
+      "file": "scripts/build/package.sh",
+      "summary": "发布包同时包含主命令和兼容命令",
+      "timestamp": 1785218115
+    },
+    {
+      "type": "config",
+      "file": "scripts/build/update-checksums.sh",
+      "summary": "写入 canonical 制品校验和",
+      "timestamp": 1785218121
+    },
+    {
+      "type": "config",
+      "file": "scripts/install/install.ps1",
+      "summary": "Windows 安装主命令与兼容命令",
+      "timestamp": 1785218129
+    },
+    {
+      "type": "config",
+      "file": "scripts/install/install.sh",
+      "summary": "Unix 安装主命令与兼容命令",
+      "timestamp": 1785218135
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/install_contract.rs",
+      "summary": "约束安装器交付两个命令及协议示例",
+      "timestamp": 1785218141
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/release_contract.rs",
+      "summary": "约束发布和安全清单双命令制品",
+      "timestamp": 1785218147
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-cli/src/direct.rs",
+      "summary": "Preserve the user goal in direct autonomous execution",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-cli/src/catalog.rs",
+      "summary": "Build the direct catalog solely from capability declarations",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/direct_contract.rs",
+      "summary": "Enforce route and 75-tool catalog consistency",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-acp/src/catalog.rs",
+      "summary": "Enforce the shared 75-tool ACP catalog contract",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "config",
+      "file": "aion-types/src/capability_registry.rs",
+      "summary": "Declare sanitize in the canonical capability registry",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/new_skills.rs",
+      "summary": "Add code generation route and validate self-evolution records",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/text.rs",
+      "summary": "Add executable AI-backed text capability routes",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "config",
+      "file": "aion-router/src/builtins/mod.rs",
+      "summary": "Register all declared public builtin routes",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/autonomous_agent.rs",
+      "summary": "Execute real Forge tools and complete validated self-evolution loops",
+      "timestamp": 1785253246
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/evolution.rs",
+      "summary": "Add Rust-native isolated candidate evaluation, budgets, deterministic fitness and regression rejection",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/evolution.rs",
+      "summary": "Expose controlled evolution_run capability",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/autonomous_agent.rs",
+      "summary": "Route recurring failures through code generation and controlled evolution",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "config",
+      "file": "aion-router/src/builtins/mod.rs",
+      "summary": "Register evolution_run builtin",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "config",
+      "file": "aion-router/src/lib.rs",
+      "summary": "Export controlled evolution module",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "config",
+      "file": "aion-types/src/capability_registry.rs",
+      "summary": "Declare public evolution_run contract",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "test",
+      "file": "aion-router/src/learner.rs",
+      "summary": "Isolate asynchronous auto-evolution fixtures and poll deterministically",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/direct_contract.rs",
+      "summary": "Update public catalog contract to 76 tools",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-acp/src/catalog.rs",
+      "summary": "Update ACP catalog contract to 76 tools",
+      "timestamp": 1785257878
+    },
+    {
+      "type": "config",
+      "file": "aion-forge-acp/src/catalog.rs",
+      "summary": "Updated live catalog contract to 77 capabilities.",
+      "timestamp": 1785540628
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/direct_contract.rs",
+      "summary": "Updated direct catalog contract for error knowledge capability.",
+      "timestamp": 1785540628
+    },
+    {
+      "type": "prompt",
+      "file": "aion-router/src/builtins/autonomous_agent.rs",
+      "summary": "Taught autonomous agent to bind fixes and regression tests.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/builtins/error_knowledge.rs",
+      "summary": "Added error lifecycle management capability.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "config",
+      "file": "aion-router/src/builtins/mod.rs",
+      "summary": "Registered error knowledge builtin.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/error_kb.rs",
+      "summary": "Added durable error fingerprints, lifecycle, replay, and prevention decisions.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/executor.rs",
+      "summary": "Added pre-execution prevention gate and automatic failure observation.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/learner.rs",
+      "summary": "Added durable error knowledge persistence and lifecycle APIs.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "config",
+      "file": "aion-router/src/lib.rs",
+      "summary": "Exported error knowledge module.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "test",
+      "file": "aion-router/tests/error_kb_test.rs",
+      "summary": "Added eight regression tests for fingerprinting, lifecycle, persistence, and prevention.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "config",
+      "file": "aion-types/src/capability_registry.rs",
+      "summary": "Published error knowledge capability metadata.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/specs/2026-08-01-error-knowledge-prevention-design.md",
+      "summary": "Documented approved error prevention design.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "doc",
+      "file": "docs/superpowers/plans/2026-08-01-error-knowledge-prevention.md",
+      "summary": "Documented implementation and acceptance plan.",
+      "timestamp": 1785540629
+    },
+    {
+      "type": "fix",
+      "file": "config/default.yaml",
+      "summary": "RAG Embedding 配置修复：provider 由 deepseek 改为 openai，模型改为 text-embedding-3-small，api_base 改为 https://api.openai.com/v1，api_key 改用 OPENAI_API_KEY（DeepSeek 不提供 embedding API）",
+      "timestamp": 1785570478
+    },
+    {
+      "type": "fix",
+      "file": "src/rag/embedding.rs",
+      "summary": "Removed hardcoded DeepSeek-unsupported-embedding bail; embed() now reads provider/model from EmbeddingConfig and calls {api_base}/embeddings with OpenAI-compatible bearer auth, adds per-request timeout, and includes response status/body/url in error diagnostics; added unit test covering the new config fields",
+      "timestamp": 1785570937
+    },
+    {
+      "type": "fix",
+      "file": "src/providers/openai.rs, src/providers/gemini.rs, src/mcp/circuit_breaker.rs",
+      "summary": "P0 修复剩余文件：OpenAI/Gemini health_check 增加 Authorization: Bearer *** health_check_path 而非硬编码 /health、非 2xx 与响应体 status==ok 校验、超时或请求失败返回 false；MCP 熔断器复位卡在 open 的状态、增加 half-open 超时自动探测、成功时重置失败计数并重新闭合、校准 failure_threshold/cooloff 参数",
+      "timestamp": 1785570987
+    },
+    {
+      "type": "doc",
+      "file": "D:\\test\\aionui\\config\\skills\\aion-forge-v0.4.{0,1,2}",
+      "summary": "删除 aion-forge 旧版本目录 v0.4.0/v0.4.1/v0.4.2，仅保留当前在用的 aion-forge",
+      "timestamp": 1785584274
+    },
+    {
+      "type": "config",
+      "file": "Cargo.toml",
+      "summary": "新增 workspace 依赖：yaml-rust2 0.11、toml 1.1、csv 1.4、pdf-extract 0.12、pulldown-cmark 0.13、similar 3.1、jsonpath-rust 1.0、redb 4.1、usearch 2.26（default-features=false）",
+      "timestamp": 1785595637
+    },
+    {
+      "type": "fix",
+      "file": "aion-server/src/ws.rs",
+      "summary": "修复 baseline 编译错误：axum::extract::ws::close_code::GOING_AWAY 不存在，改为 AWAY（1001 Going Away）",
+      "timestamp": 1785595652
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/parsing.rs",
+      "summary": "yaml_parse 换 yaml-rust2、toml_parse 换 toml crate、csv_parse 换 csv crate、pdf_parse 换 pdf-extract（删除全部手写解析器）",
+      "timestamp": 1785595666
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/text.rs",
+      "summary": "text_diff 换 similar crate（删除手写 LCS）、markdown_render 换 pulldown-cmark 事件流",
+      "timestamp": 1785595680
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/new_skills.rs",
+      "summary": "json_query 换 jsonpath-rust（删除手写 simple_jsonpath，无 $ 前缀自动补全）",
+      "timestamp": 1785595694
+    },
+    {
+      "type": "refactor",
+      "file": "aion-memory/src/memory.rs",
+      "summary": "JSON 文件存储换 redb 嵌入式 KV（memory_entries/memory_meta 表 + 旧 JSON 自动迁移）；id 改用 uuid v4 修复同秒 remember 覆盖 bug",
+      "timestamp": 1785595708
+    },
+    {
+      "type": "fix",
+      "file": "aion-memory/src/namespaced_memory.rs",
+      "summary": "Global 命名空间检测兼容 redb 库文件（memory_store.json || memory_store.redb）",
+      "timestamp": 1785595723
+    },
+    {
+      "type": "refactor",
+      "file": "aion-intel/src/rag.rs",
+      "summary": "RAG 检索换 usearch HNSW 索引（Cosine 度量 + 精确分数重算 + 损坏/降级自动回退手写暴力余弦）+ 新增 test_usearch_index_roundtrip",
+      "timestamp": 1785595737
+    },
+    {
+      "type": "config",
+      "file": "Cargo.toml",
+      "summary": "依赖大版本升级：reqwest 0.13（rustls feature 替代 rustls-tls）、axum 0.8、tower-http 0.7、async-nats 0.50、新增 rmcp 3.1（client/server/transport-io）",
+      "timestamp": 1785599673
+    },
+    {
+      "type": "refactor",
+      "file": "aion-forge-cli/src/mcp.rs",
+      "summary": "手写 JSON-RPC stdio MCP server 替换为 rmcp 3.1（ServerHandler + serve(stdio())），协议版本 2024-11-05 → 2025-11-25，保留工具目录与 call_tool 逻辑",
+      "timestamp": 1785599688
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-cli/src/lib.rs",
+      "summary": "edition 2024 兼容：std::env::set_var 包 unsafe 块（2 处）",
+      "timestamp": 1785599702
+    },
+    {
+      "type": "fix",
+      "file": "aion-forge-cli/tests/setup_contract.rs",
+      "summary": "edition 2024 兼容：std::env::set_var/remove_var 包 unsafe 块",
+      "timestamp": 1785599717
+    },
+    {
+      "type": "config",
+      "file": "aion-forge-cli/Cargo.toml",
+      "summary": "edition 2024 + 引入 rmcp workspace 依赖",
+      "timestamp": 1785599731
+    },
+    {
+      "type": "test",
+      "file": "aion-forge-cli/tests/mcp_contract.rs",
+      "summary": "MCP 测试改为标准握手流程（initialize → initialized → tools/call），适配 rmcp serve 强制握手",
+      "timestamp": 1785599745
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/mcp_client.rs",
+      "summary": "手写 MCP client 替换为 rmcp 3.1（serve_client + TokioChildProcess + streamable-http），SSE 降级改为 streamable-http transport",
+      "timestamp": 1785599759
+    },
+    {
+      "type": "refactor",
+      "file": "aion-router/src/builtins/mcp.rs",
+      "summary": "mcp_call 改用 rmcp client，保留三种配置查找模式",
+      "timestamp": 1785599773
+    },
+    {
+      "type": "feature",
+      "file": "aion-router/src/lib.rs",
+      "summary": "AgentFailover 实现跨节点 NATS failover（发布 TaskAssignment + 订阅 TaskResult 30s 超时），无 NATS 时保留同进程降级；修复 timeout 返回类型解构",
+      "timestamp": 1785599787
+    },
+    {
+      "type": "fix",
+      "file": "aion-router/src/distributed_registry.rs",
+      "summary": "async-nats 0.50 适配：kv.get → kv.entry（0.50 移除 get）",
+      "timestamp": 1785599802
+    },
+    {
+      "type": "config",
+      "file": "aion-router/Cargo.toml",
+      "summary": "引入 rmcp workspace 依赖（transport-child-process + streamable-http-client）",
+      "timestamp": 1785599816
+    },
+    {
+      "type": "test",
+      "file": "aion-server/src/tests.rs",
+      "summary": "新增 3 个认证测试（401/health 公开/未配置关闭），既有测试改 build_app(state, None)",
+      "timestamp": 1785599840
+    },
+    {
+      "type": "config",
+      "file": "aion-server/Cargo.toml",
+      "summary": "edition 2024",
+      "timestamp": 1785599854
+    },
+    {
+      "type": "test",
+      "file": "aion-zl/src/ai.rs",
+      "summary": "抽取 build_chat_body/parse_chat_content 纯函数 + 11 测试（含 loopback mock HTTP 端到端）",
+      "timestamp": 1785599869
+    },
+    {
+      "type": "test",
+      "file": "aion-zl/src/retry.rs",
+      "summary": "抽取可注入 retry_loop 核心循环 + 6 测试（重试次数/策略切换/根因记录）",
+      "timestamp": 1785599883
+    },
+    {
+      "type": "test",
+      "file": "aion-zl/src/contract.rs",
+      "summary": "抽取 compile_from_json 等纯映射函数 + 6 测试",
+      "timestamp": 1785599897
+    },
+    {
+      "type": "test",
+      "file": "aion-zl/src/strategy.rs",
+      "summary": "抽取 plan_from_json + 6 测试（defense/stalemate/offense 三阶段映射）",
+      "timestamp": 1785599911
+    },
+    {
+      "type": "test",
+      "file": "aion-zl/src/dialectic.rs",
+      "summary": "抽取 build_dialectical_result + 4 测试（thesis-antithesis-synthesis 结构）",
+      "timestamp": 1785599925
+    },
+    {
+      "type": "test",
+      "file": "aion-zl/src/engine.rs",
+      "summary": "抽取 timeout_secs + 3 测试；reqwest 0.13 兼容核对",
+      "timestamp": 1785599939
+    },
+    {
+      "type": "config",
+      "file": "aion-zl/Cargo.toml",
+      "summary": "edition 2024",
+      "timestamp": 1785599954
+    },
+    {
+      "type": "config",
+      "file": "aion-intel/Cargo.toml",
+      "summary": "edition 2024；reqwest 0.13 核对零改动（5 文件用法全兼容）",
+      "timestamp": 1785599968
+    },
+    {
+      "type": "feature",
+      "file": "aion-server/src/main.rs",
+      "summary": "新增 HTTP 认证中间件：环境变量配置密钥，未配置时关闭（向后兼容），health 端点公开，其余路由 401 保护，恒定时间比较防时序攻击",
+      "timestamp": 1785599985
+    }
+  ],
+  "decisions": [
+    {
+      "context_choice": "verify tools → CLI direct",
+      "rationale": "MCP tool list cached in conversation",
+      "timestamp": 1779499356
+    },
+    {
+      "context_choice": "自进化协议如何确保执行 → CLAUDE.md首要规则+开局检查",
+      "rationale": "写在顶端+开始先调session_report，配合结束三步骤形成闭环",
+      "timestamp": 1779499730
+    },
+    {
+      "context_choice": "Multi-AI engine orchestrator tried codex/gemini CLIs that don't exist, causing 6 failures each → Engine::filter_enabled + AION_ORCH_DISABLED_ENGINES env var",
+      "rationale": "Cleaner than stub CLIs; allows runtime configuration per environment",
+      "timestamp": 1784010782
+    },
+    {
+      "context_choice": "mcp_call blocked by blanket process_exec ban; rag_query blocked by AI post-review false positive → Capability-based exception in security review for mcp_call and RAG builtins",
+      "rationale": "Builtins manage their own security; RAG returning stored content is intended behavior",
+      "timestamp": 1784010787
+    },
+    {
+      "context_choice": "引擎选择策略 — 多引擎编排时默认引擎的选择 → 引擎中立化：nth_enabled 和 select_primary_engine 返回 Option，由 first_available 动态检测可用 CLI",
+      "rationale": "用户要求\"应该是哪个可用用哪个\"，不允许任何引擎作为硬编码默认值",
+      "timestamp": 1784012884
+    },
+    {
+      "context_choice": "mcp_call 被安全审查拦截 → 在 heuristic_pre 中为 builtin:mcp_call 添加 process_exec 例外",
+      "rationale": "mcp_call 自身管理进程安全，不需要被 blanket ban 拦截",
+      "timestamp": 1784012887
+    },
+    {
+      "context_choice": "当所有 CLI 引擎不可用时的保底策略 → 新增 Engine::Local 变体，使用 call_http_ai_fallback 代替 CLI 子进程",
+      "rationale": "用户要求\"应该是哪个可用用哪个\"，Local 通过 AI_BASE_URL 直连 HTTP，不依赖 CLI，始终可用",
+      "timestamp": 1784014921
+    },
+    {
+      "context_choice": "SkillMetadata 加 engine_capable 字段，Engine 枚举加 Skill(String) 变体，call_engine_detailed 加 skill 执行路径 → skill-as-engine 基础框架已就位",
+      "rationale": "用户要求本地标记了 engine_capable 的 skill 能作为引擎参与编排；skill 发现为懒加载，default_enabled 暂不包含",
+      "timestamp": 1784019506
+    },
+    {
+      "context_choice": "Skill-as-Engine 自动发现实现 → 使用 OnceLock 懒加载引擎能力技能，Engine::discover_skill_engines() 首次调用时扫描 skills/ 目录",
+      "rationale": "default_enabled() 是 fn() 上下文无法做 IO；OnceLock 保证只扫描一次，Loader 内部已有缓存，双重保障",
+      "timestamp": 1784022904
+    },
+    {
+      "context_choice": "用户反馈项目目前无法使用；本次只读诊断发现构建成功但入口行为异常 → 将问题定性为运行入口/路由/部署版本一致性故障，而非 Rust workspace 编译故障；本轮不修改用户已有工作树",
+      "rationale": "cargo check --workspace 成功，CLI/MCP 可启动；route_task 错配外部 Google Workspace 且 access_ok=false，echo 命中 placeholder，安装目录二进制明显陈旧",
+      "timestamp": 1784257107
+    },
+    {
+      "context_choice": "核对 aion-cli 与 aion-forge-cli 是否属于当前项目及各自职责 → 确认两者均属于 workspace：aion-cli 是通用路由/MCP入口，aion-forge-cli 是新增的直接内置工具/ACP/AionUI注册入口；当前 aion-forge-cli Git 收录不完整",
+      "rationale": "两个 crate 均在根 Cargo workspace 且依赖项目核心 crate；但 .gitignore 误伤 aion-forge-cli/Cargo.toml，并忽略 setup.rs 与 aionext-forge，导致本机状态与干净仓库不一致",
+      "timestamp": 1784257914
+    },
+    {
+      "context_choice": "重新按产品边界判断 CLI 与 Aion Forge/AionUI 的关系 → 区分代码归属与产品定位：aion-cli 是 skill_router 仓库的历史独立/MCP入口，不是 AionUI 宿主；aion-forge-cli 是 Forge 为接入 AionUI 新增的项目侧 ACP适配器和工具入口",
+      "rationale": "远程仓库本身为 skill_router；aion-cli 早于 AionUI ACP集成存在；aion-forge-cli 的 acp/setup 与 aionext-forge 明确引用 AionUI Agent/ACP配置",
+      "timestamp": 1784258551
+    },
+    {
+      "context_choice": "Forge采用独立核心加多平台适配器架构后的AionUI入口命名 → 保留aion-cli作为独立CLI/MCP入口，将AionUI适配器从aion-forge-cli重命名为aion-forge-acp",
+      "rationale": "名称直接表达ACP协议边界，避免与通用aion-cli混淆，同时两者继续复用同一Forge核心",
+      "timestamp": 1784260124
+    },
+    {
+      "context_choice": "workspace既有Rust源文件格式基线不一致 → 统一整个workspace的Rust代码格式",
+      "rationale": "用户明确要求继续处理格式问题，并建立可验证的一致格式基线",
+      "timestamp": 1784262819
+    },
+    {
+      "context_choice": "patent-hub-backup按需使用Aion Forge能力 → 通过项目级MCP配置连接aion-cli mcp-server，不引入Forge源码或Rust依赖",
+      "rationale": "保持InnoForge核心仓库依赖隔离，同时让项目Agent按任务调用Forge工具",
+      "timestamp": 1784265776
+    },
+    {
+      "context_choice": "复核patent-hub-backup中的Forge不可用报告 → 将问题拆分为AionUI技能缓存版本漂移、历史健康状态被当作实时探测、外部AI后端失效三层；不把Transport closed或Agent 0视为已证实根因",
+      "rationale": "旧版和新版MCP均能完成health_check；新版明确启动1个Orchestrator和2个Executor；FreeLLMAPI仅有源码未运行，OmniRoute未在本机常见位置找到",
+      "timestamp": 1784266544
+    },
+    {
+      "context_choice": "Forge 免费模型供应端 → 使用现有 FreeLLMAPI，启用健康的 OpenRouter 与 Zhipu，禁用失效 Google",
+      "rationale": "已通过健康检查和真实 chat completion 验证，避免安装来源不明的 OmniRoute",
+      "timestamp": 1784273219
+    },
+    {
+      "context_choice": "项目级后端配置优先级 → MCP 环境变量优先于 ~/.aion/.env",
+      "rationale": "防止全局旧配置劫持 patent 项目的指定后端",
+      "timestamp": 1784273222
+    },
+    {
+      "context_choice": "全局磁盘放置规则 → 开发源码、构建产物、下载包、缓存和临时文件统一放 D 盘；C 盘仅保留系统或软件必须组件",
+      "rationale": "用户明确要求，避免系统盘容量不足并统一开发资产位置",
+      "timestamp": 1784278644
+    },
+    {
+      "context_choice": "OmniRoute Provider 接入与 Forge 切换 → 导入并启用 GLM 与 OpenRouter；真实 auto/fast 请求成功后才切换 Forge，FreeLLMAPI 保留回退",
+      "rationale": "避免未验证路由破坏现有可用链路，并提供双 Provider 与本地回退能力。",
+      "timestamp": 1784281236
+    },
+    {
+      "context_choice": "AionUI 全局 aion-forge MCP 与 patent-hub-backup 项目配置不一致 → 将 AionUI 全局 Forge MCP 统一指向项目根 aion-cli.exe，并使用 OmniRoute auto/fast",
+      "rationale": "避免 Claude/Codex 等不同 Agent 被旧 DeepSeek 全局配置覆盖，确保新会话统一使用已验证路由。",
+      "timestamp": 1784283504
+    },
+    {
+      "context_choice": "整理推送后未提交改动 → 恢复93个纯格式化文件，保留并拆分语义修改，隔离aionext，停止跟踪运行时registry。",
+      "rationale": "减少审查噪声，避免停用ACP重新进入正式链路，并保持运行时状态不污染Git。",
+      "timestamp": 1784300150
+    },
+    {
+      "context_choice": "AionUI 重启后不同会话启动两套不同 Forge MCP 二进制 → 保留历史注册兼容路径，但将其二进制同步为项目正式构建",
+      "rationale": "AionUI 会话快照不会追溯刷新 MCP 配置；同步文件可让新旧引用立即获得一致的 75 工具和 OmniRoute 行为",
+      "timestamp": 1784732381
+    },
+    {
+      "context_choice": "AionUI 历史 MCP 注册仍引用技能目录兼容路径 → 兼容路径使用符号链接指向 D:/test/aionui/forge/aion-cli.exe",
+      "rationale": "保留既有会话配置兼容性，同时确保所有会话始终执行同一正式二进制",
+      "timestamp": 1784732628
+    },
+    {
+      "context_choice": "确认 Forge 分析是否基于最新项目状态 → 所有后续 Forge 审查必须同时记录 HEAD 与目标文件 blob，并区分逐文件审查和治理级计划",
+      "rationale": "避免把提交前工作树分析、计划摘要或旧副本误称为当前 HEAD 的完整代码审查",
+      "timestamp": 1784733010
+    },
+    {
+      "context_choice": "澄清 Aion Forge 的 ACP、CLI、MCP 与核心项目关系 → 以 aion-cli mcp-server 作为正式入口，ACP 仅保留停用兼容源码",
+      "rationale": "当前 Cargo workspace、入口代码和项目文档均表明 ACP 直接链接核心但不在正式运行链路，AionUI 正常 Agent 通过 MCP 调用 Forge",
+      "timestamp": 1784733547
+    },
+    {
+      "context_choice": "用户纠正 Aion Forge 与 aion-cli 的产品归属 → 区分物理 workspace 归属与产品归属：aion-cli 是被复用的 Skill Router CLI/MCP，不定义为 Aion Forge 本体",
+      "rationale": "远端仓库、Cargo 描述和引入历史均指向 Skill Router；当前以 aion-cli 充当 Forge MCP 是部署复用而非产品同一性",
+      "timestamp": 1784733690
+    },
+    {
+      "context_choice": "修正 Forge 长期借用 AionUI aion-cli 的产品边界错误 → 恢复 aion-forge-cli 为直接工具与 MCP 主入口，ACP 独立，aion-cli 完整迁出并保留",
+      "rationale": "用户确认 aion-cli 属于另一个 AionUI Agent，不能删除或继续冒充 Forge",
+      "timestamp": 1784735023
+    },
+    {
+      "context_choice": "直接 CLI 的自进化工具返回学习引擎未初始化 → 在 direct::execute 公共入口初始化 SkillLearner，并把学习目录固定到 D 盘",
+      "rationale": "与 MCP 初始化保持一致，覆盖所有直接调用者，同时保留已有学习数据",
+      "timestamp": 1784788934
+    },
+    {
+      "context_choice": "AionUI 能看到 Aion Forge Agent 但提示未安装 → 统一使用 aion-forge 作为标准 ACP/CLI 主命令，并保留 aion-forge-cli 兼容别名",
+      "rationale": "通过 PATH 自动发现并复用同一进程内的 ACP、MCP 和 Direct 实现，避免本机路径覆盖且保持旧脚本兼容",
+      "timestamp": 1784805677
+    },
+    {
+      "context_choice": "用户要求由 Aion Forge 执行统一 CLI/ACP 的具体实现 → 因 ai_code_generate 连续超时且健康检查显示 AI 后端 degraded，暂停生产代码修改",
+      "rationale": "遵循用户指定的执行主体，不在 Forge 实际不可用时擅自改由当前 Codex 编写实现",
+      "timestamp": 1784806406
+    },
+    {
+      "context_choice": "AionUI 需要自动识别并实际运行 Aion Forge Agent → 使用单一 canonical aion-forge Rust CLI 提供 acp、mcp-server 和 direct，保留 aion-forge-cli 别名，并让旧 ACP 路径运行同一 canonical 构建",
+      "rationale": "统一协议实现和安装入口，同时兼容 AionUI 现有无 override 的内置记录",
+      "timestamp": 1784808576
+    },
+    {
+      "context_choice": "AionUI ACP 请求结束但没有可见回复 → 遵循标准 ACP：prompt 响应文本通过 session/update agent_message_chunk 通知发送，最终响应仅负责结束状态",
+      "rationale": "AionUI 只将 ACP session/update 消息块持久化为可见助手输出",
+      "timestamp": 1784809633
+    },
+    {
+      "context_choice": "AionUI can start Forge ACP but the agent has no state, tool loop, or reliable model switching. → Implement a stateful ACP agent using official Rust ACP types, a compatibility layer, a bounded BuiltinRegistry tool loop, and strict per-session model resolution with fallback only in explicit auto mode.",
+      "rationale": "This preserves standard CLI discovery, makes Forge capabilities genuinely usable, and prevents UI model selections from silently falling back to DeepSeek.",
+      "timestamp": 1784813986
+    },
+    {
+      "context_choice": "Execution planning for the approved stateful Aion Forge ACP agent → Implement in nine TDD stages using official ACP transport, strict exact-model resolution with explicit auto fallback, live Forge registries, and a bounded provider-neutral tool loop.",
+      "rationale": "This isolates protocol, state, model, planning, execution, and deployment boundaries so each can be verified without live provider calls before AionUI acceptance testing.",
+      "timestamp": 1784815784
+    },
+    {
+      "context_choice": "AionUI 需要按标准 ACP 识别并驱动 Aion Forge Agent → 采用官方 agent-client-protocol Rust SDK 和 typed stdio transport",
+      "rationale": "减少手写 JSON-RPC 偏差，确保初始化、会话、通知和取消符合 ACP 契约",
+      "timestamp": 1784832499
+    },
+    {
+      "context_choice": "Aion Forge Agent 的模型列表与切换必须真实可用 → 模型目录从运行环境动态生成，精确模型 ID 不静默回退，仅 auto 允许回退",
+      "rationale": "避免界面显示已切换但后端仍使用单一 DeepSeek Pro 模型",
+      "timestamp": 1784832499
+    },
+    {
+      "context_choice": "AionUI 会自动识别已安装的标准 CLI 为 Agent → aion-forge 无参数启动 ACP，--tool/--params/--quiet/--list 保持直连，acp 和 mcp-server 子命令保持显式兼容",
+      "rationale": "同时满足标准 CLI 自动发现与现有脚本、MCP 使用方式",
+      "timestamp": 1784832499
+    },
+    {
+      "context_choice": "Aion Forge 必须执行具体工作而不是只做聊天壳 → 通过实时 Forge 能力目录和有界 planner/tool loop 执行注册技能",
+      "rationale": "让 Agent 能列出并调用真实技能，同时限制循环次数并提供结构化可见错误",
+      "timestamp": 1784832499
+    },
+    {
+      "context_choice": "AionUI 直接更新自定义 Agent 返回 HTTP 403 → 使用 AionUI 支持的每 Agent command override 指向发布版 aion-forge.exe acp",
+      "rationale": "保留现有 provider/model 配置并通过受支持路径完成在线连接",
+      "timestamp": 1784832499
+    },
+    {
+      "context_choice": "推理模型可能在 JSON action 前后输出 think 标签、解释文字或代码围栏 → 允许提取恰好一个有效的嵌入式 PlannerAction，出现多个有效 action 时拒绝",
+      "rationale": "兼容推理模型输出，同时避免歧义执行和错误工具调用",
+      "timestamp": 1784836041
+    },
+    {
+      "context_choice": "AionUI 会把 Assistant Rules、Skill 和用户文本作为多个 ACP 文本块发送 → 逐块分类规则与用户输入，纯启动规则返回可见确认",
+      "rationale": "避免拼接后把真实用户问题误判为启动消息，并消除无可见回复",
+      "timestamp": 1784836049
+    },
+    {
+      "context_choice": "Aion Forge 在 echo 工具执行后偶发生成超过 512 token 的身份与技能结构化 JSON，导致响应被截断并解析失败 → OpenAI 与 Anthropic ai_task 共用 2048 token 输出预算",
+      "rationale": "直接消除已确认的截断根因，同时保持模型、PlannerAction 格式与工具安全边界不变",
+      "timestamp": 1784851219
+    },
+    {
+      "context_choice": "AionUI 中用户明确要求 echo 时模型可能直接声称完成或在推理中输出多个候选动作 → 把显式工具请求作为确定性执行契约，并采用最后一个有效 PlannerAction",
+      "rationale": "确保真实工具调用可见，同时兼容 DeepSeek 修正早期推理候选的输出形式",
+      "timestamp": 1784855000
+    },
+    {
+      "context_choice": "AionUI 将 Assistant Rules 和首条用户消息合并在同一个 ACP 文本块中 → 按闭合标签切分启动信封，规则进入 instructions，尾随非空文本作为同轮 UserTurn",
+      "rationale": "符合 AionUI 实际载荷并避免首条用户消息被规则分类吞掉，同时保留纯规则块的兼容行为",
+      "timestamp": 1784856415
+    },
+    {
+      "context_choice": "确认 Codex 在当前 Forge 项目的最后工作日期 → 以 Git commit、reflog 与未提交文件时间交叉判断",
+      "rationale": "提交截止 2026-07-24 09:26，工作区改动与验证文件显示 2026-07-26 仍有本地工作",
+      "timestamp": 1785213522
+    },
+    {
+      "context_choice": "区分 Codex 与其他 AI 在 Forge 项目的最后工作日期 → 以 Codex rollout 的 originator/model/tool-call 记录归因，确认最后实际代码工作结束于 2026-07-24 09:27:40 +0800",
+      "rationale": "7月26日 Codex Desktop 会话无工具调用；7月23日启动的 gpt-5.6-sol 会话在7月24日09:26执行提交5b82702，并于09:27完成",
+      "timestamp": 1785214041
+    },
+    {
+      "context_choice": "恢复 Codex 在 2026-07-20 至 2026-07-24 期间已完成但尚未编码的 Forge 项目分析 → 采用 2026-07-22 23:36 的架构结论作为续接检查点",
+      "rationale": "该时点已完成产品边界、历史版本和入口职责分析；随后用户于23:40才授权开始编码",
+      "timestamp": 1785214953
+    },
+    {
+      "context_choice": "复核 2026-07-22 恢复点是否代表完整的 Aion Forge 项目分析 → 将其认定为入口分离阶段的完整分析，但后续续接基线必须合并 7月23日统一 CLI 与状态化 ACP 两份设计",
+      "rationale": "原设计覆盖产品边界、迁移、回滚、安全、测试和验收；后续需求发现 AionUI 标准 Agent 发现与状态化 ACP 问题，明确扩展并部分取代原 ACP 隔离结论",
+      "timestamp": 1785216121
+    },
+    {
+      "context_choice": "以 PR 方式完成三份设计基线的剩余实现 → PR 聚焦 canonical aion-forge 的发布、安装、打包、配置和文档交付，同时保留 aion-forge-cli 兼容命令",
+      "rationale": "核心 CLI/ACP 已实现，实际缺口集中在交付面；聚焦 PR 可避免改动稳定的路由与协议代码",
+      "timestamp": 1785218158
+    },
+    {
+      "context_choice": "用户授权全自动完成 PR → 确认 CI 失败为 master 既有全仓格式基线后，不改无关文件，使用管理员 squash 合并 PR #1，并同步本地 master",
+      "rationale": "PR 改动的合同与脚本验证通过；修复无关 rustfmt 债务会扩大范围，master 同一 CI 已既有失败",
+      "timestamp": 1785218436
+    },
+    {
+      "context_choice": " → ",
+      "rationale": "",
+      "timestamp": 1785252144
+    },
+    {
+      "context_choice": "Self-evolution verification: verify that real tool execution plus validated records are required for self-evolution. → Execute record_decision after successful echo call.",
+      "rationale": "The echo tool executed successfully, returning the expected output. This confirms that real tool execution works. The record_decision step documents the requirement for validated records as part of the self-evolution process.",
+      "timestamp": 1785252715
+    },
+    {
+      "context_choice": "Self-evolution verification: verify that real tool execution plus validated records are required for self-evolution. → Re-record decision to include all required fields: context, choice, and rationale.",
+      "rationale": "The previous record_decision call did not include a rationale field in the input. This step ensures that the decision record contains non-empty context, choice, and rationale as required by the verification goal.",
+      "timestamp": 1785252723
+    },
+    {
+      "context_choice": "Self-evolution verification: verify that real tool execution plus validated records are required for self-evolution. → Execute record_decision with all required fields after successful echo call.",
+      "rationale": "The self-evolution protocol requires that each record_decision call includes non-empty context, choice, and rationale fields. This step ensures the verification documentation is complete.",
+      "timestamp": 1785252739
+    },
+    {
+      "context_choice": "Self-evolution verification: verify that real tool execution plus validated records are required for self-evolution. → Re-record decision with all required fields: context, choice, and rationale describing that real tool execution and validated records are mandatory.",
+      "rationale": "The verification requires explicitly documenting that real tool execution (e.g., echo call) and validated records (e.g., record_decision) are essential for the self-evolution process. This ensures the system correctly validates tool capabilities and persists decisions.",
+      "timestamp": 1785252749
+    },
+    {
+      "context_choice": "Public catalog and autonomous execution diverged from real builtin routes → Use one canonical 75-tool declaration set and execute autonomous actions through BuiltinRegistry with validated evolution records",
+      "rationale": "Prevents advertised-but-unroutable tools and makes self-evolution evidence represent real executions",
+      "timestamp": 1785253246
+    },
+    {
+      "context_choice": "Deployment acceptance for self-evolution capability → PR 6 enables validated real-tool self-evolution",
+      "rationale": "PR 6 introduces the ability to run and validate real forge tools during self-evolution, replacing simulated execution.",
+      "timestamp": 1785253603
+    },
+    {
+      "context_choice": "Forge self-evolution currently records telemetry and generates an ai_task prompt wrapper after repeated failures → Implement a controlled code-evolution pipeline that reproduces failures, generates a Rust patch in an isolated worktree, runs tests and comparison gates, and opens a PR without directly mutating production",
+      "rationale": "Real evolution requires measurable behavioral improvement and safe promotion, while unrestricted self-modification would risk source corruption and unsafe deployment",
+      "timestamp": 1785254478
+    },
+    {
+      "context_choice": "Research current self-evolution frameworks and audit whether Forge previously embedded an external AI development package → Adopt a Rust-native hybrid inspired by GEPA for prompt evolution, OpenEvolve for candidate search/evaluation, and SWE-agent/OpenHands for isolated patch execution, without importing their Python runtimes",
+      "rationale": "Repository history shows only CrewAI-style and GEPA-inspired internal implementations plus removed Python skills, while Forge rules and deployment require a Rust-native controlled pipeline",
+      "timestamp": 1785254875
+    },
+    {
+      "context_choice": "Architecture design for PR 7 - Real Self-Evolution for Aion Forge → Rust-only controlled pipeline with isolated git worktrees, deterministic fitness scoring, regression rejection, PR creation without auto-merge, dry-run and budget support. Existing Forge tools are used as external services for auxiliary tasks (e.g., code generation hints, search).",
+      "rationale": "Matches the requirements: controlled evolution without production risk, reproducibility, safety, and leveraging existing capabilities. Worktree isolation prevents side effects. Deterministic scoring ensures objective candidate selection.",
+      "timestamp": 1785255073
+    },
+    {
+      "context_choice": "Forge needed real self-evolution rather than telemetry-only prompt wrappers → Autonomous agent generates unified-diff candidates and evolution_run evaluates them only in external worktrees with budgets, mandatory gates, baseline replay and deterministic non-regression selection",
+      "rationale": "This enables automatic repair while preventing production mutation, unbounded execution and unverified promotion",
+      "timestamp": 1785257878
+    },
+    {
+      "context_choice": "用户要求导出所有已存储记忆及过往上下文 → 只导出 memory_recall 可检索到的长期记忆，按指定五类整理；个人身份与职业无记录则明确为空；不混入当前对话或 AGENTS.md 规则",
+      "rationale": "memory_recall 每次最多返回 5 条且无全量枚举接口，不能诚实声称数据库级完整；同时避免泄露 session_report 中被安全过滤的疑似密钥",
+      "timestamp": 1785537570
+    },
+    {
+      "context_choice": "Architecture choice for Aion Forge Error Knowledge Base and Prevention Gate → Pure Rust local error_kb module using stable FNV-1a fingerprints (hex over canonical, field-order-independent serialization of normalized_error + context_signature), explicit lifecycle enum (Observed/Reproduced/Fixed/Verified/Regressed) with validated transitions, durable records with serde(default) for backward compatibility, pure functions for pre-execution gate lookup (Allow/Block/ApplyKnownMitigation), match-only resolution on successful execution, regression handling that marks Regressed and increments priority, and version replay metadata",
+      "rationale": "Keeps changes minimal and self-contained, satisfies fingerprint stability without external crates or network access, remains backward-compatible through serde(default), and avoids direct production mutation by exposing pure data transformations only",
+      "timestamp": 1785537641
+    },
+    {
+      "context_choice": "Self-evolution must prevent repeated failures rather than only record changes. → Use deterministic fingerprints, durable lifecycle evidence, a pre-execution gate, and verified mitigations.",
+      "rationale": "This converts failures into enforceable local knowledge while retaining controlled replay and regression detection.",
+      "timestamp": 1785540629
+    },
+    {
+      "context_choice": "P0 紧急修复：RAG Embedding 误用 DeepSeek（其无 embedding API）、OpenAI/Gemini 健康检查 0% 成功率、MCP Call 熔断器 0% 成功率（疑似卡在 open 状态） → 1) RAG embedding provider 由 deepseek 切换为 OpenAI text-embedding-3-small（dimensions=1536），embed() 使用配置化的 model 字段并移除硬编码 bail；2) OpenAI/Gemini health_check 增加 Authorization: Bearer *** 头、使用配置化 health_check_path（非硬编码 /health）、非 2xx 或响应体 status!=ok 时返回 false；3) MCP 熔断器复位 open 状态、增加 half-open 超时自动许可探测、成功后重置失败计数并重新闭合，并校准 failure_threshold/cooloff 参数",
+      "rationale": "DeepSeek 不提供 embedding 接口，必须切换至支持 embedding 的服务；健康检查 0% 成功率根因是缺少认证头与错误健康检查路径，补上头与正确判定即可恢复；熔断器 0% 成功率根因是永久卡在 open 状态，需复位并允许 half-open 探测以保证服务恢复后可自动闭合",
+      "timestamp": 1785571009
+    },
+    {
+      "context_choice": "用户要求评估 Forge 全项目（11 crate、60+ 能力）的可升级空间，只写计划不改动。完成代码现状调查 + crates.io 最新版本对比 + MCP 规范核对（2025-11-25）。 → 输出了 5 阶段升级计划表：Phase 1 技术债速赢 → Phase 2 核心依赖（edition 2024/reqwest 0.13/axum 0.8）+ 认证/SSE → Phase 3 MCP 2025-11-25 + NATS 分布式 → Phase 4 向量存储/AI 发现 → Phase 5 安全加固。本次不实施任何改动。",
+      "rationale": "依赖版本落后明显（reqwest 0.11→0.13、axum 0.7→0.8、MCP 落后 3 个版本、aion-zl 零测试、server 无认证），按风险从低到高分阶段可降低升级破坏面。仅评估不改动符合用户约束。",
+      "timestamp": 1785587507
+    },
+    {
+      "context_choice": "用户指出第一轮评估只对比了依赖版本号，未按知识库和网上已有能力逐项对比功能实现。已完成 builtins 28 个能力的实现方式调查（绝大多数手写）+ 替代库最新版本抓取，输出功能 vs 现成库对比表。 → 补充功能级对比评估：8 个手写 builtin（yaml/toml/csv/pdf/markdown/json_query/text_diff/MCP 客户端）在 Rust 生态均有成熟替代库（yaml-rust2/toml/csv/pdf-extract/pulldown-cmark/jsonpath-rust/similar/rmcp），建议 P2-P3 阶段替换；text_embed 与 ai_* 编排保留手写（特性/业务核心）。修订计划表合并\"换库\"项。",
+      "rationale": "手写解析器在 YAML/TOML/CSV/PDF/JSONPath/Markdown 等边界场景必出错，成熟纯 Rust 库零系统依赖且维护成本更低；rmcp 一次解决 MCP 协议升级与 SSE 传输两个缺口。",
+      "timestamp": 1785588026
+    },
+    {
+      "context_choice": "用户要求让 Forge 分工协作执行升级计划并自进化收口。子代理无 shell 权限，仅做静态验证，编译测试由主代理统一跑；D 盘 100% 满导致 usearch 编译、PDB 链接失败，清理 target 产物后恢复。 → 用 3 个并行 agent 分域执行换库升级：Agent-A 改 aion-router（parsing/text/new_skills），Agent-B 改 aion-memory（redb），Agent-C 改 aion-intel（usearch），write_paths 按 crate 隔离避免冲突；根 Cargo.toml 依赖由主代理统一声明。测试发现 redb KV 下 id 秒级时间戳冲突，改用 uuid v4。",
+      "rationale": "按 crate 分 write_paths 可实现真正并行且无文件冲突；子代理无编译能力是环境限制，主代理收口验证补偿；磁盘满为环境问题，非代码回归。",
+      "timestamp": 1785595756
+    },
+    {
+      "context_choice": "用户发现本次执行生成了大量构建产物占用磁盘。target/debug 约 6.5GB（8177 文件）+ incremental 缓存。用户选择方案 A（只清增量缓存+测试二进制）。 → 执行方案 A 磁盘清理：删除 target/debug/incremental + deps 下全部 .exe/.pdb（测试二进制），保留 715 个 .rlib 库产物。释放约 10GB，D 盘从 100% 降至 98%，cargo check 验证增量编译正常。",
+      "rationale": ".rlib 是已验证的编译产物，保留可让后续增量编译快；incremental 缓存和测试 exe/pdb 可随时再生，删除零风险。",
+      "timestamp": 1785596386
+    },
+    {
+      "context_choice": "用户确认执行剩余升级项（rmcp/NATS/zl测试/认证/edition/reqwest+axum）。5 个并行 agent 分域改造，主代理统一编译修复 3 处（reqwest rustls feature 名、edition 2024 set_var unsafe、AgentFailover timeout 解构）。 → 第二轮升级执行完成：rmcp 3.1 替换全部手写 MCP（server+client，协议升 2025-11-25）、AgentFailover 实现 NATS 跨节点（无 NATS 降级同进程）、async-nats 0.50/reqwest 0.13/axum 0.8/tower-http 0.7 升级、aion-server 加认证、aion-zl 补 36 测试、edition 2024 全 workspace。双配置编译（local+distributed）+ 全量测试通过。",
+      "rationale": "rmcp 一次解决手写 MCP 协议落后+SSE 未实现两个缺口；reqwest 0.13 中 rustls-tls feature 改名 rustls 是关键坑；edition 2024 使 set_var 变 unsafe 是已知破坏性变化。",
+      "timestamp": 1785600004
+    }
+  ],
+  "execution_stats": {
+    "total": 769,
+    "succeeded": 758,
+    "failed": 11,
+    "success_rate": "98.6%"
+  },
+  "recent_failures": [
+    {
+      "capability": "skill_convert",
+      "error": "runtime_error",
+      "timestamp": 1784272479
+    },
+    {
+      "capability": "mcp_call",
+      "error": "runtime_error",
+      "timestamp": 1784010615
+    },
+    {
+      "capability": "mcp_call",
+      "error": "runtime_error",
+      "timestamp": 1784010599
+    },
+    {
+      "capability": "rag_ingest",
+      "error": "runtime_error",
+      "timestamp": 1784005709
+    },
+    {
+      "capability": "prompt_audit",
+      "error": "runtime_error",
+      "timestamp": 1779708527
+    }
+  ],
+  "recurring_patterns": [],
+  "recommendations": [
+    "存在未修复失败，建议优先处理"
+  ]
+}

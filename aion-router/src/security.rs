@@ -263,15 +263,19 @@ impl AiSecurityReviewer {
         let output = response.result.to_string();
 
         // Detect API key patterns in output (common formats)
+        // 用精确正则而非 contains 子串，避免 "task-by-task" 等正常文本被 sk- 误判。
         let key_patterns: &[(&str, &str)] = &[
-            ("sk-", "OpenAI-style API key"),
-            ("-----BEGIN", "PEM private key"),
-            ("AKIA", "AWS access key"),
-            ("ghp_", "GitHub personal access token"),
-            ("glpat-", "GitLab personal access token"),
+            (r"sk-(?:proj-)?[A-Za-z0-9_\-]{16,}", "OpenAI-style API key"),
+            (r"-----BEGIN [A-Z ]*PRIVATE KEY-----", "PEM private key"),
+            (r"AKIA[A-Z0-9]{16}", "AWS access key"),
+            (r"ghp_[A-Za-z0-9]{20,}", "GitHub personal access token"),
+            (r"glpat-[A-Za-z0-9_\-]{20,}", "GitLab personal access token"),
         ];
-        for (pat, label) in key_patterns {
-            if output.contains(pat) {
+        for (pattern, label) in key_patterns {
+            if regex::Regex::new(pattern)
+                .expect("valid key pattern")
+                .is_match(&output)
+            {
                 return Some(format!("output blocked: possible {} detected in response", label));
             }
         }
@@ -449,5 +453,53 @@ impl AiSecurityReviewer {
             });
             let _ = writeln!(file, "{}", serde_json::to_string(&entry).unwrap_or_default());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use aion_types::types::ExecutionResponse;
+    use serde_json::json;
+
+    fn resp(text: &str) -> ExecutionResponse {
+        ExecutionResponse {
+            status: "ok".into(),
+            result: json!(text),
+            artifacts: json!({}),
+            error: None,
+            token_usage: None,
+        }
+    }
+
+    /// 回归：普通英文文本 "task-by-task" 含 sk- 子串，不得误判为 API key。
+    #[test]
+    fn heuristic_post_does_not_block_task_by_task() {
+        assert_eq!(super::AiSecurityReviewer::heuristic_post(&resp("task-by-task plan")), None);
+    }
+
+    /// 回归：其他含 sk- 子串的正常文本（如 risk- 评估）不得误判。
+    #[test]
+    fn heuristic_post_does_not_block_risk_word() {
+        assert_eq!(super::AiSecurityReviewer::heuristic_post(&resp("risk-adjusted plan")), None);
+    }
+
+    /// 真实 OpenAI key（sk- 后 ≥16 位）仍须拦截。
+    #[test]
+    fn heuristic_post_blocks_real_openai_key() {
+        let out = super::AiSecurityReviewer::heuristic_post(&resp("key is sk-abcdefghijklmnopqrstuvwxyz123456"));
+        assert!(out.is_some());
+    }
+
+    /// 短 sk- 变体（不足 16 位）不拦截，避免误伤。
+    #[test]
+    fn heuristic_post_ignores_short_sk() {
+        assert_eq!(super::AiSecurityReviewer::heuristic_post(&resp("sk-abc")), None);
+    }
+
+    /// GitHub/AWS key 仍须拦截。
+    #[test]
+    fn heuristic_post_blocks_other_keys() {
+        assert!(super::AiSecurityReviewer::heuristic_post(&resp("ghp_abcdefghijklmnopqrstuvwx")).is_some());
+        assert!(super::AiSecurityReviewer::heuristic_post(&resp("AKIAABCDEFGHIJKLMNOP")).is_some());
     }
 }

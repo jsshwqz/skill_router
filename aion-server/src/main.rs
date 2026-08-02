@@ -32,7 +32,9 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use axum::http::{HeaderValue, Method};
+use axum::http::{HeaderValue, Method, Request, StatusCode};
+use axum::middleware::{self, Next};
+use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
@@ -127,28 +129,17 @@ async fn main() -> anyhow::Result<()> {
     let cors = build_cors_layer();
 
     // Build router
-    let app = Router::new()
-        // ── Health & Info ──
-        .route("/v1/health", get(handlers::health))
-        .route("/v1/metrics", get(handlers::metrics))
-        // ── Capabilities ──
-        .route("/v1/capabilities", get(handlers::list_capabilities))
-        // ── Routing ──
-        .route("/v1/route", post(handlers::route_task))
-        .route("/v1/route/native", post(handlers::route_native))
-        // ── Memory ──
-        .route("/v1/memory/recall", get(handlers::memory_recall))
-        .route("/v1/memory/remember", post(handlers::memory_remember))
-        .route("/v1/memory/stats", get(handlers::memory_stats))
-        // ── Agent Management ──
-        .route("/v1/agents", get(handlers::agents_info))
-        .route("/v1/agents/delegate", post(handlers::agent_delegate))
-        // ── WebSocket ──
-        .route("/v1/stream/{session_id}", get(ws::ws_handler))
+    // /v1/health 保持公开；其余路由在 AION_API_TOKEN 设置后要求 Bearer token。
+    let api_token = auth_token_from_env();
+    if api_token.is_some() {
+        info!("API authentication enabled (AION_API_TOKEN set)");
+    } else {
+        info!("API authentication disabled (AION_API_TOKEN not set)");
+    }
+    let app = build_app(state, api_token)
         // ── Middleware ──
         .layer(TraceLayer::new_for_http())
-        .layer(cors)
-        .with_state(state);
+        .layer(cors);
 
     // Bind address
     let host = std::env::var("AION_HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
@@ -164,6 +155,94 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
+}
+
+/// 构建应用 Router（含全部 REST 与 WebSocket 路由）。
+///
+/// - `/v1/health` 保持公开（健康检查，供负载均衡器/探针使用）。
+/// - 其余路由置于受保护子 Router 中：当 `api_token` 为 `Some` 时，每个请求
+///   必须携带 `Authorization: Bearer <token>`，否则返回 `401 Unauthorized`。
+/// - `api_token` 为 `None` 时不附加认证层，行为与未设置 `AION_API_TOKEN` 完全一致。
+///
+/// 该函数供 `main` 与集成测试复用；不含 TraceLayer / CORS（由调用方决定）。
+pub fn build_app(state: Arc<AppState>, api_token: Option<String>) -> Router {
+    let protected = Router::new()
+        // ── Metrics ──
+        .route("/v1/metrics", get(handlers::metrics))
+        // ── Capabilities ──
+        .route("/v1/capabilities", get(handlers::list_capabilities))
+        // ── Routing ──
+        .route("/v1/route", post(handlers::route_task))
+        .route("/v1/route/native", post(handlers::route_native))
+        // ── Memory ──
+        .route("/v1/memory/recall", get(handlers::memory_recall))
+        .route("/v1/memory/remember", post(handlers::memory_remember))
+        .route("/v1/memory/stats", get(handlers::memory_stats))
+        // ── Agent Management ──
+        .route("/v1/agents", get(handlers::agents_info))
+        .route("/v1/agents/delegate", post(handlers::agent_delegate))
+        // ── WebSocket ──
+        .route("/v1/stream/{session_id}", get(ws::ws_handler))
+        .with_state(state);
+
+    let protected = match api_token {
+        Some(token) => protected.route_layer(middleware::from_fn(move |req, next| {
+            auth_middleware(req, next, token.clone())
+        })),
+        None => protected,
+    };
+
+    Router::new()
+        .route("/v1/health", get(handlers::health))
+        .merge(protected)
+}
+
+/// 读取 `AION_API_TOKEN` 环境变量；未设置或为空白时返回 `None`（认证关闭）。
+fn auth_token_from_env() -> Option<String> {
+    std::env::var("AION_API_TOKEN")
+        .ok()
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+}
+
+/// Bearer token 认证中间件：校验 `Authorization: Bearer <token>`，失败返回 401。
+///
+/// 通过 `route_layer` 仅作用于受保护路由（不含 `/v1/health`）。
+async fn auth_middleware(
+    req: Request<axum::body::Body>,
+    next: Next,
+    expected: String,
+) -> Response {
+    let authorized = req
+        .headers()
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .is_some_and(|token| secure_eq(token.as_bytes(), expected.as_bytes()));
+
+    if authorized {
+        next.run(req).await
+    } else {
+        // 遵循 RFC 7235：返回 401 并附带认证质询头
+        let mut resp = (StatusCode::UNAUTHORIZED, "Unauthorized").into_response();
+        resp.headers_mut().insert(
+            axum::http::header::WWW_AUTHENTICATE,
+            axum::http::HeaderValue::from_static("Bearer"),
+        );
+        resp
+    }
+}
+
+/// 恒定时间比较：长度不等直接失败，等长时按位累加 XOR，
+/// 避免 token 比较上的时序侧信道。
+fn secure_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter()
+        .zip(b.iter())
+        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+        == 0
 }
 
 /// Build CORS layer from `CORS_ALLOWED_ORIGINS` environment variable.

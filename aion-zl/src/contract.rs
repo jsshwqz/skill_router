@@ -200,31 +200,7 @@ impl Engine {
         )
         .await?;
 
-        Ok(TaskContract {
-            task_summary: raw["task_summary"].as_str().unwrap_or(task).into(),
-            acceptance_criteria: raw["acceptance_criteria"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-                .unwrap_or_default(),
-            expected_outputs: raw["expected_outputs"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .map(|v| ExpectedOutput {
-                            output_type: v["type"].as_str().unwrap_or("text").into(),
-                            description: v["description"].as_str().unwrap_or("").into(),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default(),
-            required_context: raw["required_context"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-                .unwrap_or_default(),
-            verification_method: raw["verification_method"].as_str().unwrap_or("").into(),
-            complexity: raw["complexity"].as_str().unwrap_or("medium").into(),
-            estimated_steps: raw["estimated_steps"].as_u64().unwrap_or(3) as u32,
-        })
+        Ok(compile_from_json(&raw, task))
     }
 
     /// Sensor P0: 上下文充分性检测 — 执行前判断"是否理解够了"
@@ -245,15 +221,7 @@ impl Engine {
         )
         .await?;
 
-        Ok(SufficiencyResult {
-            sufficient: raw["sufficient"].as_bool().unwrap_or(false),
-            confidence: raw["confidence"].as_f64().unwrap_or(0.5) as f32,
-            missing: raw["missing"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-                .unwrap_or_default(),
-            recommendation: raw["recommendation"].as_str().unwrap_or("gather_more").into(),
-        })
+        Ok(sufficiency_from_json(&raw))
     }
 
     /// Sensor P1: 结果契约验证 — 执行后对照契约校验输出
@@ -274,24 +242,7 @@ impl Engine {
         )
         .await?;
 
-        Ok(VerifyResult {
-            passed: raw["passed"].as_bool().unwrap_or(false),
-            score: raw["score"].as_f64().unwrap_or(0.0) as f32,
-            criteria_results: raw["criteria_results"]
-                .as_array()
-                .map(|a| {
-                    a.iter()
-                        .map(|v| CriterionResult {
-                            criterion: v["criterion"].as_str().unwrap_or("").into(),
-                            met: v["met"].as_bool().unwrap_or(false),
-                            evidence: v["evidence"].as_str().unwrap_or("").into(),
-                        })
-                        .collect()
-                })
-                .unwrap_or_default(),
-            verdict: raw["verdict"].as_str().unwrap_or("retry").into(),
-            feedback: raw["feedback"].as_str().unwrap_or("").into(),
-        })
+        Ok(verify_from_json(&raw))
     }
 
     /// Sensor P1: 执行偏航检测 — 监控过程是否偏离目标
@@ -312,11 +263,197 @@ impl Engine {
         )
         .await?;
 
-        Ok(DriftResult {
-            on_track: raw["on_track"].as_bool().unwrap_or(true),
-            drift_score: raw["drift_score"].as_f64().unwrap_or(0.0) as f32,
-            drift_description: raw["drift_description"].as_str().unwrap_or("").into(),
-            correction: raw["correction"].as_str().unwrap_or("").into(),
-        })
+        Ok(drift_from_json(&raw))
+    }
+}
+
+// ── Pure mapping helpers (unit-testable without network access) ──
+
+fn compile_from_json(raw: &serde_json::Value, fallback_task: &str) -> TaskContract {
+    TaskContract {
+        task_summary: raw["task_summary"].as_str().unwrap_or(fallback_task).into(),
+        acceptance_criteria: raw["acceptance_criteria"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default(),
+        expected_outputs: raw["expected_outputs"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .map(|v| ExpectedOutput {
+                        output_type: v["type"].as_str().unwrap_or("text").into(),
+                        description: v["description"].as_str().unwrap_or("").into(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
+        required_context: raw["required_context"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default(),
+        verification_method: raw["verification_method"].as_str().unwrap_or("").into(),
+        complexity: raw["complexity"].as_str().unwrap_or("medium").into(),
+        estimated_steps: raw["estimated_steps"].as_u64().unwrap_or(3) as u32,
+    }
+}
+
+fn sufficiency_from_json(raw: &serde_json::Value) -> SufficiencyResult {
+    SufficiencyResult {
+        sufficient: raw["sufficient"].as_bool().unwrap_or(false),
+        confidence: raw["confidence"].as_f64().unwrap_or(0.5) as f32,
+        missing: raw["missing"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .unwrap_or_default(),
+        recommendation: raw["recommendation"].as_str().unwrap_or("gather_more").into(),
+    }
+}
+
+fn verify_from_json(raw: &serde_json::Value) -> VerifyResult {
+    VerifyResult {
+        passed: raw["passed"].as_bool().unwrap_or(false),
+        score: raw["score"].as_f64().unwrap_or(0.0) as f32,
+        criteria_results: raw["criteria_results"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .map(|v| CriterionResult {
+                        criterion: v["criterion"].as_str().unwrap_or("").into(),
+                        met: v["met"].as_bool().unwrap_or(false),
+                        evidence: v["evidence"].as_str().unwrap_or("").into(),
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
+        verdict: raw["verdict"].as_str().unwrap_or("retry").into(),
+        feedback: raw["feedback"].as_str().unwrap_or("").into(),
+    }
+}
+
+fn drift_from_json(raw: &serde_json::Value) -> DriftResult {
+    DriftResult {
+        on_track: raw["on_track"].as_bool().unwrap_or(true),
+        drift_score: raw["drift_score"].as_f64().unwrap_or(0.0) as f32,
+        drift_description: raw["drift_description"].as_str().unwrap_or("").into(),
+        correction: raw["correction"].as_str().unwrap_or("").into(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn compile_from_json_maps_all_contract_fields() {
+        let raw = json!({
+            "task_summary": "Implement Fibonacci function",
+            "acceptance_criteria": ["computes nth term", "handles n=0"],
+            "expected_outputs": [
+                { "type": "code", "description": "Python function source" },
+                { "type": "text", "description": "usage notes" }
+            ],
+            "required_context": ["Language: Python"],
+            "verification_method": "Run test cases",
+            "complexity": "low",
+            "estimated_steps": 1
+        });
+
+        let c = compile_from_json(&raw, "fallback");
+        assert_eq!(c.task_summary, "Implement Fibonacci function");
+        assert_eq!(c.acceptance_criteria.len(), 2);
+        assert_eq!(c.acceptance_criteria[1], "handles n=0");
+        assert_eq!(c.expected_outputs.len(), 2);
+        assert_eq!(c.expected_outputs[0].output_type, "code");
+        assert_eq!(c.expected_outputs[0].description, "Python function source");
+        assert_eq!(c.expected_outputs[1].output_type, "text");
+        assert_eq!(c.required_context, vec!["Language: Python"]);
+        assert_eq!(c.verification_method, "Run test cases");
+        assert_eq!(c.complexity, "low");
+        assert_eq!(c.estimated_steps, 1);
+    }
+
+    #[test]
+    fn compile_from_json_uses_defaults_for_missing_fields() {
+        let c = compile_from_json(&json!({}), "original-task");
+        assert_eq!(c.task_summary, "original-task", "falls back to task");
+        assert!(c.acceptance_criteria.is_empty());
+        assert!(c.expected_outputs.is_empty());
+        assert!(c.required_context.is_empty());
+        assert_eq!(c.verification_method, "");
+        assert_eq!(c.complexity, "medium");
+        assert_eq!(c.estimated_steps, 3);
+    }
+
+    #[test]
+    fn sufficiency_from_json_parses_all_fields() {
+        let raw = json!({
+            "sufficient": false,
+            "confidence": 0.4,
+            "missing": ["Language: Python"],
+            "recommendation": "gather_more"
+        });
+        let s = sufficiency_from_json(&raw);
+        assert!(!s.sufficient);
+        assert_eq!(s.confidence, 0.4);
+        assert_eq!(s.missing, vec!["Language: Python"]);
+        assert_eq!(s.recommendation, "gather_more");
+    }
+
+    #[test]
+    fn verify_from_json_parses_criteria_results() {
+        let raw = json!({
+            "passed": true,
+            "score": 1.0,
+            "criteria_results": [
+                { "criterion": "computes nth term", "met": true, "evidence": "recursive formula" }
+            ],
+            "verdict": "accept",
+            "feedback": ""
+        });
+        let v = verify_from_json(&raw);
+        assert!(v.passed);
+        assert_eq!(v.score, 1.0);
+        assert_eq!(v.criteria_results.len(), 1);
+        assert!(v.criteria_results[0].met);
+        assert_eq!(v.criteria_results[0].evidence, "recursive formula");
+        assert_eq!(v.verdict, "accept");
+        assert_eq!(v.feedback, "");
+    }
+
+    #[test]
+    fn drift_from_json_parses_all_fields() {
+        let raw = json!({
+            "on_track": false,
+            "drift_score": 0.8,
+            "drift_description": "switched to sorting",
+            "correction": "redirect focus"
+        });
+        let d = drift_from_json(&raw);
+        assert!(!d.on_track);
+        assert_eq!(d.drift_score, 0.8);
+        assert_eq!(d.drift_description, "switched to sorting");
+        assert_eq!(d.correction, "redirect focus");
+    }
+
+    #[test]
+    fn task_contract_serde_roundtrip_preserves_fields() {
+        let c = TaskContract {
+            task_summary: "t".into(),
+            acceptance_criteria: vec!["a".into()],
+            expected_outputs: vec![ExpectedOutput {
+                output_type: "code".into(),
+                description: "d".into(),
+            }],
+            required_context: vec!["ctx".into()],
+            verification_method: "v".into(),
+            complexity: "high".into(),
+            estimated_steps: 9,
+        };
+        let s = serde_json::to_string(&c).unwrap();
+        let back: TaskContract = serde_json::from_str(&s).unwrap();
+        assert_eq!(back.task_summary, "t");
+        assert_eq!(back.expected_outputs[0].output_type, "code");
+        assert_eq!(back.estimated_steps, 9);
     }
 }

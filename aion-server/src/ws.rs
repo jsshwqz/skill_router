@@ -75,7 +75,7 @@ async fn handle_ws(mut socket: WebSocket, session_id: String, state: Arc<AppStat
                                 session_id, LAG_THRESHOLD
                             );
                             let _ = socket.send(Message::Close(Some(CloseFrame {
-                                code: axum::extract::ws::close_code::GOING_AWAY,
+                                code: axum::extract::ws::close_code::AWAY,
                                 reason: format!("lagged by {} events", n).into(),
                             }))).await;
                             break;

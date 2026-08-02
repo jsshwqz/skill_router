@@ -182,12 +182,17 @@ impl NamespacedMemoryManager {
         let mut namespaces = Vec::new();
 
         // Global
-        let global_path = self
+        let global_json = self
             .workspace_root
             .join("memory")
             .join("global")
             .join("memory_store.json");
-        if global_path.exists() {
+        let global_redb = self
+            .workspace_root
+            .join("memory")
+            .join("global")
+            .join("memory_store.redb");
+        if global_json.exists() || global_redb.exists() {
             namespaces.push(MemoryNamespace::Global);
         }
 

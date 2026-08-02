@@ -1,7 +1,7 @@
 [package]
 name = "aion-zl"
 version = "0.2.0"
-edition = "2021"
+edition = "2024"
 description = "Dialectical strategy for AI agent orchestration — inspired by github.com/whatwoods/dialectical-vibe-coding"
 
 [[bin]]

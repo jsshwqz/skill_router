@@ -1,4 +1,12 @@
-use std::io::{self, BufRead, Write};
+//! MCP stdio server for Aion Forge, built on the official rmcp 3.1 SDK.
+//!
+//! `run()` replaces the previous hand-written JSON-RPC stdio loop with rmcp's
+//! `ServerHandler` trait + `stdio()` transport (https://docs.rs/rmcp/3.1.0/rmcp/).
+//! The public helpers `initialize_response` / `tools_list_response` /
+//! `write_json_line` are kept with unchanged signatures so the crate-level
+//! tests (`tests/mcp_contract.rs`) keep passing.
+
+use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,15 +19,33 @@ use aion_router::SkillRouter;
 use aion_types::agent_message::{AgentRef, AgentRole};
 use aion_types::types::RouterPaths;
 
+use rmcp::{
+    ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
+    model::{
+        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
+        JsonObject, ListToolsResult, MetaObject, PaginatedRequestParams, ProtocolVersion,
+        ServerCapabilities, ServerInfo, Tool,
+    },
+    service::RequestContext,
+    transport::stdio,
+};
+
 const ASYNC_POLL_TIMEOUT_SECS: u64 = 300;
 const ASYNC_POLL_INTERVAL_SECS: u64 = 5;
+
+/// The negotiated MCP protocol version advertised by `initialize`.
+///
+/// rmcp 3.1 targets the `2026-07-28` specification while remaining compatible
+/// with `2025-11-25`; `ProtocolVersion::LATEST` defaults to `2025-11-25`
+/// (https://docs.rs/rmcp/3.1.0/rmcp/model/struct.ProtocolVersion.html).
+const PROTOCOL_VERSION: &str = "2025-11-25";
 
 /// Build the MCP initialize response for Aion Forge.
 pub fn initialize_response(id: Value) -> Value {
     success(
         id,
         json!({
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
             "serverInfo": {
                 "name": "aion-forge",
@@ -54,7 +80,7 @@ pub fn write_json_line(output: &mut impl Write, response: &Value) -> Result<()> 
     Ok(())
 }
 
-/// Run the MCP stdio server.
+/// Run the MCP stdio server on rmcp's official stdio transport.
 pub async fn run(paths: RouterPaths) -> Result<()> {
     aion_router::learner::init_learner(&paths.workspace_root);
     let global_bus = aion_router::message_bus::init_global_bus(128);
@@ -75,115 +101,113 @@ pub async fn run(paths: RouterPaths) -> Result<()> {
             Err(error) => tracing::warn!(agent = id, %error, "MCP agent runtime failed to start"),
         }
     }
-    let stdin = io::stdin();
-    let stdout = io::stdout();
-    serve(stdin.lock(), stdout.lock(), &router).await
-}
 
-async fn serve(reader: impl BufRead, mut output: impl Write, router: &SkillRouter) -> Result<()> {
-    for line in reader.lines() {
-        let line = line?;
-        if line.trim().is_empty() {
-            continue;
-        }
-
-        let request: Value = match serde_json::from_str(&line) {
-            Ok(request) => request,
-            Err(error) => {
-                write_json_line(
-                    &mut output,
-                    &failure(Value::Null, -32700, &format!("Parse error: {error}")),
-                )?;
-                continue;
-            }
-        };
-
-        let id = request.get("id").cloned();
-        let method = request.get("method").and_then(Value::as_str).unwrap_or("");
-        if id.is_none() || method.starts_with("notifications/") || method == "initialized" {
-            continue;
-        }
-        let id = id.unwrap_or(Value::Null);
-
-        let response = if request.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
-            failure(id, -32600, "Invalid JSON-RPC version")
-        } else {
-            match method {
-                "initialize" => initialize_response(id),
-                "tools/list" => tools_list_response(id),
-                "tools/call" => {
-                    let params = request.get("params").cloned().unwrap_or_else(|| json!({}));
-                    call_tool(id, &params, router).await
-                }
-                _ => failure(id, -32601, &format!("Method not found: {method}")),
-            }
-        };
-        write_json_line(&mut output, &response)?;
-    }
+    let server = ForgeMcpServer {
+        router: Arc::new(router),
+    };
+    // `ServiceExt::serve` finishes the MCP `initialize` handshake, then
+    // `RunningService::waiting` runs the transport loop until the client
+    // closes stdin (https://docs.rs/rmcp/3.1.0/rmcp/service/trait.ServiceExt.html).
+    let running = server.serve(stdio()).await?;
+    running.waiting().await?;
     Ok(())
 }
 
-async fn call_tool(id: Value, params: &Value, router: &SkillRouter) -> Value {
-    let tool_name = params.get("name").and_then(Value::as_str).unwrap_or("");
-    if tool_name.is_empty() {
-        return failure(id, -32602, "Missing 'name' in tools/call params");
+/// The rmcp [`ServerHandler`] exposing the Aion Forge tool catalog.
+#[derive(Clone)]
+struct ForgeMcpServer {
+    router: Arc<SkillRouter>,
+}
+
+impl ServerHandler for ForgeMcpServer {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
+            .with_server_info(Implementation::new("aion-forge", env!("CARGO_PKG_VERSION")))
+            .with_protocol_version(ProtocolVersion::LATEST)
     }
 
-    let arguments = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
-    if passthrough_enabled() {
-        if let Some(instruction) = aion_intel::synth::ai_instruction_for(tool_name) {
-            let text = arguments
-                .get("text")
-                .or_else(|| arguments.get("input"))
-                .or_else(|| arguments.get("query"))
-                .and_then(Value::as_str)
-                .unwrap_or("");
-            return success(
-                id,
-                json!({
-                    "content": [{"type": "text", "text": format!("[Instruction]: {instruction}\n\n[Input]:\n{text}")}],
-                    "isError": false
-                }),
-            );
-        }
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListToolsResult, McpError> {
+        let tools = crate::catalog::entries()
+            .into_iter()
+            .map(|entry| {
+                // Preserve the legacy `requiresApproval` flag as tool `_meta`.
+                let mut meta = MetaObject::new();
+                meta.insert(
+                    "requiresApproval".to_string(),
+                    Value::Bool(entry.requires_approval),
+                );
+                Tool::new(entry.name, entry.description, schema_to_object(entry.input_schema))
+                    .with_meta(meta)
+            })
+            .collect();
+        Ok(ListToolsResult::with_all_items(tools))
     }
 
-    let task = arguments
-        .get("text")
-        .or_else(|| arguments.get("query"))
-        .and_then(Value::as_str)
-        .map(|text| format!("{tool_name}: {text}"))
-        .unwrap_or_else(|| format!("{tool_name}: {arguments}"));
-
-    match router.route_with_capability(&task, tool_name, Some(arguments)).await {
-        Ok(result) if result.execution.status == "ok" => {
-            let final_result = await_async_result(&result.execution.result, router).await;
-            let text = serde_json::to_string_pretty(&final_result).unwrap_or_else(|_| final_result.to_string());
-            success(
-                id,
-                json!({
-                    "content": [{
-                        "type": "text",
-                        "text": text
-                    }],
-                    "isError": false
-                }),
-            )
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResponse, McpError> {
+        let tool_name = request.name.to_string();
+        if tool_name.is_empty() {
+            return Err(McpError::invalid_params(
+                "Missing 'name' in tools/call params",
+                None,
+            ));
         }
-        Ok(result) => success(
-            id,
-            json!({
-                "content": [{"type": "text", "text": format!("Error: {}", result.execution.error.unwrap_or_default())}],
-                "isError": true
-            }),
-        ),
-        Err(error) => success(
-            id,
-            json!({
-                "content": [{"type": "text", "text": format!("Error: {error}")}],
-                "isError": true
-            }),
-        ),
+        let arguments = request.arguments.map(Value::Object).unwrap_or_else(|| json!({}));
+        Ok(self.run_tool(&tool_name, arguments).await.into())
+    }
+}
+
+impl ForgeMcpServer {
+    /// Route one `tools/call` through the Aion Forge skill router, reusing the
+    /// original passthrough / routing / async-poll logic.
+    async fn run_tool(&self, tool_name: &str, arguments: Value) -> CallToolResult {
+        if passthrough_enabled() {
+            if let Some(instruction) = aion_intel::synth::ai_instruction_for(tool_name) {
+                let text = arguments
+                    .get("text")
+                    .or_else(|| arguments.get("input"))
+                    .or_else(|| arguments.get("query"))
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                return CallToolResult::success(vec![ContentBlock::text(format!(
+                    "[Instruction]: {instruction}\n\n[Input]:\n{text}"
+                ))]);
+            }
+        }
+
+        let task = arguments
+            .get("text")
+            .or_else(|| arguments.get("query"))
+            .and_then(Value::as_str)
+            .map(|text| format!("{tool_name}: {text}"))
+            .unwrap_or_else(|| format!("{tool_name}: {arguments}"));
+
+        match self
+            .router
+            .route_with_capability(&task, tool_name, Some(arguments))
+            .await
+        {
+            Ok(result) if result.execution.status == "ok" => {
+                let final_result = await_async_result(&result.execution.result, &self.router).await;
+                let text = serde_json::to_string_pretty(&final_result)
+                    .unwrap_or_else(|_| final_result.to_string());
+                CallToolResult::success(vec![ContentBlock::text(text)])
+            }
+            Ok(result) => CallToolResult::error(vec![ContentBlock::text(format!(
+                "Error: {}",
+                result.execution.error.unwrap_or_default()
+            ))]),
+            Err(error) => {
+                CallToolResult::error(vec![ContentBlock::text(format!("Error: {error}"))])
+            }
+        }
     }
 }
 
@@ -248,14 +272,15 @@ fn passthrough_enabled() -> bool {
         .unwrap_or(false)
 }
 
-fn success(id: Value, result: Value) -> Value {
-    json!({"jsonrpc": "2.0", "id": id, "result": result})
+/// Convert a raw JSON-schema [`Value`] into the rmcp [`JsonObject`]
+/// (serde_json map) expected by [`Tool::new`].
+fn schema_to_object(schema: Value) -> JsonObject {
+    match schema {
+        Value::Object(map) => map,
+        _ => JsonObject::new(),
+    }
 }
 
-fn failure(id: Value, code: i64, message: &str) -> Value {
-    json!({
-        "jsonrpc": "2.0",
-        "id": id,
-        "error": {"code": code, "message": message}
-    })
+fn success(id: Value, result: Value) -> Value {
+    json!({"jsonrpc": "2.0", "id": id, "result": result})
 }

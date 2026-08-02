@@ -1,7 +1,7 @@
 //! MCP 工具调用 Builtin
 //!
-//! 通过 JSON-RPC over stdin/stdout 调用外部 MCP server 的工具。
-//! 支持启动子进程、初始化握手、调用工具、关闭。
+//! 通过 rmcp 3.1（官方 Rust SDK）调用外部 MCP server 的工具。
+//! 支持启动子进程（stdio）并自动完成 initialize 握手、调用工具、关闭。
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -9,13 +9,23 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::Command;
 use tracing::info;
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::BuiltinSkill;
+
+// rmcp 3.1 client API（升级依据：docs.rs/rmcp/3.1.0）：
+// - `rmcp::ClientHandler`：客户端处理器（回调），空实现即用默认行为
+// - `rmcp::service::serve_client(handler, transport)`：启动客户端并完成 initialize
+// - `rmcp::transport::child_process::TokioChildProcess`：客户端 stdio 传输
+// - `rmcp::model::CallToolRequestParams`：tools/call 参数
+// - `rmcp::model::CallToolResult`：结构化结果（structured_content / content / is_error）
+use rmcp::model::CallToolRequestParams;
+use rmcp::service::serve_client;
+use rmcp::transport::child_process::TokioChildProcess;
+use rmcp::ClientHandler;
 
 /// MCP 配置文件结构（.mcp.json 格式）
 #[derive(Debug, Deserialize)]
@@ -73,6 +83,12 @@ fn load_mcp_server_config(server_name: &str) -> Option<McpServerConfigEntry> {
     None
 }
 
+/// rmcp 客户端处理器（处理 server 回调，默认行为即可）
+#[derive(Debug, Clone, Copy)]
+struct AionMcpClientHandler;
+
+impl ClientHandler for AionMcpClientHandler {}
+
 /// MCP 工具调用
 pub struct McpCall;
 
@@ -112,20 +128,13 @@ impl BuiltinSkill for McpCall {
         // 3. 最后直接用 server_name 作为命令
         let server_cmd = std::env::var(format!("MCP_SERVER_{}", server_name.to_uppercase()));
 
-        let (mut child, extra_env) = if let Ok(cmd) = server_cmd {
+        // 构造 tokio Command（stdio：stdin/stdout piped）
+        let mut cmd = if let Ok(cmd_str) = server_cmd {
             // 模式 1: 环境变量 — 使用 shell 包装（向后兼容）
-            let child = Command::new(if cfg!(windows) { "cmd" } else { "sh" })
-                .args(if cfg!(windows) {
-                    vec!["/c", &cmd]
-                } else {
-                    vec!["-c", &cmd]
-                })
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-                .map_err(|e| anyhow!("无法启动 MCP server '{}' (env): {}", server_name, e))?;
-            (child, HashMap::new())
+            info!("mcp_call: using MCP_SERVER_{} env command", server_name.to_uppercase());
+            let mut cmd = Command::new(if cfg!(windows) { "cmd" } else { "sh" });
+            cmd.arg(if cfg!(windows) { "/c" } else { "-c" }).arg(&cmd_str);
+            cmd
         } else if let Some(config) = load_mcp_server_config(server_name) {
             // 模式 2: .mcp.json 配置 — 直接执行命令并设置环境变量
             info!("mcp_call: found '{}' in .mcp.json", server_name);
@@ -137,122 +146,73 @@ impl BuiltinSkill for McpCall {
             for (k, v) in &config.env {
                 cmd.env(k, v);
             }
-            let child = cmd
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-                .map_err(|e| {
-                    anyhow!(
-                        "无法启动 MCP server '{}' (command='{}'): {}",
-                        server_name,
-                        config.command,
-                        e
-                    )
-                })?;
-            (child, config.env)
+            cmd
         } else {
             // 模式 3: 使用 server_name 本身作为命令（fallback）
-            let child = Command::new(if cfg!(windows) { "cmd" } else { "sh" })
-                .args(if cfg!(windows) {
-                    vec!["/c", server_name]
-                } else {
-                    vec!["-c", server_name]
-                })
-                .stdin(std::process::Stdio::piped())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-                .map_err(|e| anyhow!("无法启动 MCP server '{}' (fallback): {}", server_name, e))?;
-            (child, HashMap::new())
+            info!("mcp_call: using server_name '{}' directly as command", server_name);
+            let mut cmd = Command::new(if cfg!(windows) { "cmd" } else { "sh" });
+            cmd.arg(if cfg!(windows) { "/c" } else { "-c" }).arg(server_name);
+            cmd
+        };
+        cmd.stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::inherit())
+            .kill_on_drop(true);
+
+        // 用 rmcp 客户端 stdio 传输启动子进程，并完成 initialize 握手
+        let transport = TokioChildProcess::new(cmd)
+            .map_err(|e| anyhow!("无法启动 MCP server '{}': {}", server_name, e))?;
+        let mut service = serve_client(AionMcpClientHandler, transport)
+            .await
+            .map_err(|e| anyhow!("MCP server '{}' 初始化失败: {}", server_name, e))?;
+
+        // 构造 tools/call 请求参数
+        let params = match arguments {
+            Value::Object(map) => CallToolRequestParams::new(tool_name.to_string()).with_arguments(map),
+            other => CallToolRequestParams::new(tool_name.to_string()).with_arguments(
+                serde_json::Map::from_iter([("value".to_string(), other)]),
+            ),
         };
 
-        // 记录环境变量（不含敏感值）
-        if !extra_env.is_empty() {
-            let keys: Vec<&String> = extra_env.keys().collect();
-            info!("mcp_call: server '{}' env keys: {:?}", server_name, keys);
-        }
-
-        let mut stdin = child.stdin.take().ok_or_else(|| anyhow!("无法获取 stdin"))?;
-        let stdout = child.stdout.take().ok_or_else(|| anyhow!("无法获取 stdout"))?;
-        let mut reader = BufReader::new(stdout);
-
-        // Step 1: 发送 initialize
-        let init_req = json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "aion-forge", "version": "0.1.0"}
+        // 调用工具
+        let result = match service.call_tool(params).await {
+            Ok(result) => result,
+            Err(e) => {
+                // 传输/协议错误：返回 status=error（与旧实现一致，不向上抛异常）
+                return Ok(json!({
+                    "server": server_name,
+                    "tool": tool_name,
+                    "error": {"message": e.to_string()},
+                    "status": "error"
+                }));
             }
-        });
-        send_jsonrpc(&mut stdin, &init_req).await?;
-        let _init_resp = read_jsonrpc(&mut reader).await?;
+        };
 
-        // Step 2: 发送 tools/call
-        let call_req = json!({
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments
-            }
-        });
-        send_jsonrpc(&mut stdin, &call_req).await?;
-        let call_resp = read_jsonrpc(&mut reader).await?;
-
-        // 清理子进程
-        drop(stdin);
-        let _ = child.kill().await;
+        // 清理连接（优雅关闭，子进程会被终止）
+        let _ = service.close().await;
 
         // 解析结果
-        if let Some(result) = call_resp.get("result") {
+        if result.is_error == Some(true) {
             Ok(json!({
                 "server": server_name,
                 "tool": tool_name,
-                "result": result,
-                "status": "ok"
-            }))
-        } else if let Some(error) = call_resp.get("error") {
-            Ok(json!({
-                "server": server_name,
-                "tool": tool_name,
-                "error": error,
+                "error": result.structured_content.clone().unwrap_or_else(|| json!(result.content)),
                 "status": "error"
+            }))
+        } else if let Some(structured) = result.structured_content {
+            Ok(json!({
+                "server": server_name,
+                "tool": tool_name,
+                "result": structured,
+                "status": "ok"
             }))
         } else {
             Ok(json!({
                 "server": server_name,
                 "tool": tool_name,
-                "raw_response": call_resp,
-                "status": "unknown"
+                "result": serde_json::to_value(&result).unwrap_or_else(|_| json!(result.content)),
+                "status": "ok"
             }))
         }
     }
-}
-
-/// 发送 JSON-RPC 消息到 stdin
-async fn send_jsonrpc(stdin: &mut tokio::process::ChildStdin, msg: &Value) -> Result<()> {
-    let line = serde_json::to_string(msg)? + "\n";
-    stdin.write_all(line.as_bytes()).await?;
-    stdin.flush().await?;
-    Ok(())
-}
-
-/// 从 stdout 读取一行 JSON-RPC 响应
-async fn read_jsonrpc(reader: &mut BufReader<tokio::process::ChildStdout>) -> Result<Value> {
-    let mut line = String::new();
-    let timeout = tokio::time::timeout(std::time::Duration::from_secs(30), reader.read_line(&mut line))
-        .await
-        .map_err(|_| anyhow!("MCP server 响应超时"))?
-        .map_err(|e| anyhow!("读取 MCP 响应失败: {}", e))?;
-
-    if timeout == 0 {
-        return Err(anyhow!("MCP server 关闭了连接"));
-    }
-
-    serde_json::from_str(line.trim()).map_err(|e| anyhow!("MCP 响应不是有效 JSON: {}", e))
 }

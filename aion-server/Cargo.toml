@@ -1,7 +1,7 @@
 [package]
 name = "aion-server"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["AionCore Team"]
 description = "HTTP REST API server for Skill Router — enables cross-language Agent integration"
 

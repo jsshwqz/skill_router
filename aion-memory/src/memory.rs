@@ -1,8 +1,9 @@
-use std::fs;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use redb::{Database, ReadableDatabase, ReadableTable, ReadableTableMetadata, TableDefinition};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
@@ -37,6 +38,9 @@ pub enum MemoryCategory {
 }
 
 /// The persistent memory store, serialized as JSON.
+///
+/// 升级到 redb 后仍保留该结构作为内存态表示与旧 JSON 迁移格式，
+/// 序列化布局保持不变（#[serde(default)] 兼容）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryStore {
     #[serde(default = "default_version")]
@@ -71,83 +75,171 @@ impl Default for MemoryStore {
     }
 }
 
+// ── redb 表结构 ──────────────────────────────────────────────────────────────
+
+/// 记忆条目表：key = MemoryEntry.id，value = serde_json 序列化的 MemoryEntry
+const ENTRIES_TABLE: TableDefinition<&str, &str> = TableDefinition::new("memory_entries");
+/// 元信息表：version / last_updated
+const META_TABLE: TableDefinition<&str, &str> = TableDefinition::new("memory_meta");
+const META_KEY_VERSION: &str = "version";
+const META_KEY_LAST_UPDATED: &str = "last_updated";
+
+/// 进程级 redb 实例注册表：同一 db 路径共享同一个 `Database` 实例，
+/// 避免同进程对同一文件重复打开触发 redb 文件锁冲突
+/// （`namespaced_memory::for_namespace` 等调用方会为同一路径反复创建 `MemoryManager`）。
+fn db_registry() -> &'static std::sync::Mutex<HashMap<PathBuf, std::sync::Arc<Database>>> {
+    static REGISTRY: std::sync::OnceLock<
+        std::sync::Mutex<HashMap<PathBuf, std::sync::Arc<Database>>>,
+    > = std::sync::OnceLock::new();
+    REGISTRY.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
+}
+
 // ── Core Memory Manager ──────────────────────────────────────────────────────
 
 pub struct MemoryManager {
-    store_path: PathBuf,
+    db_path: PathBuf,
     context_path: PathBuf,
-    /// 内存缓存层：用 RwLock 保护，recall 走读锁（零磁盘 IO），remember 走写锁
-    cache: std::sync::RwLock<Option<MemoryStore>>,
+    /// 旧版 JSON 存储路径（用于一次性迁移，导入后保留原文件作为备份）
+    legacy_json_path: PathBuf,
 }
 
 impl MemoryManager {
     pub fn new(workspace_root: &Path) -> Self {
         Self {
-            store_path: workspace_root.join("memory_store.json"),
+            db_path: workspace_root.join("memory_store.redb"),
             context_path: workspace_root.join("CONTEXT.md"),
-            cache: std::sync::RwLock::new(None),
+            legacy_json_path: workspace_root.join("memory_store.json"),
         }
     }
 
-    /// 获取缓存的 store（命中缓存则零 IO）
-    fn load_cached(&self) -> Result<MemoryStore> {
-        // 快路径：读锁检查缓存
-        if let Ok(guard) = self.cache.read() {
-            if let Some(ref store) = *guard {
-                return Ok(store.clone());
+    /// 获取（或打开）该 manager 对应的 redb 数据库（进程内按路径共享实例）。
+    /// redb 自带事务与 MVCC，替换原 std::sync::RwLock 缓存层。
+    fn db(&self) -> Result<std::sync::Arc<Database>> {
+        let path = self.db_path.clone();
+        let mut registry = db_registry().lock().expect("redb registry lock poisoned");
+        if let Some(db) = registry.get(&path) {
+            return Ok(db.clone());
+        }
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        // redb 4.1 的 Database::create 兼容两种场景：文件不存在则初始化新库，已是有效 redb 文件则打开。
+        let db = std::sync::Arc::new(Database::create(&path)?);
+        self.migrate_if_needed(&db)?;
+        Ok(registry.entry(path).or_insert(db).clone())
+    }
+
+    /// 一次性迁移：若旧 `memory_store.json` 存在且 redb 条目表为空，则把旧数据导入 redb。
+    /// 导入后保留旧 JSON 文件作为备份（不删除，避免丢记忆）。
+    fn migrate_if_needed(&self, db: &Database) -> Result<()> {
+        if !self.legacy_json_path.exists() {
+            return Ok(());
+        }
+        {
+            let read_tx = db.begin_read()?;
+            if let Ok(table) = read_tx.open_table(ENTRIES_TABLE) {
+                if !table.is_empty()? {
+                    return Ok(()); // redb 已有数据（此前已迁移），跳过
+                }
             }
         }
-        // 慢路径：从磁盘加载并填充缓存
-        let store = self.load_from_disk()?;
-        if let Ok(mut guard) = self.cache.write() {
-            *guard = Some(store.clone());
+        tracing::info!(
+            "Migrating legacy memory_store.json into redb ({:?})",
+            self.legacy_json_path
+        );
+        let data = std::fs::read_to_string(&self.legacy_json_path).with_context(|| {
+            format!(
+                "failed to read legacy memory store {:?}",
+                self.legacy_json_path
+            )
+        })?;
+        let store: MemoryStore = serde_json::from_str(&data).with_context(|| {
+            format!(
+                "failed to parse legacy memory store {:?}",
+                self.legacy_json_path
+            )
+        })?;
+        let write_tx = db.begin_write()?;
+        {
+            let mut table = write_tx.open_table(ENTRIES_TABLE)?;
+            for entry in &store.entries {
+                let json = serde_json::to_string(entry)?;
+                table.insert(entry.id.as_str(), json.as_str())?;
+            }
+            let mut meta = write_tx.open_table(META_TABLE)?;
+            meta.insert(META_KEY_VERSION, store.version.as_str())?;
+            meta.insert(
+                META_KEY_LAST_UPDATED,
+                store.last_updated.to_string().as_str(),
+            )?;
+        }
+        write_tx.commit()?;
+        tracing::info!(
+            "Migrated {} entries from memory_store.json to redb",
+            store.entries.len()
+        );
+        Ok(())
+    }
+
+    /// 从 redb 读取全部记忆（直接读库，redb 自带页缓存与并发控制）
+    fn read_all(&self) -> Result<MemoryStore> {
+        let db = self.db()?;
+        let read_tx = db.begin_read()?;
+        let mut store = MemoryStore::new();
+        if let Ok(table) = read_tx.open_table(ENTRIES_TABLE) {
+            for pair in table.iter()? {
+                let (_, value) = pair?;
+                let entry: MemoryEntry = serde_json::from_str(value.value())
+                    .with_context(|| "corrupt memory entry in redb store".to_string())?;
+                store.entries.push(entry);
+            }
+        }
+        if let Ok(meta) = read_tx.open_table(META_TABLE) {
+            if let Some(v) = meta.get(META_KEY_VERSION)? {
+                store.version = v.value().to_string();
+            }
+            if let Some(ts) = meta.get(META_KEY_LAST_UPDATED)? {
+                if let Ok(parsed) = ts.value().parse::<u64>() {
+                    store.last_updated = parsed;
+                }
+            }
         }
         Ok(store)
     }
 
-    /// 保存到磁盘并更新缓存
-    fn save_and_cache(&self, store: &MemoryStore) -> Result<()> {
-        self.save_to_disk(store)?;
-        if let Ok(mut guard) = self.cache.write() {
-            *guard = Some(store.clone());
-        }
-        Ok(())
-    }
-
     // ── Load / Save ──────────────────────────────────────────────────────
 
-    /// 公开的 load 接口（走缓存）
+    /// 公开的 load 接口：从 redb 读取全量 store
     pub fn load(&self) -> Result<MemoryStore> {
-        self.load_cached()
+        self.read_all()
     }
 
-    /// 公开的 save 接口（同时更新缓存）
+    /// 公开的 save 接口：以单个原子写事务覆盖写整个 store
+    /// （清空后重写条目表，保证 distiller 等调用方删除/修改后与 redb 一致）
     pub fn save(&self, store: &MemoryStore) -> Result<()> {
-        self.save_and_cache(store)
-    }
-
-    fn load_from_disk(&self) -> Result<MemoryStore> {
-        if self.store_path.exists() {
-            let data = fs::read_to_string(&self.store_path)?;
-            let store: MemoryStore = serde_json::from_str(&data)?;
-            Ok(store)
-        } else {
-            Ok(MemoryStore::new())
+        let db = self.db()?;
+        let write_tx = db.begin_write()?;
+        {
+            let mut table = write_tx.open_table(ENTRIES_TABLE)?;
+            table.retain(|_, _| false)?;
+            for entry in &store.entries {
+                let json = serde_json::to_string(entry)?;
+                table.insert(entry.id.as_str(), json.as_str())?;
+            }
+            let mut meta = write_tx.open_table(META_TABLE)?;
+            meta.insert(META_KEY_VERSION, store.version.as_str())?;
+            meta.insert(
+                META_KEY_LAST_UPDATED,
+                store.last_updated.to_string().as_str(),
+            )?;
         }
-    }
-
-    fn save_to_disk(&self, store: &MemoryStore) -> Result<()> {
-        if let Some(parent) = self.store_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let json = serde_json::to_string_pretty(store)?;
-        fs::write(&self.store_path, json)?;
+        write_tx.commit()?;
         Ok(())
     }
 
-    /// 公开接口：从磁盘重新加载（不经过缓存，用于 recall 的场景）
+    /// 公开接口：直接从存储读取（redb 下与 `load` 等价，无用户缓存层）
     pub fn load_raw(&self) -> Result<MemoryStore> {
-        self.load_from_disk()
+        self.read_all()
     }
 
     // ── Remember ─────────────────────────────────────────────────────────
@@ -166,7 +258,7 @@ impl MemoryManager {
         importance: u8,
     ) -> Result<String> {
         let mut store = self.load()?;
-        let id = format!("mem_{}", now_epoch());
+        let id = format!("mem_{}", uuid::Uuid::new_v4().simple());
         let entry = MemoryEntry {
             id: id.clone(),
             category,
@@ -211,7 +303,7 @@ impl MemoryManager {
     // ── Recall (Keyword Search) ──────────────────────────────────────────
 
     pub fn recall(&self, query: &str, limit: usize) -> Result<Vec<MemoryEntry>> {
-        let mut store = self.load_raw()?; // P0-1 FIX: 从磁盘直接加载，不经过可能过期的缓存
+        let mut store = self.load_raw()?; // 直接读库，无过期缓存问题
         let query_lower = query.to_ascii_lowercase();
         let keywords: Vec<&str> = query_lower.split_whitespace().collect();
 
@@ -283,7 +375,7 @@ impl MemoryManager {
         }
 
         // Persist to file
-        fs::write(&self.context_path, &md)?;
+        std::fs::write(&self.context_path, &md)?;
         Ok(md)
     }
 

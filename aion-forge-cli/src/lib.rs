@@ -23,7 +23,7 @@ pub async fn main_entry() -> Result<()> {
     }
     match std::env::var("AI_PROVIDERS_DISABLED") {
         Ok(value) if !value.trim().is_empty() => {}
-        _ => std::env::set_var("AI_PROVIDERS_DISABLED", "host-anthropic-proxy,ollama-local"),
+        _ => unsafe { std::env::set_var("AI_PROVIDERS_DISABLED", "host-anthropic-proxy,ollama-local") },
     }
 
     let cli = cli::Cli::parse();
@@ -53,7 +53,7 @@ pub async fn run_cli(cli: cli::Cli) -> Result<Option<Value>> {
             Ok(None)
         }
         Some(cli::Commands::McpServer) => {
-            std::env::set_var("AION_MCP_MODE", "1");
+            unsafe { std::env::set_var("AION_MCP_MODE", "1") };
             let workspace = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
             mcp::run(RouterPaths::for_workspace(&workspace)).await?;
             Ok(None)

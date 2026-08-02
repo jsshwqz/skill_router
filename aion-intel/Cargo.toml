@@ -1,7 +1,7 @@
 [package]
 name = "aion-intel"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 aion-types = { path = "../aion-types" }
@@ -11,3 +11,4 @@ anyhow = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+usearch = { workspace = true }
