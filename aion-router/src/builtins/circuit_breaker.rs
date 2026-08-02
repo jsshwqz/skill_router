@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde_json::{json, Value};
 
+use super::super::circuit_breaker::{BreakerConfig, CircuitBreaker};
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::BuiltinSkill;
@@ -26,10 +27,7 @@ impl BuiltinSkill for McpCircuitBreaker {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
         let state_dir = workspace_root.join(".skill-router");
-        let mut cb = crate::circuit_breaker::CircuitBreaker::new(
-            crate::circuit_breaker::BreakerConfig::default(),
-            &state_dir,
-        );
+        let mut cb = CircuitBreaker::new(BreakerConfig::default(), &state_dir);
 
         match context.context.get("action").and_then(|v| v.as_str()) {
             Some("status") => Ok(cb.status_report()),

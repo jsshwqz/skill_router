@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde_json::{json, Value};
 
+use super::super::engine_health::HealthManager;
 use aion_types::types::{ExecutionContext, SkillDefinition};
 
 use super::BuiltinSkill;
@@ -26,10 +27,7 @@ impl BuiltinSkill for EngineHealthCheck {
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
 
         let state_dir = workspace_root.join(".skill-router");
-        let mut mgr = crate::engine_health::HealthManager::new(&state_dir);
-
-        // Load existing status
-        let _ = mgr.load();
+        let mut mgr = HealthManager::new(&state_dir);
 
         match context.context.get("action").and_then(|v| v.as_str()) {
             Some("record_success") => {
