@@ -19,6 +19,8 @@ pub mod parallel_executor;
 pub mod registry;
 pub mod registry_hub;
 pub mod security;
+pub mod engine_health;
+pub mod circuit_breaker;
 
 #[cfg(test)]
 mod tests;
