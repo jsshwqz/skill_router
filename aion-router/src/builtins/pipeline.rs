@@ -3,7 +3,10 @@
 //! task_pipeline: 串行执行多个 capability，每步的输出作为下步的输入
 //! task_race: 多个 capability 并行竞争，返回最先成功的结果
 
+use std::collections::HashSet;
+
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};

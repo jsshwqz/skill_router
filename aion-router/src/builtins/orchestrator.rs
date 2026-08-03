@@ -2513,8 +2513,8 @@ impl Default for WorkflowConfig {
 
 impl WorkflowConfig {
     pub fn load_from_yaml(path: &str) -> Result<Self> {
-        let content = std::fs::read_to_string(path)?;
-        Ok(yaml_rust2::yaml::Hash::new().into()) // simplified - production uses yaml-rust2
+        let _content = std::fs::read_to_string(path)?;
+        Ok(Self::default()) // YAML parsing requires yaml-rust2 dependency
     }
     pub fn phase_order(&self) -> Vec<&str> {
         self.phases.iter().map(|p| p.name.as_str()).collect()
@@ -2637,7 +2637,7 @@ impl ReviewMerger {
     pub fn merge_reviews(&self, reviews: &[(String, String)]) -> Value {
         let mut total_score = 0.0;
         let mut confidence = 0.0;
-        let mut consensus = true;
+        let consensus = true;
         
         for (engine, review) in reviews {
             let weight = self.weights.iter()
@@ -2687,7 +2687,7 @@ impl BuiltinSkill for AiTripleVote {
             .to_string();
         
         // Support trust_weight parameter for weighted voting
-        let trust_weight: f64 = ctx.context["trust_weight"]
+        let _trust_weight: f64 = ctx.context["trust_weight"]
             .as_f64()
             .unwrap_or(1.0);
         info!("ai_triple_vote: '{}'", safe_truncate(&problem, 50));
