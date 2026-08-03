@@ -201,7 +201,20 @@ impl BuiltinSkill for AiTask {
         })?;
 
         // 杩藉姞椤圭洰瑙勭害锛堟潵鑷?CLAUDE.md 鎴?FORGE_PROJECT_RULES锛?
-        let instruction = format!("{}{}", base_instruction, project_rules_suffix());
+        // P1-C: Use 8-step PromptBuilder framework
+        let prompt_builder = PromptBuilder::new()
+            .with_role("You are a helpful AI assistant")
+            .with_context(&context.task)
+            .with_rule("Be concise and accurate")
+            .with_rule("Follow the output format strictly")
+            .with_format("Provide clear, structured output")
+            .with_constraint("Do not hallucinate information")
+            .with_output("Return only the requested output");
+        
+        let instruction = prompt_builder.build(base_instruction);
+        
+        // 追加项目规约（来自 CLAUDE.md 或 FORGE_PROJECT_RULES 环境变量）
+        let instruction = format!("{}{}", instruction, project_rules_suffix());
 
         let text = context.context["text"]
             .as_str()
