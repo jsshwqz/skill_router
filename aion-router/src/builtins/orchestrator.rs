@@ -2512,10 +2512,16 @@ impl Default for WorkflowConfig {
 }
 
 impl WorkflowConfig {
+    /// Load workflow configuration from YAML file (stub - returns default)
     pub fn load_from_yaml(path: &str) -> Result<Self> {
-        let _content = std::fs::read_to_string(path)?;
-        Ok(Self::default()) // YAML parsing requires yaml-rust2 dependency
+        // TODO: Implement proper YAML parsing with yaml-rust2
+        // For now, return default config
+        let _ = path; // Suppress unused variable warning
+        tracing::info!("WorkflowConfig::load_from_yaml: Using default config");
+        Ok(Self::default())
     }
+    
+    /// Get phase order as vector of strings
     pub fn phase_order(&self) -> Vec<&str> {
         self.phases.iter().map(|p| p.name.as_str()).collect()
     }
@@ -2633,11 +2639,15 @@ impl ReviewMerger {
         Self::default()
     }
 
-    /// Merge reviews with weighted scoring
+    /// Merge reviews with weighted scoring (improved semantic analysis)
     pub fn merge_reviews(&self, reviews: &[(String, String)]) -> Value {
         let mut total_score = 0.0;
         let mut confidence = 0.0;
-        let consensus = true;
+        let mut sentiments: Vec<f64> = Vec::new();
+        
+        // Positive/negative indicators for scoring
+        let positive_words = ["good", "excellent", "correct", "great", "solid", "well", "proper", "optimal"];
+        let negative_words = ["bad", "wrong", "poor", "error", "fail", "broken", "bug", "issue", "risk"];
         
         for (engine, review) in reviews {
             let weight = self.weights.iter()
@@ -2645,15 +2655,27 @@ impl ReviewMerger {
                 .map(|w| w.weight)
                 .unwrap_or(0.5);
             
-            // Simple scoring: positive words indicate good review
-            let score = if review.contains("good") || review.contains("correct") {
-                0.8 + weight * 0.2
-            } else if review.contains("bad") || review.contains("wrong") {
-                0.2 + weight * 0.1
+            // Improved scoring based on word frequency analysis
+            let review_lower = review.to_lowercase();
+            let pos_count = positive_words.iter()
+                .filter(|w| review_lower.contains(**w))
+                .count() as f64;
+            let neg_count = negative_words.iter()
+                .filter(|w| review_lower.contains(**w))
+                .count() as f64;
+            
+            // Calculate sentiment score (0.0 to 1.0)
+            let total_mentions = pos_count + neg_count;
+            let score = if total_mentions > 0.0 {
+                0.3 + 0.4 * (pos_count / total_mentions) + 0.3 * weight
             } else {
-                0.5
+                // No keywords found - use length-based heuristic
+                // Longer reviews with technical terms are typically more detailed/valid
+                let word_count = review.split_whitespace().count() as f64;
+                0.5 + 0.1 * (word_count.min(50.0) / 50.0)
             };
             
+            sentiments.push(score);
             total_score += score * weight;
             confidence += weight;
         }
@@ -2662,11 +2684,24 @@ impl ReviewMerger {
             total_score /= confidence;
         }
         
+        // Calculate consensus based on variance
+        let consensus = if sentiments.len() >= 2 {
+            let mean = sentiments.iter().sum::<f64>() / sentiments.len() as f64;
+            let variance: f64 = sentiments.iter()
+                .map(|s| (s - mean).powi(2))
+                .sum::<f64>() / sentiments.len() as f64;
+            // Low variance = high consensus
+            (1.0 - variance.min(1.0)).round()
+        } else {
+            1.0
+        };
+        
         json!({
-            "merged_score": total_score,
-            "confidence": confidence,
+            "merged_score": (total_score * 100.0).round() / 100.0,
+            "confidence": (confidence * 100.0).round() / 100.0,
             "consensus": consensus,
             "review_count": reviews.len(),
+            "sentiments": sentiments,
         })
     }
 }
