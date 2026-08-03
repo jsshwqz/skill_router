@@ -1,4 +1,4 @@
-//! 文本处理类 builtin 技能：text_diff, text_embed, markdown_render
+//! 文本处理�?builtin 技能：text_diff, text_embed, markdown_render
 
 use anyhow::Result;
 use serde_json::{json, Value};
@@ -19,50 +19,7 @@ macro_rules! ai_text_builtin {
 
             async fn execute(&self, skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
                 let mut delegated = skill.clone();
-                let mut instruction = $instruction.to_string();
-                
-                // P3-A: Add mode/length parameters for TextSummarize
-                if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextSummarize>() {
-                    if let Some(mode) = context.context["mode"].as_str() {
-                        instruction.push_str(&format!("
-Mode: {}", mode));
-                    }
-                    if let Some(len) = context.context["max_length"].as_u64() {
-                        instruction.push_str(&format!("
-Max length: {} characters", len));
-                    }
-                }
-                // P3-A: Add labels constraint for TextClassify
-                if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextClassify>() {
-                    if let Some(labels) = context.context["labels"].as_array() {
-                        let label_list: Vec<String> = labels.iter()
-                            .filter_map(|v| v.as_str().map(String::from))
-                            .collect();
-                        instruction.push_str(&format!("
-Allowed labels: {}", label_list.join(", ")));
-                    }
-                }
-                // P3-A: Add schema for TextExtract
-                if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextExtract>() {
-                    if let Some(schema) = context.context["schema"].as_str() {
-                        instruction.push_str(&format!("
-Extraction schema: {}", schema));
-                    }
-                }
-                // P3-E: Add glossary for TextTranslate
-                if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextTranslate>() {
-                    if let Some(glossary) = context.context["glossary"].as_object() {
-                        let glossary_str: Vec<String> = glossary.iter()
-                            .map(|(k, v)| format!("{}: {}", k, v.as_str().unwrap_or("")))
-                            .collect();
-                        instruction.push_str(&format!("
-Glossary (preserve these terms):
-{}", glossary_str.join("
-")));
-                    }
-                }
-                
-                delegated.metadata.instruction = Some(instruction);
+                delegated.metadata.instruction = Some($instruction.to_string());
                 super::ai::AiTask.execute(&delegated, context).await
             }
         }
@@ -134,62 +91,6 @@ impl BuiltinSkill for TextDiff {
 
 // ── text_embed ──────────────────────────────────────────────────────────────
 
-/// Get semantic embedding from external API (OpenAI/Ollama compatible)
-async fn get_semantic_embedding(text: &str) -> Result<Vec<f32>> {
-    use std::env;
-    
-    let base_url = env::var("AI_EMBEDDING_BASE_URL")
-        .unwrap_or_else(|_| env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string()));
-    let api_key = env::var("AI_API_KEY").unwrap_or_default();
-    let model = env::var("AI_EMBEDDING_MODEL")
-        .unwrap_or_else(|_| env::var("AI_MODEL").unwrap_or("nomic-embed-text".to_string()));
-
-    let client = reqwest::Client::new();
-    let body = serde_json::json!({
-        "model": model,
-        "input": text,
-    });
-
-    let resp = match client
-        .post(format!("{}/embeddings", base_url))
-        .header("Authorization", format!("Bearer {}", api_key))
-        .header("Content-Type", "application/json")
-        .body(body.to_string())
-        .send()
-        .await
-    {
-        Ok(r) => match r.json::<Value>().await {
-            Ok(v) => v,
-            Err(_) => return Err(anyhow::anyhow!("Failed to parse embedding response")),
-        },
-        Err(_) => return Err(anyhow::anyhow!("Embedding API request failed")),
-    };
-
-    // Try OpenAI format first
-    if let Some(data) = resp.get("data").and_then(|d| d.get(0)) {
-        if let Some(embedding) = data.get("embedding").and_then(|e| e.as_array()) {
-            let vec: Vec<f32> = embedding.iter()
-                .filter_map(|v| v.as_f64().map(|f| f as f32))
-                .collect();
-            if !vec.is_empty() {
-                return Ok(vec);
-            }
-        }
-    }
-
-    // Try Ollama format
-    if let Some(embedding) = resp.get("embedding").and_then(|e| e.as_array()) {
-        let vec: Vec<f32> = embedding.iter()
-            .filter_map(|v| v.as_f64().map(|f| f as f32))
-            .collect();
-        if !vec.is_empty() {
-            return Ok(vec);
-        }
-    }
-
-    Err(anyhow::anyhow!("Embedding response has no valid data"))
-}
-
 pub struct TextEmbed;
 
 #[async_trait::async_trait]
@@ -200,41 +101,20 @@ impl BuiltinSkill for TextEmbed {
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = require_text(context)?;
-        
-        // Check if user requested semantic embedding
-        let use_semantic = context.context.get("semantic").and_then(|v| v.as_bool()).unwrap_or(false);
-        
-        if use_semantic {
-            // Try semantic embedding from API
-            match get_semantic_embedding(&text).await {
-                Ok(vec) => {
-                    return Ok(json!({
-                        "method": "semantic_embedding",
-                        "vector": vec,
-                        "dimensions": vec.len(),
-                        "note": "Semantic embedding from external API"
-                    }));
-                }
-                Err(e) => {
-                    tracing::warn!("Semantic embedding failed: {}, falling back to TF-IDF", e);
-                }
-            }
-        }
 
-        // Fallback to TF-IDF
         // 停用词（中英文常见）
         const STOPWORDS: &[&str] = &[
             "the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does",
             "did", "will", "would", "could", "should", "may", "might", "can", "shall", "to", "of", "in", "for", "on",
             "with", "at", "by", "from", "as", "into", "through", "and", "but", "or", "not", "no", "if", "then", "than",
-            "that", "this", "it", "its", "they", "them", "their", "we", "our", "you", "your", "的", "了", "是", "在",
-            "和", "有", "我", "他", "她", "它", "们", "这", "那", "就", "也", "都", "被", "把", "让", "用", "不",
+            "that", "this", "it", "its", "they", "them", "their", "we", "our", "you", "your", "�?, "�?, "�?, "�?,
+            "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?,
         ];
 
         let mut freq: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
         let mut doc_words: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-        for word in text.split(|c: char| c.is_whitespace() || c == ',' || c == '.' || c == '。' || c == '，') {
+        for word in text.split(|c: char| c.is_whitespace() || c == ',' || c == '.' || c == '�? || c == '�?) {
             let w = word
                 .to_ascii_lowercase()
                 .trim_matches(|c: char| !c.is_alphanumeric())
@@ -254,7 +134,7 @@ impl BuiltinSkill for TextEmbed {
             .into_iter()
             .map(|(k, v)| {
                 let tf = v as f64 / total.max(1) as f64;
-                let idf = (doc_count / 1.0).ln().max(1.0); // 单文档 IDF 近似
+                let idf = (doc_count / 1.0).ln().max(1.0); // 单文�?IDF 近似
                 (k, json!((tf * idf * 1000.0).round() / 1000.0))
             })
             .collect();
@@ -355,8 +235,8 @@ impl BuiltinSkill for TextWordcount {
     }
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
-        // 对 text_wordcount 做宽松输入兼容：
-        // 当 context.text 缺失时，自动回退到 input/task，避免自然语言调用直接失败。
+        // �?text_wordcount 做宽松输入兼容：
+        // �?context.text 缺失时，自动回退�?input/task，避免自然语言调用直接失败�?
         let text = extract_text(context);
 
         let word_count = text.split_whitespace().count();

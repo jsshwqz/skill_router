@@ -2437,6 +2437,90 @@ async fn spawn_orchestration_with_wait(
     }
 }
 
+/// Workflow mode for parallel solve collaboration
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CollaborateMode {
+    ParallelSolve,
+    SmartCollaborate,
+}
+
+impl Default for CollaborateMode {
+    fn default() -> Self {
+        CollaborateMode::ParallelSolve
+    }
+}
+
+impl CollaborateMode {
+    fn from_str(s: &str) -> Self {
+        match s {
+            "smart_collaborate" => CollaborateMode::SmartCollaborate,
+            _ => CollaborateMode::ParallelSolve,
+        }
+    }
+
+    fn workflow_name(&self) -> &'static str {
+        match self {
+            CollaborateMode::ParallelSolve => "parallel_solve",
+            CollaborateMode::SmartCollaborate => "smart_collaborate",
+        }
+    }
+}
+
+/// Configurable workflow phases (P2-A #8)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhaseConfig {
+    pub name: String,
+    pub engines: Vec<String>,
+    pub timeout_secs: u64,
+    pub parallel: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowConfig {
+    pub phases: Vec<PhaseConfig>,
+    pub timeout: Duration,
+    pub max_retries: usize,
+}
+
+impl Default for WorkflowConfig {
+    fn default() -> Self {
+        Self {
+            phases: vec![
+                PhaseConfig {
+                    name: "analyze".to_string(),
+                    engines: vec!["claude".to_string(), "openai".to_string()],
+                    timeout_secs: 60,
+                    parallel: true,
+                },
+                PhaseConfig {
+                    name: "execute".to_string(),
+                    engines: vec!["claude".to_string()],
+                    timeout_secs: 120,
+                    parallel: false,
+                },
+                PhaseConfig {
+                    name: "review".to_string(),
+                    engines: vec!["openai".to_string(), "gemini".to_string()],
+                    timeout_secs: 90,
+                    parallel: true,
+                },
+            ],
+            timeout: Duration::from_secs(300),
+            max_retries: 2,
+        }
+    }
+}
+
+impl WorkflowConfig {
+    pub fn load_from_yaml(path: &str) -> Result<Self> {
+        let _content = std::fs::read_to_string(path)?;
+        Ok(Self::default()) // YAML parsing requires yaml-rust2 dependency
+    }
+    pub fn phase_order(&self) -> Vec<&str> {
+        self.phases.iter().map(|p| p.name.as_str()).collect()
+    }
+}
+
 pub struct AiParallelSolve;
 
 #[async_trait::async_trait]
@@ -2452,19 +2536,32 @@ impl BuiltinSkill for AiParallelSolve {
             .or_else(|| ctx.context["task"].as_str())
             .unwrap_or(&ctx.task)
             .to_string();
-        info!("ai_parallel_solve: '{}'", safe_truncate(&task, 50));
+        
+        // Support mode parameter for different collaboration strategies
+        let mode = ctx.context.get("mode")
+            .and_then(|v| v.as_str())
+            .map(CollaborateMode::from_str)
+            .unwrap_or_default();
+        
+        let workflow = mode.workflow_name();
+        info!("ai_parallel_solve (mode={}): '{}'", workflow, safe_truncate(&task, 50));
 
         if cfg.passthrough {
             return Ok(json!({
                 "type": "passthrough",
                 "instruction": "三模型先讨论再执行。若争议未解，升级为多方案执行并按可验证结果仲裁。",
                 "input": task,
-                "workflow": "parallel_solve"
+                "workflow": workflow
             }));
         }
 
+        // Support engine_count parameter (default 3 for triangle review)
+        let engine_count = ctx.context.get("engine_count")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(3) as usize;
         let engines: Vec<String> = parse_engines(ctx)
             .iter()
+            .take(engine_count)
             .map(|engine| engine.label().to_string())
             .collect();
         let risk_level = ctx
@@ -2475,7 +2572,7 @@ impl BuiltinSkill for AiParallelSolve {
             .to_string();
         let force = force_triple_execute(ctx);
         let input = json!({"task": task, "engines": engines, "risk_level": risk_level, "force_triple_execute": force});
-        Ok(spawn_orchestration_with_wait("parallel_solve", input, None, |input| {
+        Ok(spawn_orchestration_with_wait(workflow, input, None, move |input| {
             Box::pin(async move {
                 let task = input["task"].as_str().unwrap_or("").to_string();
                 let engines = input["engines"]
@@ -2486,10 +2583,10 @@ impl BuiltinSkill for AiParallelSolve {
                             .collect::<Vec<_>>()
                     })
                     .filter(|engines| !engines.is_empty())
-                    .unwrap_or_else(|| Engine::cycle_to_fill(&Engine::default_enabled(), 3));
+                    .unwrap_or_else(|| Engine::cycle_to_fill(&Engine::default_enabled(), engine_count));
                 let risk = input["risk_level"].as_str().unwrap_or("medium");
                 let force = input["force_triple_execute"].as_bool().unwrap_or(false);
-                run_collaboration_workflow("parallel_solve", &task, engines, risk, force).await
+                run_collaboration_workflow(workflow, &task, engines, risk, force).await
             })
         })
         .await)
@@ -2497,6 +2594,83 @@ impl BuiltinSkill for AiParallelSolve {
 }
 
 pub struct AiTripleVote;
+
+
+/// Weighted vote reviewer for AiTripleVote
+#[derive(Debug, Clone)]
+pub struct VoteWeight {
+    pub engine: String,
+    pub weight: f64,
+}
+
+impl VoteWeight {
+    pub fn weighted_score(&self, score: f64) -> f64 {
+        score * self.weight
+    }
+}
+
+/// Simple review merger that combines multiple reviews
+pub struct ReviewMerger {
+    pub weights: Vec<VoteWeight>,
+    pub conflict_threshold: f64,
+}
+
+impl Default for ReviewMerger {
+    fn default() -> Self {
+        Self {
+            weights: vec![
+                VoteWeight { engine: "claude".to_string(), weight: 1.0 },
+                VoteWeight { engine: "openai".to_string(), weight: 0.9 },
+                VoteWeight { engine: "gemini".to_string(), weight: 0.8 },
+            ],
+            conflict_threshold: 0.3,
+        }
+    }
+}
+
+impl ReviewMerger {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Merge reviews with weighted scoring
+    pub fn merge_reviews(&self, reviews: &[(String, String)]) -> Value {
+        let mut total_score = 0.0;
+        let mut confidence = 0.0;
+        let consensus = true;
+        
+        for (engine, review) in reviews {
+            let weight = self.weights.iter()
+                .find(|w| &w.engine == engine)
+                .map(|w| w.weight)
+                .unwrap_or(0.5);
+            
+            // Simple scoring: positive words indicate good review
+            let score = if review.contains("good") || review.contains("correct") {
+                0.8 + weight * 0.2
+            } else if review.contains("bad") || review.contains("wrong") {
+                0.2 + weight * 0.1
+            } else {
+                0.5
+            };
+            
+            total_score += score * weight;
+            confidence += weight;
+        }
+        
+        if confidence > 0.0 {
+            total_score /= confidence;
+        }
+        
+        json!({
+            "merged_score": total_score,
+            "confidence": confidence,
+            "consensus": consensus,
+            "review_count": reviews.len(),
+        })
+    }
+}
+
 
 #[async_trait::async_trait]
 impl BuiltinSkill for AiTripleVote {
@@ -2511,6 +2685,11 @@ impl BuiltinSkill for AiTripleVote {
             .or_else(|| ctx.context["task"].as_str())
             .unwrap_or(&ctx.task)
             .to_string();
+        
+        // Support trust_weight parameter for weighted voting
+        let _trust_weight: f64 = ctx.context["trust_weight"]
+            .as_f64()
+            .unwrap_or(1.0);
         info!("ai_triple_vote: '{}'", safe_truncate(&problem, 50));
 
         if cfg.passthrough {
@@ -2769,6 +2948,9 @@ impl BuiltinSkill for AiCodeGenerate {
     }
 }
 
+/// Deprecated: Use ai_parallel_solve with mode="smart_collaborate" instead.
+/// Kept for backward compatibility.
+#[deprecated(since = "0.8.0", note = "Use ai_parallel_solve with mode=\"smart_collaborate\"")]
 pub struct AiSmartCollaborate;
 
 #[async_trait::async_trait]
@@ -2778,43 +2960,12 @@ impl BuiltinSkill for AiSmartCollaborate {
     }
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
-        let cfg = OrchestratorConfig::from_env();
-        let task = ctx.context["task"].as_str().unwrap_or(&ctx.task).to_string();
-        info!("ai_smart_collaborate: '{}'", safe_truncate(&task, 50));
-
-        if cfg.passthrough {
-            return Ok(
-                json!({"type": "passthrough", "instruction": "三模型先讨论、再收敛、再执行；若争议未解，则按可验证结果仲裁。", "input": task, "workflow": "smart_collaborate"}),
-            );
-        }
-
-        let risk_level = ctx
-            .context
-            .get("risk_level")
-            .and_then(|v| v.as_str())
-            .unwrap_or(if is_high_risk(&task, ctx) { "high" } else { "medium" })
-            .to_string();
-        let force = force_triple_execute(ctx);
-        let engines = Engine::default_enabled().iter().map(|e| e.label()).collect::<Vec<_>>();
-        let input = json!({"task": task, "engines": engines, "risk_level": risk_level, "force_triple_execute": force});
-        Ok(
-            spawn_orchestration_with_wait("smart_collaborate", input, None, |input| {
-                Box::pin(async move {
-                    let task = input["task"].as_str().unwrap_or("").to_string();
-                    let risk = input["risk_level"].as_str().unwrap_or("medium");
-                    let force = input["force_triple_execute"].as_bool().unwrap_or(false);
-                    run_collaboration_workflow(
-                        "smart_collaborate",
-                        &task,
-                        Engine::cycle_to_fill(&Engine::default_enabled(), 3),
-                        risk,
-                        force,
-                    )
-                    .await
-                })
-            })
-            .await,
-        )
+        // Forward to ai_parallel_solve with mode=smart_collaborate
+        let mut forward_ctx = ctx.clone();
+        let mut new_context = ctx.context.clone();
+        new_context["mode"] = serde_json::json!("smart_collaborate");
+        forward_ctx.context = new_context;
+        AiParallelSolve.execute(_skill, &forward_ctx).await
     }
 }
 

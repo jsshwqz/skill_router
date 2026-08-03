@@ -154,11 +154,9 @@ impl BuiltinRegistry {
         reg.register(Box::new(orchestrator::AiTripleVote));
         reg.register(Box::new(orchestrator::AiTriangleReview));
         reg.register(Box::new(orchestrator::AiCodeGenerate));
-        reg.register(Box::new(orchestrator::AiSmartCollaborate));
         reg.register(Box::new(orchestrator::AiResearch));
         reg.register(Box::new(orchestrator::AiSerialOptimize));
         reg.register(Box::new(orchestrator::AiLongContext));
-        reg.register(Box::new(orchestrator::AiCrossReview));
 
         // Spec-Driven 规格驱动开发
         reg.register(Box::new(spec_driven::SpecDriven));

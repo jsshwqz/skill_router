@@ -3,7 +3,10 @@
 //! task_pipeline: 串行执行多个 capability，每步的输出作为下步的输入
 //! task_race: 多个 capability 并行竞争，返回最先成功的结果
 
+use std::collections::HashSet;
+
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use aion_types::types::{ExecutionContext, SkillDefinition};
@@ -11,6 +14,61 @@ use aion_types::types::{ExecutionContext, SkillDefinition};
 use super::{uuid_simple, BuiltinSkill};
 
 // ── task_pipeline ───────────────────────────────────────────────────────────
+
+
+/// DAG step for TaskPipeline (P4-B #33)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DagStep {
+    pub id: String,
+    pub name: String,
+    pub depends_on: Vec<String>,
+    pub task: Value,
+}
+
+/// DAG configuration for TaskPipeline
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskPipelineDAG {
+    pub steps: Vec<DagStep>,
+}
+
+impl TaskPipelineDAG {
+    /// Topological sort of DAG steps
+    pub fn topological_sort(&self) -> Result<Vec<String>> {
+        let mut sorted = Vec::new();
+        let mut visited = HashSet::new();
+        let mut temp = HashSet::new();
+        
+        fn visit(
+            step_id: &str,
+            steps: &Vec<DagStep>,
+            visited: &mut HashSet<String>,
+            temp: &mut HashSet<String>,
+            sorted: &mut Vec<String>,
+        ) -> Result<()> {
+            if temp.contains(step_id) {
+                return Err(anyhow::anyhow!("Cycle detected in DAG"));
+            }
+            if visited.contains(step_id) {
+                return Ok(());
+            }
+            temp.insert(step_id.to_string());
+            if let Some(step) = steps.iter().find(|s| s.id == step_id) {
+                for dep in &step.depends_on {
+                    visit(dep, steps, visited, temp, sorted)?;
+                }
+            }
+            temp.remove(step_id);
+            visited.insert(step_id.to_string());
+            sorted.push(step_id.to_string());
+            Ok(())
+        }
+        
+        for step in &self.steps {
+            visit(&step.id, &self.steps, &mut visited, &mut temp, &mut sorted)?;
+        }
+        Ok(sorted)
+    }
+}
 
 pub struct TaskPipeline;
 
