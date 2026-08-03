@@ -1,0 +1,441 @@
+//! AI task builtin skill: ai_task
+//! Supports fallback chain: host Anthropic proxy -> configured AI providers -> Ollama local
+//! �?AI_TOON_ENABLED=true 时，自动将输入中�?JSON 数据转为 TOON 格式，节�?token�?
+
+use anyhow::{anyhow, bail, Result};
+use serde_json::{json, Value};
+
+use crate::config::{candidate_ai_endpoints, AiEndpoint, AiProtocol};
+use aion_types::types::{ExecutionContext, SkillDefinition, TokenUsage};
+
+use super::format;
+use super::BuiltinSkill;
+
+const AI_TASK_MAX_OUTPUT_TOKENS: u64 = 2048;
+
+/// 是否启用 TOON 自动转换（环境变量控制）
+fn toon_enabled() -> bool {
+    std::env::var("AI_TOON_ENABLED")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
+}
+
+/// 从当前工作目录的 CLAUDE.md �?FORGE_PROJECT_RULES 环境变量加载项目规约�?
+/// 作为 AI 指令的后缀，使生成/审查的代码符合项目约定�?
+fn project_rules_suffix() -> String {
+    // 环境变量优先（显式覆盖）
+    if let Ok(rules) = std::env::var("FORGE_PROJECT_RULES") {
+        if !rules.is_empty() {
+            return format!("\n\n## Project Rules\n{}\n", rules);
+        }
+    }
+
+    // 自动检�?CLAUDE.md
+    if let Ok(content) = std::fs::read_to_string("CLAUDE.md") {
+        let rules: Vec<&str> = content
+            .lines()
+            .map(|l| l.trim())
+            .filter(|l| l.starts_with("- ") || l.starts_with("* ") || l.starts_with("|"))
+            .collect();
+        if !rules.is_empty() {
+            return format!("\n\n## Project Rules (from CLAUDE.md)\n{}\n", rules.join("\n"));
+        }
+    }
+
+    String::new()
+}
+
+pub struct AiTask;
+
+impl AiEndpoint {
+    /// Check if a provider is disabled via AI_PROVIDERS_DISABLED env var.
+    /// Example: AI_PROVIDERS_DISABLED=ollama-local,some-other
+    pub fn is_disabled(label: &str) -> bool {
+        let raw = std::env::var("AI_PROVIDERS_DISABLED").unwrap_or_default();
+        let result = raw.split(',').any(|s| s.trim() == label);
+        // Debug: print raw env var bytes for certain labels
+        if label == "ollama-local" || label == "host-anthropic-proxy" {
+            eprintln!(
+                "[FORGE-DEBUG] is_disabled({})={} raw_env={:?} bytes={:02x?}",
+                label,
+                result,
+                raw,
+                raw.as_bytes()
+            );
+        }
+        result
+    }
+
+    fn enabled_candidates() -> Vec<Self> {
+        candidate_ai_endpoints()
+            .into_iter()
+            .filter(|endpoint| !Self::is_disabled(&endpoint.label))
+            .collect()
+    }
+}
+
+#[async_trait::async_trait]
+impl BuiltinSkill for AiTask {
+    fn name(&self) -> &'static str {
+        "ai_task"
+    }
+
+    async fn execute(&self, skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let base_instruction = skill.metadata.instruction.as_deref().ok_or_else(|| {
+            anyhow!(
+                "skill '{}' uses builtin:ai_task but has no 'instruction' field in skill.json",
+                skill.metadata.name
+            )
+        })?;
+
+        // 追加项目规约（来�?CLAUDE.md �?FORGE_PROJECT_RULES�?
+        let instruction = format!("{}{}", base_instruction, project_rules_suffix());
+
+        let text = context.context["text"]
+            .as_str()
+            .or_else(|| context.context["input"].as_str())
+            .unwrap_or(&context.task)
+            .to_string();
+
+        // AI_TOON_ENABLED 时，自动�?JSON 数据�?TOON 格式节省 token
+        let text = if toon_enabled() { maybe_toon(&text) } else { text };
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(60))
+            .build()?;
+
+        // Debug: print AI_PROVIDERS_DISABLED at entry point
+        eprintln!(
+            "[FORGE-DEBUG] ai_task.execute() AI_PROVIDERS_DISABLED={:?}",
+            std::env::var("AI_PROVIDERS_DISABLED")
+        );
+
+        let requested_model = context.context["model"].as_str();
+        let endpoints: Vec<_> = AiEndpoint::enabled_candidates()
+            .into_iter()
+            .filter(|endpoint| requested_model.is_none_or(|model| endpoint.model == model || endpoint.label == model))
+            .collect();
+        // 如果指定模型无匹配端点，不阻断，而是回退到全部候�?
+        let endpoints = if endpoints.is_empty() && requested_model.is_some() {
+            tracing::info!("ai_task no candidate matches requested model, falling back to all candidates");
+            AiEndpoint::enabled_candidates()
+        } else {
+            endpoints
+        };
+
+        // Debug: log AI_PROVIDERS_DISABLED and the endpoint list
+        tracing::info!(
+            "ai_task AI_PROVIDERS_DISABLED={:?} endpoints={:?}",
+            std::env::var("AI_PROVIDERS_DISABLED").unwrap_or_default(),
+            endpoints.iter().map(|e| &e.label).collect::<Vec<_>>()
+        );
+
+        let mut last_error = String::new();
+
+        for ep in &endpoints {
+            tracing::info!("ai_task trying [{}] {} model={}", ep.label, ep.base_url, ep.model);
+
+            match run_endpoint(&client, ep, &instruction, &text).await {
+                Ok((content, usage)) => {
+                    tracing::info!(
+                        "ai_task [{}] success, output len={}, tokens={}",
+                        ep.label,
+                        content.len(),
+                        usage.as_ref().map(|u| u.total_tokens).unwrap_or(0)
+                    );
+                    let mut output = json!({
+                        "task": context.task,
+                        "capability": context.capability,
+                        "output": content,
+                        "provider": ep.label,
+                    });
+                    if let Some(usage) = usage {
+                        output["token_usage"] = json!({
+                            "prompt_tokens": usage.prompt_tokens,
+                            "completion_tokens": usage.completion_tokens,
+                            "total_tokens": usage.total_tokens,
+                            "cached_tokens": usage.cached_tokens,
+                        });
+                    }
+                    return Ok(output);
+                }
+                Err(e) => {
+                    last_error = format!("[{}] {}", ep.label, e);
+                    tracing::warn!("ai_task [{}] failed: {}", ep.label, e);
+                }
+            }
+        }
+
+        // All providers failed �?return error with details (not silent empty output)
+        Ok(json!({
+            "task": context.task,
+            "capability": context.capability,
+            "output": format!("AI service unavailable. Last error: {}", last_error),
+            "error": last_error,
+        }))
+    }
+}
+
+/// 尝试�?JSON 文本转换�?TOON 格式，失败则返回原文
+fn maybe_toon(text: &str) -> String {
+    // 只对明显�?JSON 的文本做转换（以 { �?[ 开头）
+    let trimmed = text.trim();
+    if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+        return text.to_string();
+    }
+    match serde_json::from_str::<Value>(trimmed) {
+        Ok(val) => {
+            let toon = format::json_to_toon(&val, 0);
+            let chars_saved = trimmed.len().saturating_sub(toon.len());
+            if chars_saved > 0 {
+                tracing::info!(
+                    "TOON: saved ~{} chars ({:.0}%)",
+                    chars_saved,
+                    chars_saved as f64 / trimmed.len() as f64 * 100.0
+                );
+            }
+            // 如果是纯 JSON 数据（指令里�?JSON），�?TOON 格式提示
+            format!(
+                "(以下数据使用 TOON 格式，类�?YAML 但数组用 [N]{{fields}}: 表示)\n{}",
+                toon
+            )
+        }
+        Err(_) => text.to_string(), // 不是有效 JSON，返回原�?
+    }
+}
+
+async fn run_endpoint(
+    client: &reqwest::Client,
+    endpoint: &AiEndpoint,
+    instruction: &str,
+    text: &str,
+) -> Result<(String, Option<TokenUsage>)> {
+    match endpoint.protocol {
+        AiProtocol::OpenAiChat => run_openai_chat(client, endpoint, instruction, text).await,
+        AiProtocol::AnthropicMessages => run_anthropic_messages(client, endpoint, instruction, text).await,
+    }
+}
+
+async fn run_openai_chat(
+    client: &reqwest::Client,
+    endpoint: &AiEndpoint,
+    instruction: &str,
+    text: &str,
+) -> Result<(String, Option<TokenUsage>)> {
+    let body = openai_request_body(endpoint, instruction, text);
+
+    let resp = client
+        .post(endpoint.chat_completions_url())
+        .header("Authorization", format!("Bearer {}", endpoint.api_key))
+        .json(&body)
+        .send()
+        .await?;
+    parse_openai_response(resp).await
+}
+
+fn openai_request_body(endpoint: &AiEndpoint, instruction: &str, text: &str) -> Value {
+    // 系统指令：开�?prompt caching 支持（OpenRouter 兼容�?
+    // 缓存后重复调用仅�?10% 费用
+    let sys_msg = json!({
+        "role": "system",
+        "content": instruction,
+        "cache_control": {"type": "ephemeral"}
+    });
+
+    json!({
+        "model": endpoint.model,
+        "messages": [
+            sys_msg,
+            {"role": "user", "content": text}
+        ],
+        "max_tokens": AI_TASK_MAX_OUTPUT_TOKENS,
+        "temperature": 0.3,
+        "stream": false
+    })
+}
+
+async fn run_anthropic_messages(
+    client: &reqwest::Client,
+    endpoint: &AiEndpoint,
+    instruction: &str,
+    text: &str,
+) -> Result<(String, Option<TokenUsage>)> {
+    let body = json!({
+        "model": endpoint.model,
+        "system": [{"type": "text", "text": instruction, "cache_control": {"type": "ephemeral"}}],
+        "max_tokens": AI_TASK_MAX_OUTPUT_TOKENS,
+        "messages": [{"role": "user", "content": text}],
+        "stream": false
+    });
+
+    let resp = client
+        .post(endpoint.anthropic_messages_url())
+        .header("x-api-key", &endpoint.api_key)
+        .header("anthropic-version", "2023-06-01")
+        .header("anthropic-beta", "prompt-caching-2024-07-31")
+        .json(&body)
+        .send()
+        .await?;
+    parse_anthropic_response(resp).await
+}
+
+async fn parse_openai_response(resp: reqwest::Response) -> Result<(String, Option<TokenUsage>)> {
+    let status = resp.status();
+    let raw = resp.text().await.unwrap_or_default();
+    let parsed: Value = serde_json::from_str(&raw).unwrap_or_default();
+    if !status.is_success() {
+        let err_msg = parsed["error"]["message"]
+            .as_str()
+            .or_else(|| parsed["message"].as_str())
+            .unwrap_or("AI backend returned an error");
+        bail!("{err_msg}");
+    }
+    let (content, usage) = if parsed.is_null() {
+        parse_openai_sse(&raw)
+    } else {
+        let content = parsed["choices"][0]["message"]["content"]
+            .as_str()
+            .or_else(|| parsed["choices"][0]["delta"]["content"].as_str())
+            .or_else(|| parsed["result"].as_str())
+            .unwrap_or("")
+            .trim()
+            .to_string();
+        (content, parse_openai_usage(&parsed))
+    };
+    validate_content(&content)?;
+    Ok((content, usage))
+}
+
+fn parse_openai_sse(raw: &str) -> (String, Option<TokenUsage>) {
+    let mut content = String::new();
+    let mut usage = None;
+
+    for line in raw.lines() {
+        let Some(data) = line.trim().strip_prefix("data:") else {
+            continue;
+        };
+        let data = data.trim();
+        if data.is_empty() || data == "[DONE]" {
+            continue;
+        }
+        let Ok(chunk) = serde_json::from_str::<Value>(data) else {
+            continue;
+        };
+        if let Some(part) = chunk["choices"][0]["delta"]["content"]
+            .as_str()
+            .or_else(|| chunk["choices"][0]["message"]["content"].as_str())
+        {
+            content.push_str(part);
+        }
+        usage = parse_openai_usage(&chunk).or(usage);
+    }
+
+    (content.trim().to_string(), usage)
+}
+
+async fn parse_anthropic_response(resp: reqwest::Response) -> Result<(String, Option<TokenUsage>)> {
+    let status = resp.status();
+    let raw = resp.text().await.unwrap_or_default();
+    let parsed: Value = serde_json::from_str(&raw).unwrap_or_default();
+    if !status.is_success() {
+        let err_msg = parsed["error"]["message"]
+            .as_str()
+            .or_else(|| parsed["message"].as_str())
+            .unwrap_or("AI backend returned an error");
+        bail!("{err_msg}");
+    }
+    let content = parsed["content"][0]["text"].as_str().unwrap_or("").trim().to_string();
+    validate_content(&content)?;
+    let usage = parse_anthropic_usage(&parsed);
+    Ok((content, usage))
+}
+
+fn validate_content(content: &str) -> Result<()> {
+    if content.is_empty() {
+        bail!("AI backend returned empty content");
+    }
+    if matches!(content, "参数错误" | "Invalid API key.") {
+        bail!("AI backend returned provider error text: {content}");
+    }
+    Ok(())
+}
+
+/// �?OpenAI 兼容响应中提�?TokenUsage
+fn parse_openai_usage(parsed: &Value) -> Option<TokenUsage> {
+    let usage = parsed.get("usage")?;
+    let prompt_tokens = usage.get("prompt_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let completion_tokens = usage.get("completion_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let total_tokens = usage.get("total_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let cached_tokens = usage
+        .get("prompt_tokens_details")
+        .and_then(|d| d.get("cached_tokens").and_then(|v| v.as_u64()))
+        .or_else(|| {
+            // 一�?OpenAI 兼容端点�?cached_tokens 顶层字段
+            usage.get("cached_tokens").and_then(|v| v.as_u64())
+        })
+        .unwrap_or(0);
+    Some(TokenUsage {
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        cached_tokens,
+    })
+}
+
+/// �?Anthropic Messages 响应中提�?TokenUsage
+fn parse_anthropic_usage(parsed: &Value) -> Option<TokenUsage> {
+    let usage = parsed.get("usage")?;
+    let prompt_tokens = usage.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let completion_tokens = usage.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let total_tokens = usage.get("total_tokens").and_then(|v| v.as_u64()).unwrap_or(0);
+    let cached_tokens = usage
+        .get("input_tokens_details")
+        .and_then(|d| d.get("cache_read_input_tokens").and_then(|v| v.as_u64()))
+        .unwrap_or(0);
+    Some(TokenUsage {
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        cached_tokens,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{openai_request_body, parse_openai_sse};
+    use crate::config::{AiEndpoint, AiProtocol};
+    use serde_json::Value;
+
+    #[test]
+    fn openai_request_budget_supports_structured_tool_followup() {
+        let endpoint = AiEndpoint {
+            label: "test".to_string(),
+            base_url: "http://127.0.0.1:1/v1".to_string(),
+            api_key: "test".to_string(),
+            model: "test-model".to_string(),
+            protocol: AiProtocol::OpenAiChat,
+        };
+
+        let body = openai_request_body(&endpoint, "instruction", "task");
+
+        assert_eq!(body.get("max_tokens").and_then(Value::as_u64), Some(2048));
+    }
+
+    #[test]
+    fn parses_openai_sse_content_and_usage() {
+        let raw = concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"AIONUI_\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"content\":\"FORGE_OK\"}}],",
+            "\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\n",
+            "data: [DONE]\n"
+        );
+
+        let (content, usage) = parse_openai_sse(raw);
+
+        assert_eq!(content, "AIONUI_FORGE_OK");
+        let usage = usage.expect("usage should be parsed");
+        assert_eq!(usage.prompt_tokens, 3);
+        assert_eq!(usage.completion_tokens, 2);
+        assert_eq!(usage.total_tokens, 5);
+    }
+}

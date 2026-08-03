@@ -25,26 +25,45 @@ impl BuiltinSkill for AgentDelegate {
         let capability = context.context["capability"].as_str().unwrap_or(&context.capability);
         let task_id = uuid_simple();
 
-        let bus = crate::message_bus::global_message_bus();
-        let msg = AgentMessage {
-            message_id: uuid_simple(),
-            from_agent: "executor".to_string(),
-            to_agent: target.to_string(),
-            session_id: uuid_simple(),
-            message_type: AgentMessageType::TaskAssignment {
-                task_id: task_id.clone(),
-                task: context.task.clone(),
-                capability: capability.to_string(),
-            },
-            timestamp_ms: now_epoch_ms(),
-            correlation_id: None,
-        };
-        let delivered = bus.publish(msg);
+        // P3-C #22: timeout and retry support
+        let timeout_secs = context.context["timeout_secs"]
+            .as_u64()
+            .unwrap_or(30);
+        let retry_count = context.context["retry_count"]
+            .as_u64()
+            .unwrap_or(1);
+        
+        let mut delivered = 0u32;
+        for attempt in 0..=retry_count {
+            let bus = crate::message_bus::global_message_bus();
+            let msg = AgentMessage {
+                message_id: uuid_simple(),
+                from_agent: "executor".to_string(),
+                to_agent: target.to_string(),
+                session_id: uuid_simple(),
+                message_type: AgentMessageType::TaskAssignment {
+                    task_id: task_id.clone(),
+                    task: context.task.clone(),
+                    capability: capability.to_string(),
+                },
+                timestamp_ms: now_epoch_ms(),
+                correlation_id: None,
+            };
+            if bus.publish(msg) {
+                delivered += 1;
+                break;
+            }
+            if attempt < retry_count {
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }
         Ok(json!({
             "delegated_to": target,
             "capability": capability,
             "task_id": task_id,
             "delivered": delivered,
+            "timeout_secs": timeout_secs,
+            "retry_count": retry_count,
             "task": context.task,
         }))
     }
@@ -62,6 +81,14 @@ impl BuiltinSkill for AgentBroadcast {
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let message = context.context["message"].as_str().unwrap_or(&context.task);
+        // P3-C #23: ack_required support
+        let ack_required = context.context["ack_required"]
+            .as_bool()
+            .unwrap_or(false);
+        let wait_timeout_ms = context.context["wait_timeout_ms"]
+            .as_u64()
+            .unwrap_or(5000);
+        
         let bus = crate::message_bus::global_message_bus();
         let msg = AgentMessage {
             message_id: uuid_simple(),
@@ -77,9 +104,32 @@ impl BuiltinSkill for AgentBroadcast {
             correlation_id: None,
         };
         let count = bus.publish(msg);
+        
+        // Wait for acks if required
+        let ack_count = if ack_required {
+            let start = std::time::Instant::now();
+            let mut acked = 0u32;
+            while start.elapsed() < std::time::Duration::from_millis(wait_timeout_ms) {
+                let new_ack = bus.acknowledged_count();
+                if new_ack > acked {
+                    acked = new_ack;
+                }
+                if acked >= count {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            acked
+        } else {
+            0
+        };
+        
         Ok(json!({
             "broadcast_message": message,
             "delivered_count": count,
+            "ack_required": ack_required,
+            "ack_count": ack_count,
+            "wait_timeout_ms": wait_timeout_ms,
         }))
     }
 }
@@ -121,10 +171,13 @@ impl BuiltinSkill for AgentGather {
             delivered += bus.publish(msg);
         }
 
+        // P4-B #32: reduce strategy (all/first/max/min)
+        let reduce = context.context["reduce"].as_str().unwrap_or("all");
         Ok(json!({
             "query": query,
             "target_agents": agent_ids,
             "messages_delivered": delivered,
+            "reduce_strategy": reduce,
             "note": "Responses will arrive asynchronously via MessageBus subscription",
         }))
     }

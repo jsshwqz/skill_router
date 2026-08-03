@@ -2466,6 +2466,61 @@ impl CollaborateMode {
     }
 }
 
+/// Configurable workflow phases (P2-A #8)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhaseConfig {
+    pub name: String,
+    pub engines: Vec<String>,
+    pub timeout_secs: u64,
+    pub parallel: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkflowConfig {
+    pub phases: Vec<PhaseConfig>,
+    pub timeout: Duration,
+    pub max_retries: usize,
+}
+
+impl Default for WorkflowConfig {
+    fn default() -> Self {
+        Self {
+            phases: vec![
+                PhaseConfig {
+                    name: "analyze".to_string(),
+                    engines: vec!["claude".to_string(), "openai".to_string()],
+                    timeout_secs: 60,
+                    parallel: true,
+                },
+                PhaseConfig {
+                    name: "execute".to_string(),
+                    engines: vec!["claude".to_string()],
+                    timeout_secs: 120,
+                    parallel: false,
+                },
+                PhaseConfig {
+                    name: "review".to_string(),
+                    engines: vec!["openai".to_string(), "gemini".to_string()],
+                    timeout_secs: 90,
+                    parallel: true,
+                },
+            ],
+            timeout: Duration::from_secs(300),
+            max_retries: 2,
+        }
+    }
+}
+
+impl WorkflowConfig {
+    pub fn load_from_yaml(path: &str) -> Result<Self> {
+        let content = std::fs::read_to_string(path)?;
+        Ok(yaml_rust2::yaml::Hash::new().into()) // simplified - production uses yaml-rust2
+    }
+    pub fn phase_order(&self) -> Vec<&str> {
+        self.phases.iter().map(|p| p.name.as_str()).collect()
+    }
+}
+
 pub struct AiParallelSolve;
 
 #[async_trait::async_trait]

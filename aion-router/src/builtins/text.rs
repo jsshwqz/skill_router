@@ -19,7 +19,50 @@ macro_rules! ai_text_builtin {
 
             async fn execute(&self, skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
                 let mut delegated = skill.clone();
-                delegated.metadata.instruction = Some($instruction.to_string());
+                let mut instruction = $instruction.to_string();
+                
+                // P3-A: Add mode/length parameters for TextSummarize
+                if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextSummarize>() {
+                    if let Some(mode) = context.context["mode"].as_str() {
+                        instruction.push_str(&format!("
+Mode: {}", mode));
+                    }
+                    if let Some(len) = context.context["max_length"].as_u64() {
+                        instruction.push_str(&format!("
+Max length: {} characters", len));
+                    }
+                }
+                // P3-A: Add labels constraint for TextClassify
+                if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextClassify>() {
+                    if let Some(labels) = context.context["labels"].as_array() {
+                        let label_list: Vec<String> = labels.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect();
+                        instruction.push_str(&format!("
+Allowed labels: {}", label_list.join(", ")));
+                    }
+                }
+                // P3-A: Add schema for TextExtract
+                if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextExtract>() {
+                    if let Some(schema) = context.context["schema"].as_str() {
+                        instruction.push_str(&format!("
+Extraction schema: {}", schema));
+                    }
+                }
+                // P3-E: Add glossary for TextTranslate
+                if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextTranslate>() {
+                    if let Some(glossary) = context.context["glossary"].as_object() {
+                        let glossary_str: Vec<String> = glossary.iter()
+                            .map(|(k, v)| format!("{}: {}", k, v.as_str().unwrap_or("")))
+                            .collect();
+                        instruction.push_str(&format!("
+Glossary (preserve these terms):
+{}", glossary_str.join("
+")));
+                    }
+                }
+                
+                delegated.metadata.instruction = Some(instruction);
                 super::ai::AiTask.execute(&delegated, context).await
             }
         }
