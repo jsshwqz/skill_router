@@ -2537,6 +2537,21 @@ impl BuiltinSkill for AiParallelSolve {
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
         let cfg = OrchestratorConfig::from_env();
+        
+        // P2-A: Try to load custom workflow config
+        let workflow_config = if let Some(config_path) = ctx.context.get("workflow_config")
+            .and_then(|v| v.as_str()) {
+            match WorkflowConfig::load_from_yaml(config_path) {
+                Ok(cfg) => Some(cfg),
+                Err(e) => {
+                    tracing::warn!("Failed to load workflow config: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        
         let task = ctx.context["problem"]
             .as_str()
             .or_else(|| ctx.context["task"].as_str())
