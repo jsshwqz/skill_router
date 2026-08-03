@@ -91,6 +91,62 @@ impl BuiltinSkill for TextDiff {
 
 // ── text_embed ──────────────────────────────────────────────────────────────
 
+/// Get semantic embedding from external API (OpenAI/Ollama compatible)
+async fn get_semantic_embedding(text: &str) -> Result<Vec<f32>> {
+    use std::env;
+    
+    let base_url = env::var("AI_EMBEDDING_BASE_URL")
+        .unwrap_or_else(|_| env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string()));
+    let api_key = env::var("AI_API_KEY").unwrap_or_default();
+    let model = env::var("AI_EMBEDDING_MODEL")
+        .unwrap_or_else(|_| env::var("AI_MODEL").unwrap_or("nomic-embed-text".to_string()));
+
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({
+        "model": model,
+        "input": text,
+    });
+
+    let resp = match client
+        .post(format!("{}/embeddings", base_url))
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .send()
+        .await
+    {
+        Ok(r) => match r.json::<Value>().await {
+            Ok(v) => v,
+            Err(_) => return Err(anyhow::anyhow!("Failed to parse embedding response")),
+        },
+        Err(_) => return Err(anyhow::anyhow!("Embedding API request failed")),
+    };
+
+    // Try OpenAI format first
+    if let Some(data) = resp.get("data").and_then(|d| d.get(0)) {
+        if let Some(embedding) = data.get("embedding").and_then(|e| e.as_array()) {
+            let vec: Vec<f32> = embedding.iter()
+                .filter_map(|v| v.as_f64().map(|f| f as f32))
+                .collect();
+            if !vec.is_empty() {
+                return Ok(vec);
+            }
+        }
+    }
+
+    // Try Ollama format
+    if let Some(embedding) = resp.get("embedding").and_then(|e| e.as_array()) {
+        let vec: Vec<f32> = embedding.iter()
+            .filter_map(|v| v.as_f64().map(|f| f as f32))
+            .collect();
+        if !vec.is_empty() {
+            return Ok(vec);
+        }
+    }
+
+    Err(anyhow::anyhow!("Embedding response has no valid data"))
+}
+
 pub struct TextEmbed;
 
 #[async_trait::async_trait]
@@ -101,7 +157,28 @@ impl BuiltinSkill for TextEmbed {
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = require_text(context)?;
+        
+        // Check if user requested semantic embedding
+        let use_semantic = context.context.get("semantic").and_then(|v| v.as_bool()).unwrap_or(false);
+        
+        if use_semantic {
+            // Try semantic embedding from API
+            match get_semantic_embedding(&text).await {
+                Ok(vec) => {
+                    return Ok(json!({
+                        "method": "semantic_embedding",
+                        "vector": vec,
+                        "dimensions": vec.len(),
+                        "note": "Semantic embedding from external API"
+                    }));
+                }
+                Err(e) => {
+                    tracing::warn!("Semantic embedding failed: {}, falling back to TF-IDF", e);
+                }
+            }
+        }
 
+        // Fallback to TF-IDF
         // 停用词（中英文常见）
         const STOPWORDS: &[&str] = &[
             "the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does",
