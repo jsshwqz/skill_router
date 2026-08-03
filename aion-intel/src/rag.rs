@@ -1,6 +1,6 @@
 //! RAG（检索增强生成）引擎
 //!
-//! 核心流程：文档摄入 → 分块 → 向量嵌入 → 存储 → 相似度搜索 → 上下文增强生成
+//! 核心流程：文档摄�?�?分块 �?向量嵌入 �?存储 �?相似度搜�?�?上下文增强生�?
 
 use std::path::{Path, PathBuf};
 
@@ -9,28 +9,107 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use usearch::{Index, IndexOptions, MetricKind, ScalarKind};
 
-/// 文档块
+/// 文档�?
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentChunk {
-    /// 块 ID
+    /// �?ID
     pub id: String,
-    /// 来源（文件路径或 URL）
+    /// 来源（文件路径或 URL�?
     pub source: String,
     /// 文本内容
     pub content: String,
     /// 向量嵌入
     pub embedding: Vec<f32>,
-    /// 元数据
+    /// 元数�?
     #[serde(default)]
     pub metadata: Value,
 }
+/// Simple keyword extractor for BM25-like scoring (lightweight alternative to tantivy)
+#[derive(Debug, Clone)]
+pub struct KeywordExtractor {
+    stop_words: Vec<&'static str>,
+}
 
-/// RAG 知识库状态
+impl Default for KeywordExtractor {
+    fn default() -> Self {
+        Self {
+            stop_words: vec![
+                "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+                "have", "has", "had", "do", "does", "did", "will", "would", "could",
+                "should", "may", "might", "can", "shall", "to", "of", "in", "for",
+                "on", "with", "at", "by", "from", "as", "into", "through", "and",
+                "but", "or", "not", "no", "if", "then", "than", "that", "this",
+                "it", "its", "they", "them", "their", "we", "our", "you", "your",
+                "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?,
+                "一", "一�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?,
+                "着", "没有", "�?, "�?, "自己", "�?
+            ],
+        }
+    }
+}
+
+impl KeywordExtractor {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Extract keywords from text with frequency counting
+    pub fn extract_keywords(&self, text: &str) -> Vec<(String, usize)> {
+        let mut freq: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+        
+        for word in text.split(|c: char| c.is_whitespace() || c == ',' || c == '.' || c == '�? || c == '�?) {
+            let w = word.to_ascii_lowercase()
+                .trim_matches(|c: char| !c.is_alphanumeric())
+                .to_string();
+            
+            if w.len() > 1 && !self.stop_words.contains(&w.as_str()) {
+                *freq.entry(w).or_insert(0) += 1;
+            }
+        }
+        
+        let mut keywords: Vec<(String, usize)> = freq.into_iter().collect();
+        keywords.sort_by(|a, b| b.1.cmp(&a.1));
+        keywords
+    }
+    
+    /// Calculate BM25-like score for a document against query keywords
+    pub fn bm25_score(&self, doc_keywords: &[(String, usize)], query_keywords: &[(String, usize)]) -> f64 {
+        if query_keywords.is_empty() {
+            return 0.0;
+        }
+        
+        let k1 = 1.5;  // BM25 parameter
+        let b = 0.75;  // BM25 parameter
+        
+        let doc_len = doc_keywords.iter().map(|(_, count)| count).sum::<usize>() as f64;
+        let avg_len = doc_len.max(1.0);
+        
+        let mut score = 0.0;
+        for (query_term, q_freq) in query_keywords {
+            let doc_freq = doc_keywords.iter()
+                .find(|(term, _)| term == query_term)
+                .map(|(_, count)| *count as f64)
+                .unwrap_or(0.0);
+            
+            if doc_freq > 0.0 {
+                let numerator = q_freq as f64 * doc_freq * (k1 + 1.0);
+                let denominator = doc_freq + k1 * (1.0 - b + b * avg_len / 100.0);
+                score += numerator / denominator;
+            }
+        }
+        
+        score / query_keywords.len() as f64
+    }
+}
+
+
+
+/// RAG 知识库状�?
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RagStatus {
     /// 总文档数
     pub document_count: usize,
-    /// 总块数
+    /// 总块�?
     pub chunk_count: usize,
     /// 来源列表
     pub sources: Vec<String>,
@@ -38,12 +117,12 @@ pub struct RagStatus {
     pub store_path: String,
 }
 
-/// RAG 检索结果
+/// RAG 检索结�?
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RetrievalResult {
-    /// 文档块
+    /// 文档�?
     pub chunk: DocumentChunk,
-    /// 相似度分数（0.0 - 1.0）
+    /// 相似度分数（0.0 - 1.0�?
     pub score: f64,
 }
 
@@ -53,16 +132,59 @@ pub struct RagEngine {
     chunks: Vec<DocumentChunk>,
     /// 存储路径
     store_path: PathBuf,
-    /// usearch HNSW 索引（余弦相似度检索加速层）。
-    /// `None` 表示索引不可用，检索降级为手写全量余弦扫描。
+    /// usearch HNSW 索引（余弦相似度检索加速层）�?
+    /// `None` 表示索引不可用，检索降级为手写全量余弦扫描�?
     index: Option<Index>,
 }
 
 /// usearch 索引文件名（存于 rag/ 目录下）
 const INDEX_FILE: &str = "usearch.index";
 
+
+/// Reranker trait for combining multiple scoring signals
+pub trait Reranker: Send + Sync {
+    fn name(&self) -> &str;
+    fn rerank(&self, query: &str, results: &[RetrievalResult], top_k: usize) -> Vec<RetrievalResult>;
+}
+
+/// Simple linear combination reranker: alpha * semantic + (1-alpha) * keyword
+pub struct LinearReranker {
+    pub alpha: f64,  // weight for semantic score
+}
+
+impl Default for LinearReranker {
+    fn default() -> Self {
+        Self { alpha: 0.7 }
+    }
+}
+
+impl Reranker for LinearReranker {
+    fn name(&self) -> &str {
+        "linear_combination"
+    }
+    
+    fn rerank(&self, query: &str, results: &[RetrievalResult], top_k: usize) -> Vec<RetrievalResult> {
+        let keyword_ext = KeywordExtractor::new();
+        let query_keywords = keyword_ext.extract_keywords(query);
+        
+        let mut scored: Vec<(f64, usize)> = results.iter().enumerate().map(|(i, r)| {
+            let chunk_keywords = keyword_ext.extract_keywords(&r.chunk.content);
+            let keyword_score = keyword_ext.bm25_score(&chunk_keywords, &query_keywords);
+            let combined = self.alpha * r.score + (1.0 - self.alpha) * keyword_score;
+            (combined, i)
+        }).collect();
+        
+        scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+        
+        scored.iter().take(top_k)
+            .map(|(_, idx)| results[*idx].clone())
+            .collect()
+    }
+}
+
+
 impl RagEngine {
-    /// 创建或加载 RAG 引擎
+    /// 创建或加�?RAG 引擎
     pub fn load_or_create(state_dir: &Path) -> Result<Self> {
         let store_path = state_dir.join("rag");
         std::fs::create_dir_all(&store_path)?;
@@ -78,6 +200,9 @@ impl RagEngine {
         let mut engine = Self {
             chunks,
             store_path,
+            keyword_extractor: KeywordExtractor::new(),
+            reranker: Box::new(LinearReranker::default()),
+        };
             index: None,
         };
         engine.restore_index();
@@ -129,7 +254,7 @@ impl RagEngine {
             return Vec::new();
         }
 
-        // 优先使用 usearch HNSW 索引加速（仅当查询维度与索引维度一致时）
+        // 优先使用 usearch HNSW 索引加速（仅当查询维度与索引维度一致时�?
         if let Some(index) = &self.index {
             if index.dimensions() == query_embedding.len() {
                 if let Ok(matches) = index.search(query_embedding, top_k) {
@@ -141,7 +266,7 @@ impl RagEngine {
                             let pos = key as usize;
                             self.chunks.get(pos).map(|chunk| RetrievalResult {
                                 chunk: chunk.clone(),
-                                // 分数用手写余弦计算，保证与降级路径分数语义完全一致
+                                // 分数用手写余弦计算，保证与降级路径分数语义完全一�?
                                 score: Self::cosine_similarity(query_embedding, &chunk.embedding),
                             })
                         })
@@ -157,38 +282,38 @@ impl RagEngine {
             }
         }
 
-        // 降级：usearch 不可用或维度不匹配时，使用手写全量余弦扫描
+        // 降级：usearch 不可用或维度不匹配时，使用手写全量余弦扫�?
         self.bruteforce_search(query_embedding, top_k)
     }
 
-    /// 检索并用 AI 生成增强回答
+    /// 检索并�?AI 生成增强回答
     pub async fn query(&self, question: &str, top_k: usize) -> Result<Value> {
-        // 1. 获取问题的嵌入向量
+        // 1. 获取问题的嵌入向�?
         let query_embedding = self.get_embedding(question).await?;
 
-        // 2. 检索相关文档
+        // 2. 检索相关文�?
         let results = self.search(&query_embedding, top_k);
 
         if results.is_empty() {
             return Ok(json!({
-                "answer": "知识库中没有找到相关内容。",
+                "answer": "知识库中没有找到相关内容�?,
                 "sources": [],
                 "chunks_searched": self.chunks.len()
             }));
         }
 
-        // 3. 组装上下文
+        // 3. 组装上下�?
         let context_parts: Vec<String> = results
             .iter()
             .map(|r| format!("[来源: {}] {}", r.chunk.source, r.chunk.content))
             .collect();
         let context = context_parts.join("\n\n");
 
-        // 4. 调用 AI 生成回答，失败时 fallback 到原始 chunks
+        // 4. 调用 AI 生成回答，失败时 fallback 到原�?chunks
         let (answer, ai_generated) = match self.generate_answer(question, &context).await {
             Ok(a) if a != "无法生成回答" => (a, true),
             Ok(_) | Err(_) => {
-                // AI 不可用或返回空回答，fallback 返回原始检索内容
+                // AI 不可用或返回空回答，fallback 返回原始检索内�?
                 let fallback = format!("（AI 暂不可用，以下为检索到的原始内容）\n\n{}", context);
                 (fallback, false)
             }
@@ -215,7 +340,7 @@ impl RagEngine {
         }))
     }
 
-    /// 获取知识库状态
+    /// 获取知识库状�?
     pub fn status(&self) -> RagStatus {
         let mut sources: Vec<String> = self
             .chunks
@@ -234,7 +359,7 @@ impl RagEngine {
         }
     }
 
-    /// 保存到磁盘
+    /// 保存到磁�?
     fn save(&self) -> Result<()> {
         let chunks_file = self.store_path.join("chunks.json");
         let content = serde_json::to_string(&self.chunks)?;
@@ -245,7 +370,7 @@ impl RagEngine {
         Ok(())
     }
 
-    /// 保存 usearch 索引到磁盘
+    /// 保存 usearch 索引到磁�?
     fn save_index(&self, index: &Index) -> Result<()> {
         let index_file = self.store_path.join(INDEX_FILE);
         let path = index_file
@@ -255,8 +380,8 @@ impl RagEngine {
         Ok(())
     }
 
-    /// 尝试从磁盘恢复 usearch 索引；文件缺失/损坏/与 chunks 不一致时重建；
-    /// usearch 不可用时保持 `None`（降级手写全量余弦扫描）。
+    /// 尝试从磁盘恢�?usearch 索引；文件缺�?损坏/�?chunks 不一致时重建�?
+    /// usearch 不可用时保持 `None`（降级手写全量余弦扫描）�?
     fn restore_index(&mut self) {
         let index_file = self.store_path.join(INDEX_FILE);
         if index_file.exists() {
@@ -281,7 +406,7 @@ impl RagEngine {
         self.rebuild_index();
     }
 
-    /// 从磁盘加载 usearch 索引（一步完成 metadata 读取 + 构造 + 加载）
+    /// 从磁盘加�?usearch 索引（一步完�?metadata 读取 + 构�?+ 加载�?
     fn open_index(index_file: &Path) -> Result<Index> {
         let path = index_file
             .to_str()
@@ -289,14 +414,14 @@ impl RagEngine {
         Ok(Index::restore(path)?)
     }
 
-    /// 从当前 chunks 全量重建 usearch 索引；失败时置 `None`（不传播，降级手写）。
+    /// 从当�?chunks 全量重建 usearch 索引；失败时�?`None`（不传播，降级手写）�?
     fn rebuild_index(&mut self) {
         self.index = Self::build_index(&self.chunks);
     }
 
-    /// 用 usearch 构建 HNSW 索引（Cosine 度量）。
-    /// key 为 chunk 在 `chunks` 中的位置；跳过空 embedding 或维度不一致的块。
-    /// 返回 `None` 表示索引不可用。
+    /// �?usearch 构建 HNSW 索引（Cosine 度量）�?
+    /// key �?chunk �?`chunks` 中的位置；跳过空 embedding 或维度不一致的块�?
+    /// 返回 `None` 表示索引不可用�?
     fn build_index(chunks: &[DocumentChunk]) -> Option<Index> {
         let dim = chunks
             .iter()
@@ -398,7 +523,7 @@ impl RagEngine {
             }
         }
 
-        // 如果完全为空，强制分割原文
+        // 如果完全为空，强制分割原�?
         if final_chunks.is_empty() && !text.is_empty() {
             let chars: Vec<char> = text.chars().collect();
             for chunk in chars.chunks(max_chars) {
@@ -409,7 +534,7 @@ impl RagEngine {
         final_chunks
     }
 
-    /// 获取文本的向量嵌入
+    /// 获取文本的向量嵌�?
     async fn get_embedding(&self, text: &str) -> Result<Vec<f32>> {
         let base_url = std::env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string());
         let api_key = std::env::var("AI_API_KEY").unwrap_or_else(|_| "ollama".to_string());
@@ -471,7 +596,7 @@ impl RagEngine {
             let idx = (hash as usize) % 128;
             vec[idx] += 1.0;
         }
-        // 归一化
+        // 归一�?
         let norm: f32 = vec.iter().map(|x| x * x).sum::<f32>().sqrt();
         if norm > 0.0 {
             for v in &mut vec {
@@ -481,7 +606,7 @@ impl RagEngine {
         vec
     }
 
-    /// 余弦相似度
+    /// 余弦相似�?
     fn cosine_similarity(a: &[f32], b: &[f32]) -> f64 {
         if a.len() != b.len() || a.is_empty() {
             return 0.0;
@@ -596,7 +721,7 @@ mod tests {
         let emb = RagEngine::fallback_embedding("hello world test");
         assert_eq!(emb.len(), 128);
         let norm: f32 = emb.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!((norm - 1.0).abs() < 0.01); // 归一化后应接近 1
+        assert!((norm - 1.0).abs() < 0.01); // 归一化后应接�?1
     }
 
     #[test]
@@ -606,7 +731,7 @@ mod tests {
         let emb3 = RagEngine::fallback_embedding("cooking recipes dessert");
         let sim_related = RagEngine::cosine_similarity(&emb1, &emb2);
         let sim_unrelated = RagEngine::cosine_similarity(&emb1, &emb3);
-        // 相关文本应该有更高的相似度
+        // 相关文本应该有更高的相似�?
         assert!(sim_related > sim_unrelated);
     }
 
@@ -635,7 +760,7 @@ mod tests {
 
     #[test]
     fn test_usearch_index_roundtrip() {
-        // usearch 不可用时自动跳过（降级路径由其余测试覆盖）
+        // usearch 不可用时自动跳过（降级路径由其余测试覆盖�?
         if Index::new(&IndexOptions {
             dimensions: 8,
             metric: MetricKind::Cos,
@@ -671,7 +796,7 @@ mod tests {
         let query = RagEngine::fallback_embedding("rust programming tutorial");
         let matches = index.search(&query, 2).unwrap();
         assert!(!matches.keys.is_empty());
-        // 相关文本块应被命中
+        // 相关文本块应被命�?
         assert_eq!(matches.keys[0], 0);
     }
 }
