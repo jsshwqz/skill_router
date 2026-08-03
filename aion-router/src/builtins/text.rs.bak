@@ -1,0 +1,286 @@
+//! 文本处理�?builtin 技能：text_diff, text_embed, markdown_render
+
+use anyhow::Result;
+use serde_json::{json, Value};
+
+use aion_types::types::{ExecutionContext, SkillDefinition};
+
+use super::{extract_text, require_text, BuiltinSkill};
+
+macro_rules! ai_text_builtin {
+    ($type_name:ident, $tool_name:literal, $instruction:literal) => {
+        pub struct $type_name;
+
+        #[async_trait::async_trait]
+        impl BuiltinSkill for $type_name {
+            fn name(&self) -> &'static str {
+                $tool_name
+            }
+
+            async fn execute(&self, skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+                let mut delegated = skill.clone();
+                delegated.metadata.instruction = Some($instruction.to_string());
+                super::ai::AiTask.execute(&delegated, context).await
+            }
+        }
+    };
+}
+
+ai_text_builtin!(
+    TextSummarize,
+    "text_summarize",
+    "Summarize the input accurately and concisely while preserving key facts."
+);
+ai_text_builtin!(
+    TextClassify,
+    "text_classify",
+    "Classify the input using the requested labels or the smallest useful label set."
+);
+ai_text_builtin!(
+    TextExtract,
+    "text_extract",
+    "Extract the requested entities and facts from the input without inventing information."
+);
+ai_text_builtin!(
+    TextTranslate,
+    "text_translate",
+    "Translate the input into the requested target language while preserving meaning and tone."
+);
+
+// ── text_diff ───────────────────────────────────────────────────────────────
+
+pub struct TextDiff;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for TextDiff {
+    fn name(&self) -> &'static str {
+        "text_diff"
+    }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let a = context.context["a"].as_str().unwrap_or("");
+        let b = context.context["b"].as_str().unwrap_or("");
+
+        // similar 库的行级 diff
+        let text_diff = similar::TextDiff::from_lines(a, b);
+        let mut diff: Vec<Value> = Vec::new();
+        let mut added = 0usize;
+        let mut removed = 0usize;
+        let mut unchanged = 0usize;
+        for change in text_diff.iter_all_changes() {
+            let line = change.value().trim_end_matches('\n');
+            match change.tag() {
+                similar::ChangeTag::Delete => {
+                    removed += 1;
+                    diff.push(json!({"op": "-", "line": line}));
+                }
+                similar::ChangeTag::Insert => {
+                    added += 1;
+                    diff.push(json!({"op": "+", "line": line}));
+                }
+                similar::ChangeTag::Equal => {
+                    unchanged += 1;
+                    diff.push(json!({"op": " ", "line": line}));
+                }
+            }
+        }
+
+        Ok(json!({"added": added, "removed": removed, "unchanged": unchanged, "diff": diff}))
+    }
+}
+
+// ── text_embed ──────────────────────────────────────────────────────────────
+
+pub struct TextEmbed;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for TextEmbed {
+    fn name(&self) -> &'static str {
+        "text_embed"
+    }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let text = require_text(context)?;
+
+        // 停用词（中英文常见）
+        const STOPWORDS: &[&str] = &[
+            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "do", "does",
+            "did", "will", "would", "could", "should", "may", "might", "can", "shall", "to", "of", "in", "for", "on",
+            "with", "at", "by", "from", "as", "into", "through", "and", "but", "or", "not", "no", "if", "then", "than",
+            "that", "this", "it", "its", "they", "them", "their", "we", "our", "you", "your", "�?, "�?, "�?, "�?,
+            "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?, "�?,
+        ];
+
+        let mut freq: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+        let mut doc_words: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        for word in text.split(|c: char| c.is_whitespace() || c == ',' || c == '.' || c == '�? || c == '�?) {
+            let w = word
+                .to_ascii_lowercase()
+                .trim_matches(|c: char| !c.is_alphanumeric())
+                .to_string();
+            if w.len() > 1 && !STOPWORDS.contains(&w.as_str()) {
+                *freq.entry(w.clone()).or_insert(0) += 1;
+                doc_words.insert(w);
+            }
+        }
+
+        let total: usize = freq.values().sum();
+        let terms = freq.len();
+        let doc_count = doc_words.len().max(1) as f64;
+
+        // TF-IDF: TF * log(N/df)，单文档近似 IDF = log(terms/1)
+        let vector: serde_json::Map<String, Value> = freq
+            .into_iter()
+            .map(|(k, v)| {
+                let tf = v as f64 / total.max(1) as f64;
+                let idf = (doc_count / 1.0).ln().max(1.0); // 单文�?IDF 近似
+                (k, json!((tf * idf * 1000.0).round() / 1000.0))
+            })
+            .collect();
+
+        Ok(json!({"method": "tf_idf", "vector": vector, "terms": terms, "total_words": total}))
+    }
+}
+
+// ── markdown_render ─────────────────────────────────────────────────────────
+
+pub struct MarkdownRender;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for MarkdownRender {
+    fn name(&self) -> &'static str {
+        "markdown_render"
+    }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        let text = require_text(context)?;
+        let parser = pulldown_cmark::Parser::new(&text);
+        let mut sections: Vec<Value> = Vec::new();
+        let mut heading = String::new();
+        let mut body: Vec<String> = Vec::new();
+        let mut heading_buf = String::new();
+        let mut heading_level: Option<u8> = None;
+        let mut line_buf = String::new();
+
+        macro_rules! flush_line {
+            () => {
+                if !line_buf.is_empty() {
+                    body.push(std::mem::take(&mut line_buf));
+                } else {
+                    line_buf.clear();
+                }
+            };
+        }
+
+        for event in parser {
+            match event {
+                pulldown_cmark::Event::Start(pulldown_cmark::Tag::Heading { level, .. }) => {
+                    heading_level = Some(level as u8);
+                    if level as u8 == 1 {
+                        flush_line!();
+                        if !heading.is_empty() {
+                            sections.push(json!({"heading": heading, "body": body.join("\n")}));
+                            body.clear();
+                        }
+                        heading.clear();
+                    }
+                }
+                pulldown_cmark::Event::End(pulldown_cmark::TagEnd::Heading(_)) => {
+                    if let Some(level) = heading_level.take() {
+                        let title = std::mem::take(&mut heading_buf).trim().to_string();
+                        if level == 1 {
+                            heading = title;
+                        } else if !title.is_empty() {
+                            flush_line!();
+                            body.push(format!("[{}]", title));
+                        }
+                    }
+                }
+                pulldown_cmark::Event::Text(t) => {
+                    if heading_level.is_some() {
+                        if !heading_buf.is_empty() {
+                            heading_buf.push(' ');
+                        }
+                        heading_buf.push_str(&t);
+                    } else {
+                        line_buf.push_str(&t);
+                    }
+                }
+                pulldown_cmark::Event::SoftBreak | pulldown_cmark::Event::HardBreak => {
+                    flush_line!();
+                }
+                pulldown_cmark::Event::End(pulldown_cmark::TagEnd::Paragraph) => {
+                    flush_line!();
+                }
+                _ => {}
+            }
+        }
+        flush_line!();
+        if !heading.is_empty() {
+            sections.push(json!({"heading": heading, "body": body.join("\n")}));
+        }
+        Ok(json!({"sections": sections, "format": "markdown"}))
+    }
+}
+
+// ── text_wordcount ──────────────────────────────────────────────────────────
+
+pub struct TextWordcount;
+
+#[async_trait::async_trait]
+impl BuiltinSkill for TextWordcount {
+    fn name(&self) -> &'static str {
+        "text_wordcount"
+    }
+
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
+        // �?text_wordcount 做宽松输入兼容：
+        // �?context.text 缺失时，自动回退�?input/task，避免自然语言调用直接失败�?
+        let text = extract_text(context);
+
+        let word_count = text.split_whitespace().count();
+        let char_count = text.chars().count();
+        let line_count = if text.is_empty() { 0 } else { text.lines().count() };
+
+        Ok(json!({
+            "word_count": word_count,
+            "char_count": char_count,
+            "line_count": line_count
+        }))
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::items_after_test_module)]
+mod tests {
+    use super::*;
+    use aion_types::types::SkillMetadata;
+    use aion_types::types::{PermissionSet, SkillSource};
+    use std::path::PathBuf;
+
+    fn dummy_skill() -> SkillDefinition {
+        SkillDefinition {
+            metadata: SkillMetadata {
+                name: "text_wordcount_placeholder".to_string(),
+                version: "0.0.0".to_string(),
+                capabilities: vec!["text_wordcount".to_string()],
+                entrypoint: "builtin:text_wordcount".to_string(),
+                permissions: PermissionSet::default(),
+                instruction: None,
+                engine_capable: false,
+            },
+            root_dir: PathBuf::new(),
+            source: SkillSource::Local,
+        }
+    }
+
+    #[tokio::test]
+    async fn text_wordcount_fallback_to_task() {
+        let ctx = ExecutionContext::new("hello world", "text_wordcount");
+        let out = TextWordcount.execute(&dummy_skill(), &ctx).await.unwrap();
+        assert_eq!(out["word_count"].as_u64(), Some(2));
+        assert_eq!(out["line_count"].as_u64(), Some(1));
+    }
+}
+
