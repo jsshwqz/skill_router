@@ -1,4 +1,5 @@
 pub mod discovery_radar;
+pub mod embedding;
 pub mod immunity;
 pub mod online_search;
 pub mod parallel_planner;
