@@ -2540,6 +2540,83 @@ impl BuiltinSkill for AiParallelSolve {
 
 pub struct AiTripleVote;
 
+
+/// Weighted vote reviewer for AiTripleVote
+#[derive(Debug, Clone)]
+pub struct VoteWeight {
+    pub engine: String,
+    pub weight: f64,
+}
+
+impl VoteWeight {
+    pub fn weighted_score(&self, score: f64) -> f64 {
+        score * self.weight
+    }
+}
+
+/// Simple review merger that combines multiple reviews
+pub struct ReviewMerger {
+    pub weights: Vec<VoteWeight>,
+    pub conflict_threshold: f64,
+}
+
+impl Default for ReviewMerger {
+    fn default() -> Self {
+        Self {
+            weights: vec![
+                VoteWeight { engine: "claude".to_string(), weight: 1.0 },
+                VoteWeight { engine: "openai".to_string(), weight: 0.9 },
+                VoteWeight { engine: "gemini".to_string(), weight: 0.8 },
+            ],
+            conflict_threshold: 0.3,
+        }
+    }
+}
+
+impl ReviewMerger {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Merge reviews with weighted scoring
+    pub fn merge_reviews(&self, reviews: &[(String, String)]) -> Value {
+        let mut total_score = 0.0;
+        let mut confidence = 0.0;
+        let mut consensus = true;
+        
+        for (engine, review) in reviews {
+            let weight = self.weights.iter()
+                .find(|w| &w.engine == engine)
+                .map(|w| w.weight)
+                .unwrap_or(0.5);
+            
+            // Simple scoring: positive words indicate good review
+            let score = if review.contains("good") || review.contains("correct") {
+                0.8 + weight * 0.2
+            } else if review.contains("bad") || review.contains("wrong") {
+                0.2 + weight * 0.1
+            } else {
+                0.5
+            };
+            
+            total_score += score * weight;
+            confidence += weight;
+        }
+        
+        if confidence > 0.0 {
+            total_score /= confidence;
+        }
+        
+        json!({
+            "merged_score": total_score,
+            "confidence": confidence,
+            "consensus": consensus,
+            "review_count": reviews.len(),
+        })
+    }
+}
+
+
 #[async_trait::async_trait]
 impl BuiltinSkill for AiTripleVote {
     fn name(&self) -> &'static str {
@@ -2553,6 +2630,11 @@ impl BuiltinSkill for AiTripleVote {
             .or_else(|| ctx.context["task"].as_str())
             .unwrap_or(&ctx.task)
             .to_string();
+        
+        // Support trust_weight parameter for weighted voting
+        let trust_weight: f64 = ctx.context["trust_weight"]
+            .as_f64()
+            .unwrap_or(1.0);
         info!("ai_triple_vote: '{}'", safe_truncate(&problem, 50));
 
         if cfg.passthrough {
