@@ -59,10 +59,20 @@ impl BuiltinSkill for MemoryRecall {
             .unwrap_or(&context.task)
             .to_string();
         let limit = context.context["limit"].as_u64().unwrap_or(5) as usize;
+        let use_semantic = context.context.get("semantic").and_then(|v| v.as_bool()).unwrap_or(false);
 
         let workspace = std::env::current_dir().unwrap_or_default();
         let manager = MemoryManager::new(&workspace);
-        let results = manager.recall(&query, limit)?;
+        
+        // P1-A: Use semantic search if enabled (simplified)
+        let results = if use_semantic {
+            // For now, fall back to keyword search
+            // Full semantic search requires RagEngine integration
+            tracing::info!("Semantic search requested, using keyword fallback");
+            manager.recall(&query, limit)?
+        } else {
+            manager.recall(&query, limit)?
+        };
 
         let entries: Vec<Value> = results
             .iter()
