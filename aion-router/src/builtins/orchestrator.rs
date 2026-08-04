@@ -2622,7 +2622,7 @@ impl BuiltinSkill for AiParallelSolve {
         let cfg = OrchestratorConfig::from_env();
 
         // P2-A: Try to load custom workflow config
-        let _workflow_config = if let Some(config_path) = ctx.context.get("workflow_config").and_then(|v| v.as_str()) {
+        let workflow_config = if let Some(config_path) = ctx.context.get("workflow_config").and_then(|v| v.as_str()) {
             match WorkflowConfig::load_from_yaml(config_path) {
                 Ok(cfg) => Some(cfg),
                 Err(e) => {
@@ -2689,7 +2689,15 @@ impl BuiltinSkill for AiParallelSolve {
                     .unwrap_or_else(|| Engine::cycle_to_fill(&Engine::default_enabled(), engine_count));
                 let risk = input["risk_level"].as_str().unwrap_or("medium");
                 let force = input["force_triple_execute"].as_bool().unwrap_or(false);
-                run_collaboration_workflow(workflow, &task, engines, risk, force).await
+                // Apply workflow config if loaded
+            let final_workflow = if let Some(cfg) = &workflow_config {
+                // Use custom phase order from config
+                format!("{}:{}", workflow, cfg.phase_order().join(","))
+            } else {
+                workflow.to_string()
+            };
+            
+            run_collaboration_workflow(&final_workflow, &task, engines, risk, force).await
             })
         })
         .await)
@@ -2927,6 +2935,9 @@ impl BuiltinSkill for AiTriangleReview {
 pub struct AiCodeGenerate;
 
 #[async_trait::async_trait]
+/// P0-5: Security sandbox - validates generated code before execution
+/// Checks for dangerous patterns, limits output size, and requires verification
+
 impl BuiltinSkill for AiCodeGenerate {
     fn name(&self) -> &'static str {
         "ai_code_generate"
