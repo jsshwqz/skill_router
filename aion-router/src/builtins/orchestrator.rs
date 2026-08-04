@@ -2840,9 +2840,9 @@ impl BuiltinSkill for AiTripleVote {
             .unwrap_or(&ctx.task)
             .to_string();
 
-        // Support trust_weight parameter for weighted voting
-        let _trust_weight: f64 = ctx.context["trust_weight"].as_f64().unwrap_or(1.0);
-        info!("ai_triple_vote: '{}'", safe_truncate(&problem, 50));
+        // Support trust_weight parameter for weighted voting (P2-A #9)
+        let trust_weight: f64 = ctx.context["trust_weight"].as_f64().unwrap_or(1.0);
+        info!("ai_triple_vote: '{}' with trust_weight={}", safe_truncate(&problem, 50), trust_weight);
 
         if cfg.passthrough {
             return Ok(json!({
