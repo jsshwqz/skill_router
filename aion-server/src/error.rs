@@ -3,9 +3,9 @@
 //! Converts internal `anyhow::Error` into structured JSON responses
 //! with appropriate HTTP status codes.
 
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use serde::Serialize;
 
 /// Structured API error response

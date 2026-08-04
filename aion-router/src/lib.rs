@@ -1,10 +1,12 @@
 pub mod agent_runtime;
 pub mod automation;
 pub mod builtins;
+pub mod circuit_breaker;
 pub mod config;
 pub mod coordinator;
 pub mod crew;
 pub mod distributed_registry;
+pub mod engine_health;
 pub mod error_kb;
 pub mod evolution;
 pub mod executor;
@@ -19,8 +21,6 @@ pub mod parallel_executor;
 pub mod registry;
 pub mod registry_hub;
 pub mod security;
-pub mod engine_health;
-pub mod circuit_breaker;
 
 #[cfg(test)]
 mod tests;
@@ -372,10 +372,7 @@ impl SkillRouter {
                         .first()
                         .map(|s| s.as_str())
                         .unwrap_or(preferred.as_str());
-                    warn!(
-                        "AgentFailover: in-process fallback to capability '{}'",
-                        fallback_cap
-                    );
+                    warn!("AgentFailover: in-process fallback to capability '{}'", fallback_cap);
                     self.route_inner(&payload.intent, fallback_cap, Some(payload.parameters.clone()))
                         .await
                 }
@@ -396,11 +393,7 @@ impl SkillRouter {
     /// `aion.results.{task_id}` 回复 TaskResult——该 worker 不属于本 crate，
     /// 属于部署侧的 agent 运行时（参见 `message_bus::nats_subjects`）。
     #[cfg(feature = "distributed")]
-    async fn agent_failover_nats(
-        &self,
-        payload: &AiNativePayload,
-        targets: &[String],
-    ) -> Result<Option<RouteResult>> {
+    async fn agent_failover_nats(&self, payload: &AiNativePayload, targets: &[String]) -> Result<Option<RouteResult>> {
         use aion_types::agent_message::{AgentMessage, AgentMessageType};
         use aion_types::lifecycle::LifecycleRecommendation;
         use aion_types::types::{PermissionSet, SkillMetadata, SkillSource};
@@ -424,11 +417,15 @@ impl SkillRouter {
         // 向每个 fallback agent 的寻址 subject 发布 TaskAssignment（request-reply 模式）
         for agent in targets {
             let subject = format!("aion.agents.{}.tasks", agent);
-            let msg = AgentMessage::new("aion-router", agent, AgentMessageType::TaskAssignment {
-                task_id: task_id.clone(),
-                task: payload.intent.clone(),
-                capability: capability.clone(),
-            })
+            let msg = AgentMessage::new(
+                "aion-router",
+                agent,
+                AgentMessageType::TaskAssignment {
+                    task_id: task_id.clone(),
+                    task: payload.intent.clone(),
+                    capability: capability.clone(),
+                },
+            )
             .with_session(&payload.metadata.session_id)
             .with_correlation(&task_id);
             let bytes = serde_json::to_vec(&msg)?;

@@ -144,11 +144,7 @@ impl CircuitBreaker {
         self.status.last_failure_time = Some(Self::now_secs());
         match self.state {
             BreakerState::Closed => {
-                if self
-                    .status
-                    .consecutive_failures
-                    >= self.config.failure_threshold
-                {
+                if self.status.consecutive_failures >= self.config.failure_threshold {
                     self.state = BreakerState::Open;
                     tracing::warn!(
                         "Circuit breaker: Closed - (threshold {})",
@@ -195,9 +191,7 @@ impl CircuitBreaker {
 
     pub fn status_report(&self) -> Value {
         let next_recovery = if let Some(last_failure) = self.status.last_failure_time {
-            Some(
-                last_failure + self.config.recovery_timeout_secs - Self::now_secs(),
-            )
+            Some(last_failure + self.config.recovery_timeout_secs - Self::now_secs())
         } else {
             None
         };

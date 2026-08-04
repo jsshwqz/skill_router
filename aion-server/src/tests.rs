@@ -6,9 +6,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
-use axum::Router;
 use http_body_util::BodyExt;
 use serde_json::Value;
 use tower::ServiceExt; // for `oneshot`
@@ -17,9 +17,9 @@ use aion_memory::memory::MemoryManager;
 use aion_router::SkillRouter;
 use aion_types::types::RouterPaths;
 
+use crate::AppState;
 use crate::build_app;
 use crate::events::EventBus;
-use crate::AppState;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

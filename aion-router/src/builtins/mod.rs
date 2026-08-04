@@ -264,9 +264,9 @@ pub(crate) fn urlencoding_simple(s: &str) -> String {
     out
 }
 
+pub mod circuit_breaker;
 /// YAML 标量解析
 pub mod engine_health;
-pub mod circuit_breaker;
 
 pub(crate) fn yaml_scalar(s: &str) -> Value {
     let s = s.trim().trim_matches('"').trim_matches('\'');

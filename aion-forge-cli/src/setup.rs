@@ -4,8 +4,8 @@ use std::{
     process::{Command, Stdio},
 };
 
-use anyhow::{bail, Context, Result};
-use serde_json::{json, Value};
+use anyhow::{Context, Result, bail};
+use serde_json::{Value, json};
 
 /// Resolve the canonical command beside either supported Forge executable name.
 pub fn canonical_executable(executable: &Path) -> std::path::PathBuf {

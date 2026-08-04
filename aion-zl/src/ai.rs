@@ -238,8 +238,11 @@ mod tests {
 
     #[tokio::test]
     async fn chat_posts_to_mock_server_and_parses_content() {
-        let (base, handle, captured) =
-            spawn_mock_server("HTTP/1.1 200 OK", r#"{"choices":[{"message":{"content":"mock reply"}}]}"#).await;
+        let (base, handle, captured) = spawn_mock_server(
+            "HTTP/1.1 200 OK",
+            r#"{"choices":[{"message":{"content":"mock reply"}}]}"#,
+        )
+        .await;
 
         let client = reqwest::Client::new();
         let out = chat(&client, &base, "secret-key", "mock-model", "sys", "usr")

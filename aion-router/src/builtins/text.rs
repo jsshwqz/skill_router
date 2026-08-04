@@ -20,48 +20,67 @@ macro_rules! ai_text_builtin {
             async fn execute(&self, skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
                 let mut delegated = skill.clone();
                 let mut instruction = $instruction.to_string();
-                
+
                 // P3-A: Add mode/length parameters for TextSummarize
                 if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextSummarize>() {
                     if let Some(mode) = context.context["mode"].as_str() {
-                        instruction.push_str(&format!("
-Mode: {}", mode));
+                        instruction.push_str(&format!(
+                            "
+Mode: {}",
+                            mode
+                        ));
                     }
                     if let Some(len) = context.context["max_length"].as_u64() {
-                        instruction.push_str(&format!("
-Max length: {} characters", len));
+                        instruction.push_str(&format!(
+                            "
+Max length: {} characters",
+                            len
+                        ));
                     }
                 }
                 // P3-A: Add labels constraint for TextClassify
                 if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextClassify>() {
                     if let Some(labels) = context.context["labels"].as_array() {
-                        let label_list: Vec<String> = labels.iter()
+                        let label_list: Vec<String> = labels
+                            .iter()
                             .filter_map(|v| v.as_str().map(String::from))
                             .collect();
-                        instruction.push_str(&format!("
-Allowed labels: {}", label_list.join(", ")));
+                        instruction.push_str(&format!(
+                            "
+Allowed labels: {}",
+                            label_list.join(", ")
+                        ));
                     }
                 }
                 // P3-A: Add schema for TextExtract
                 if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextExtract>() {
                     if let Some(schema) = context.context["schema"].as_str() {
-                        instruction.push_str(&format!("
-Extraction schema: {}", schema));
+                        instruction.push_str(&format!(
+                            "
+Extraction schema: {}",
+                            schema
+                        ));
                     }
                 }
                 // P3-E: Add glossary for TextTranslate
                 if std::any::TypeId::of::<$type_name>() == std::any::TypeId::of::<TextTranslate>() {
                     if let Some(glossary) = context.context["glossary"].as_object() {
-                        let glossary_str: Vec<String> = glossary.iter()
+                        let glossary_str: Vec<String> = glossary
+                            .iter()
                             .map(|(k, v)| format!("{}: {}", k, v.as_str().unwrap_or("")))
                             .collect();
-                        instruction.push_str(&format!("
+                        instruction.push_str(&format!(
+                            "
 Glossary (preserve these terms):
-{}", glossary_str.join("
-")));
+{}",
+                            glossary_str.join(
+                                "
+"
+                            )
+                        ));
                     }
                 }
-                
+
                 delegated.metadata.instruction = Some(instruction);
                 super::ai::AiTask.execute(&delegated, context).await
             }
@@ -137,7 +156,7 @@ impl BuiltinSkill for TextDiff {
 /// Get semantic embedding from external API (OpenAI/Ollama compatible)
 async fn get_semantic_embedding(text: &str) -> Result<Vec<f32>> {
     use std::env;
-    
+
     let base_url = env::var("AI_EMBEDDING_BASE_URL")
         .unwrap_or_else(|_| env::var("AI_BASE_URL").unwrap_or_else(|_| "http://localhost:11434/v1".to_string()));
     let api_key = env::var("AI_API_KEY").unwrap_or_default();
@@ -168,9 +187,7 @@ async fn get_semantic_embedding(text: &str) -> Result<Vec<f32>> {
     // Try OpenAI format first
     if let Some(data) = resp.get("data").and_then(|d| d.get(0)) {
         if let Some(embedding) = data.get("embedding").and_then(|e| e.as_array()) {
-            let vec: Vec<f32> = embedding.iter()
-                .filter_map(|v| v.as_f64().map(|f| f as f32))
-                .collect();
+            let vec: Vec<f32> = embedding.iter().filter_map(|v| v.as_f64().map(|f| f as f32)).collect();
             if !vec.is_empty() {
                 return Ok(vec);
             }
@@ -179,9 +196,7 @@ async fn get_semantic_embedding(text: &str) -> Result<Vec<f32>> {
 
     // Try Ollama format
     if let Some(embedding) = resp.get("embedding").and_then(|e| e.as_array()) {
-        let vec: Vec<f32> = embedding.iter()
-            .filter_map(|v| v.as_f64().map(|f| f as f32))
-            .collect();
+        let vec: Vec<f32> = embedding.iter().filter_map(|v| v.as_f64().map(|f| f as f32)).collect();
         if !vec.is_empty() {
             return Ok(vec);
         }
@@ -200,10 +215,14 @@ impl BuiltinSkill for TextEmbed {
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = require_text(context)?;
-        
+
         // Check if user requested semantic embedding
-        let use_semantic = context.context.get("semantic").and_then(|v| v.as_bool()).unwrap_or(false);
-        
+        let use_semantic = context
+            .context
+            .get("semantic")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
         if use_semantic {
             // Try semantic embedding from API
             match get_semantic_embedding(&text).await {
@@ -403,4 +422,3 @@ mod tests {
         assert_eq!(out["line_count"].as_u64(), Some(1));
     }
 }
-

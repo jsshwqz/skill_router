@@ -117,9 +117,7 @@ impl BuiltinSkill for CsvParse {
 
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let text = extract_text(context);
-        let mut rdr = csv::ReaderBuilder::new()
-            .flexible(true)
-            .from_reader(text.as_bytes());
+        let mut rdr = csv::ReaderBuilder::new().flexible(true).from_reader(text.as_bytes());
         let headers: Vec<String> = rdr
             .headers()
             .map_err(|e| anyhow!("CSV header 解析失败: {}", e))?
@@ -178,8 +176,7 @@ impl BuiltinSkill for PdfParse {
         };
 
         // 解析 PDF
-        let text = pdf_extract::extract_text_from_mem(&data)
-            .map_err(|e| anyhow!("PDF 文本提取失败: {}", e))?;
+        let text = pdf_extract::extract_text_from_mem(&data).map_err(|e| anyhow!("PDF 文本提取失败: {}", e))?;
         let pages = text.matches('\x0C').count().max(1); // form feed = page break
         let char_count = text.len();
 

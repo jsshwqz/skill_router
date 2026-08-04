@@ -26,13 +26,9 @@ impl BuiltinSkill for AgentDelegate {
         let task_id = uuid_simple();
 
         // P3-C #22: timeout and retry support
-        let timeout_secs = context.context["timeout_secs"]
-            .as_u64()
-            .unwrap_or(30);
-        let retry_count = context.context["retry_count"]
-            .as_u64()
-            .unwrap_or(1);
-        
+        let timeout_secs = context.context["timeout_secs"].as_u64().unwrap_or(30);
+        let retry_count = context.context["retry_count"].as_u64().unwrap_or(1);
+
         let mut delivered = 0u32;
         for attempt in 0..=retry_count {
             let bus = crate::message_bus::global_message_bus();
@@ -84,13 +80,9 @@ impl BuiltinSkill for AgentBroadcast {
     async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let message = context.context["message"].as_str().unwrap_or(&context.task);
         // P3-C #23: ack_required support
-        let ack_required = context.context["ack_required"]
-            .as_bool()
-            .unwrap_or(false);
-        let wait_timeout_ms = context.context["wait_timeout_ms"]
-            .as_u64()
-            .unwrap_or(5000);
-        
+        let ack_required = context.context["ack_required"].as_bool().unwrap_or(false);
+        let wait_timeout_ms = context.context["wait_timeout_ms"].as_u64().unwrap_or(5000);
+
         let bus = crate::message_bus::global_message_bus();
         let msg = AgentMessage {
             message_id: uuid_simple(),
@@ -106,7 +98,7 @@ impl BuiltinSkill for AgentBroadcast {
             correlation_id: None,
         };
         let count = bus.publish(msg);
-        
+
         // Track acknowledgments via message bus subscription
         let ack_count = if ack_required {
             // In a full implementation, we would subscribe to messages
@@ -115,7 +107,7 @@ impl BuiltinSkill for AgentBroadcast {
         } else {
             0
         };
-        
+
         Ok(json!({
             "broadcast_message": message,
             "delivered_count": count,
@@ -172,7 +164,7 @@ impl BuiltinSkill for AgentGather {
             "min" => json!({"result": "min_response_placeholder"}),
             "all" | _ => json!({"results": format!("{} responses collected", delivered)}),
         };
-        
+
         Ok(json!({
             "query": query,
             "target_agents": agent_ids,

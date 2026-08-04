@@ -88,9 +88,8 @@ const META_KEY_LAST_UPDATED: &str = "last_updated";
 /// 避免同进程对同一文件重复打开触发 redb 文件锁冲突
 /// （`namespaced_memory::for_namespace` 等调用方会为同一路径反复创建 `MemoryManager`）。
 fn db_registry() -> &'static std::sync::Mutex<HashMap<PathBuf, std::sync::Arc<Database>>> {
-    static REGISTRY: std::sync::OnceLock<
-        std::sync::Mutex<HashMap<PathBuf, std::sync::Arc<Database>>>,
-    > = std::sync::OnceLock::new();
+    static REGISTRY: std::sync::OnceLock<std::sync::Mutex<HashMap<PathBuf, std::sync::Arc<Database>>>> =
+        std::sync::OnceLock::new();
     REGISTRY.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
 }
 
@@ -147,18 +146,10 @@ impl MemoryManager {
             "Migrating legacy memory_store.json into redb ({:?})",
             self.legacy_json_path
         );
-        let data = std::fs::read_to_string(&self.legacy_json_path).with_context(|| {
-            format!(
-                "failed to read legacy memory store {:?}",
-                self.legacy_json_path
-            )
-        })?;
-        let store: MemoryStore = serde_json::from_str(&data).with_context(|| {
-            format!(
-                "failed to parse legacy memory store {:?}",
-                self.legacy_json_path
-            )
-        })?;
+        let data = std::fs::read_to_string(&self.legacy_json_path)
+            .with_context(|| format!("failed to read legacy memory store {:?}", self.legacy_json_path))?;
+        let store: MemoryStore = serde_json::from_str(&data)
+            .with_context(|| format!("failed to parse legacy memory store {:?}", self.legacy_json_path))?;
         let write_tx = db.begin_write()?;
         {
             let mut table = write_tx.open_table(ENTRIES_TABLE)?;
@@ -168,10 +159,7 @@ impl MemoryManager {
             }
             let mut meta = write_tx.open_table(META_TABLE)?;
             meta.insert(META_KEY_VERSION, store.version.as_str())?;
-            meta.insert(
-                META_KEY_LAST_UPDATED,
-                store.last_updated.to_string().as_str(),
-            )?;
+            meta.insert(META_KEY_LAST_UPDATED, store.last_updated.to_string().as_str())?;
         }
         write_tx.commit()?;
         tracing::info!(
@@ -228,10 +216,7 @@ impl MemoryManager {
             }
             let mut meta = write_tx.open_table(META_TABLE)?;
             meta.insert(META_KEY_VERSION, store.version.as_str())?;
-            meta.insert(
-                META_KEY_LAST_UPDATED,
-                store.last_updated.to_string().as_str(),
-            )?;
+            meta.insert(META_KEY_LAST_UPDATED, store.last_updated.to_string().as_str())?;
         }
         write_tx.commit()?;
         Ok(())

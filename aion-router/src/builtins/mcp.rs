@@ -160,8 +160,8 @@ impl BuiltinSkill for McpCall {
             .kill_on_drop(true);
 
         // 用 rmcp 客户端 stdio 传输启动子进程，并完成 initialize 握手
-        let transport = TokioChildProcess::new(cmd)
-            .map_err(|e| anyhow!("无法启动 MCP server '{}': {}", server_name, e))?;
+        let transport =
+            TokioChildProcess::new(cmd).map_err(|e| anyhow!("无法启动 MCP server '{}': {}", server_name, e))?;
         let mut service = serve_client(AionMcpClientHandler, transport)
             .await
             .map_err(|e| anyhow!("MCP server '{}' 初始化失败: {}", server_name, e))?;
@@ -169,9 +169,8 @@ impl BuiltinSkill for McpCall {
         // 构造 tools/call 请求参数
         let params = match arguments {
             Value::Object(map) => CallToolRequestParams::new(tool_name.to_string()).with_arguments(map),
-            other => CallToolRequestParams::new(tool_name.to_string()).with_arguments(
-                serde_json::Map::from_iter([("value".to_string(), other)]),
-            ),
+            other => CallToolRequestParams::new(tool_name.to_string())
+                .with_arguments(serde_json::Map::from_iter([("value".to_string(), other)])),
         };
 
         // 调用工具

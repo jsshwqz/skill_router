@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[test]
 fn bare_standard_cli_starts_acp_transport() {

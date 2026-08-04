@@ -14,11 +14,7 @@ impl BuiltinSkill for EngineHealthCheck {
         "engine_health_check"
     }
 
-    async fn execute(
-        &self,
-        _skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<Value> {
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let workspace_root = context
             .context
             .get("workspace")

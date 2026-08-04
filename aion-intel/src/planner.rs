@@ -202,7 +202,10 @@ impl Planner {
             .definitions()
             .map(|d| format!("- {} : {}", d.name, d.description))
             .collect();
-        let sys = format!("You are a capability classifier. First, understand the user's core intent. Then match it to the most relevant capability. Return ONLY the best matching capability name from this list, or 'none'.\n\nCapabilities:\n{}", caps.join("\n"));
+        let sys = format!(
+            "You are a capability classifier. First, understand the user's core intent. Then match it to the most relevant capability. Return ONLY the best matching capability name from this list, or 'none'.\n\nCapabilities:\n{}",
+            caps.join("\n")
+        );
         let content = ai_chat(|model| json!({"model":model,"messages":[{"role":"system","content":sys},{"role":"user","content":task}],"temperature":0.0,"max_tokens":32})).await.unwrap_or_default();
         let name = content
             .lines()
@@ -230,7 +233,10 @@ impl Planner {
             .iter()
             .map(|d| format!("- {} : {}", d.name, d.description))
             .collect();
-        let sys = format!("You are a capability classifier. First, understand the user's core intent. Then match it to the most relevant capability. Return ONLY the best matching capability name from this list, or 'none'.\n\nCapabilities:\n{}", caps.join("\n"));
+        let sys = format!(
+            "You are a capability classifier. First, understand the user's core intent. Then match it to the most relevant capability. Return ONLY the best matching capability name from this list, or 'none'.\n\nCapabilities:\n{}",
+            caps.join("\n")
+        );
         let content = ai_chat(|model| json!({"model":model,"messages":[{"role":"system","content":sys},{"role":"user","content":task}],"temperature":0.0,"max_tokens":32})).await?;
         let name = content
             .lines()

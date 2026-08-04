@@ -32,11 +32,11 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use axum::Router;
 use axum::http::{HeaderValue, Method, Request, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
-use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use tracing::info;
@@ -208,11 +208,7 @@ fn auth_token_from_env() -> Option<String> {
 /// Bearer token 认证中间件：校验 `Authorization: Bearer <token>`，失败返回 401。
 ///
 /// 通过 `route_layer` 仅作用于受保护路由（不含 `/v1/health`）。
-async fn auth_middleware(
-    req: Request<axum::body::Body>,
-    next: Next,
-    expected: String,
-) -> Response {
+async fn auth_middleware(req: Request<axum::body::Body>, next: Next, expected: String) -> Response {
     let authorized = req
         .headers()
         .get(axum::http::header::AUTHORIZATION)
@@ -239,10 +235,7 @@ fn secure_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    a.iter()
-        .zip(b.iter())
-        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-        == 0
+    a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
 /// Build CORS layer from `CORS_ALLOWED_ORIGINS` environment variable.

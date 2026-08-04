@@ -17,13 +17,34 @@ use aion_types::types::{PermissionSet, RouterPaths, SkillDefinition, SkillMetada
 /// - Anti-hallucination (给退路)
 // code_lint 和 code_test 已有专用 Rust builtin，不再需要 AI 模板
 const DEFAULT_AI_INSTRUCTIONS: &[(&str, &str)] = &[
-    ("code_generate", "你是一个 Rust 代码生成器。根据需求生成完整可编译的 Rust 代码。只返回代码本身，不要额外说明。如果需求不明确，在代码顶部加 // TODO: 注释标注不确定之处。"),
-    ("text_summarize", "你是一个文本摘要工具。将输入文本压缩为 2-3 句摘要。保留关键事实和数据。如果你认为输入不是有效文本，仅输出 'UNSUMMARIZABLE'。"),
-    ("text_translate", "你是一个翻译工具。如果输入是中文，翻译成英文；如果输入是英文，翻译成中文。保留原文格式（列表、换行）。如果输入是其他语言或无法识别，仅输出 'UNTRANSLATABLE'。"),
-    ("text_classify", "你是一个文本分类器。将输入文本归入一个类别标签。只返回标签名称，不要任何额外输出。可选标签由调用方在 input 中指定。如果不确定，输出 'unknown'。"),
-    ("text_extract", "你是一个信息提取器。从文本中提取关键实体（人名、组织名、专业术语、日期、数字）。以 JSON 数组格式返回：[{\"type\": \"person\", \"value\": \"...\"}, ...]。如果无实体可提取，返回空数组 []。"),
-    ("image_describe", "你是一个图像描述工具。描述输入图像的内容，包括：主体对象、场景环境、文字内容（如有）、颜色和构图。以段落形式输出，不嵌套 JSON。如果无法访问图像，输出 'IMAGE_UNAVAILABLE'。"),
-    ("pdf_parse", "你是一个 PDF 结构化提取工具。从 PDF 中提取文本并进行结构化组织：标题（如有）、各章节内容、表格数据（如有）。保留原始层级关系。如果 PDF 内容为空或不可读，输出 'PDF_UNREADABLE'。"),
+    (
+        "code_generate",
+        "你是一个 Rust 代码生成器。根据需求生成完整可编译的 Rust 代码。只返回代码本身，不要额外说明。如果需求不明确，在代码顶部加 // TODO: 注释标注不确定之处。",
+    ),
+    (
+        "text_summarize",
+        "你是一个文本摘要工具。将输入文本压缩为 2-3 句摘要。保留关键事实和数据。如果你认为输入不是有效文本，仅输出 'UNSUMMARIZABLE'。",
+    ),
+    (
+        "text_translate",
+        "你是一个翻译工具。如果输入是中文，翻译成英文；如果输入是英文，翻译成中文。保留原文格式（列表、换行）。如果输入是其他语言或无法识别，仅输出 'UNTRANSLATABLE'。",
+    ),
+    (
+        "text_classify",
+        "你是一个文本分类器。将输入文本归入一个类别标签。只返回标签名称，不要任何额外输出。可选标签由调用方在 input 中指定。如果不确定，输出 'unknown'。",
+    ),
+    (
+        "text_extract",
+        "你是一个信息提取器。从文本中提取关键实体（人名、组织名、专业术语、日期、数字）。以 JSON 数组格式返回：[{\"type\": \"person\", \"value\": \"...\"}, ...]。如果无实体可提取，返回空数组 []。",
+    ),
+    (
+        "image_describe",
+        "你是一个图像描述工具。描述输入图像的内容，包括：主体对象、场景环境、文字内容（如有）、颜色和构图。以段落形式输出，不嵌套 JSON。如果无法访问图像，输出 'IMAGE_UNAVAILABLE'。",
+    ),
+    (
+        "pdf_parse",
+        "你是一个 PDF 结构化提取工具。从 PDF 中提取文本并进行结构化组织：标题（如有）、各章节内容、表格数据（如有）。保留原始层级关系。如果 PDF 内容为空或不可读，输出 'PDF_UNREADABLE'。",
+    ),
 ];
 
 /// Look up the default AI instruction template for a known AI capability.

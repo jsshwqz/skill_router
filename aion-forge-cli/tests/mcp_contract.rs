@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 #[test]
 fn initialize_uses_forge_product_identity() {
@@ -85,11 +85,8 @@ fn tools_call_routes_the_sanitize_catalog_entry() {
     assert_eq!(init_response["result"]["serverInfo"]["name"], "aion-forge");
     assert_eq!(init_response["result"]["protocolVersion"], "2025-11-25");
 
-    writeln!(
-        stdin,
-        r#"{{"jsonrpc":"2.0","method":"notifications/initialized"}}"#
-    )
-    .expect("initialized notification must be written");
+    writeln!(stdin, r#"{{"jsonrpc":"2.0","method":"notifications/initialized"}}"#)
+        .expect("initialized notification must be written");
 
     writeln!(
         stdin,

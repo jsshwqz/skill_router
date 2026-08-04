@@ -2513,21 +2513,21 @@ impl Default for WorkflowConfig {
 
 impl WorkflowConfig {
     /// Load workflow configuration from YAML file (stub - returns default)
-        pub fn load_from_yaml(path: &str) -> Result<Self> {
+    pub fn load_from_yaml(path: &str) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        
+
         // Parse YAML-like config (simple line-by-line parser)
         let mut phases = Vec::new();
         let mut current_phase: Option<PhaseConfig> = None;
         let mut global_timeout = 300u64;
         let mut max_retries = 2usize;
-        
+
         for line in content.lines() {
             let t = line.trim();
             if t.is_empty() || t.starts_with('#') {
                 continue;
             }
-            
+
             // Phase entry starts with "- name:"
             if t.starts_with("- name:") {
                 // Save previous phase
@@ -2544,7 +2544,8 @@ impl WorkflowConfig {
                 });
             } else if let Some(ref mut phase) = current_phase {
                 if t.starts_with("engines:") {
-                    phase.engines = t[8..].split(',')
+                    phase.engines = t[8..]
+                        .split(',')
                         .map(|s| s.trim().trim_matches('"').to_string())
                         .filter(|s| !s.is_empty())
                         .collect();
@@ -2565,29 +2566,44 @@ impl WorkflowConfig {
                 }
             }
         }
-        
+
         // Save last phase
         if let Some(p) = current_phase.take() {
             phases.push(p);
         }
-        
+
         // Default phases if none found
         if phases.is_empty() {
             phases = vec![
-                PhaseConfig { name: "analyze".to_string(), engines: vec!["claude".to_string(), "openai".to_string()], timeout_secs: 60, parallel: true },
-                PhaseConfig { name: "execute".to_string(), engines: vec!["claude".to_string()], timeout_secs: 120, parallel: false },
-                PhaseConfig { name: "review".to_string(), engines: vec!["openai".to_string(), "gemini".to_string()], timeout_secs: 90, parallel: true },
+                PhaseConfig {
+                    name: "analyze".to_string(),
+                    engines: vec!["claude".to_string(), "openai".to_string()],
+                    timeout_secs: 60,
+                    parallel: true,
+                },
+                PhaseConfig {
+                    name: "execute".to_string(),
+                    engines: vec!["claude".to_string()],
+                    timeout_secs: 120,
+                    parallel: false,
+                },
+                PhaseConfig {
+                    name: "review".to_string(),
+                    engines: vec!["openai".to_string(), "gemini".to_string()],
+                    timeout_secs: 90,
+                    parallel: true,
+                },
             ];
         }
-        
+
         tracing::info!("Loaded WorkflowConfig: {} phases from {}", phases.len(), path);
-        Ok(Self { 
-            phases, 
-            timeout: Duration::from_secs(global_timeout), 
-            max_retries 
+        Ok(Self {
+            phases,
+            timeout: Duration::from_secs(global_timeout),
+            max_retries,
         })
     }
-    
+
     /// Get phase order as vector of strings
     pub fn phase_order(&self) -> Vec<&str> {
         self.phases.iter().map(|p| p.name.as_str()).collect()
@@ -2604,10 +2620,9 @@ impl BuiltinSkill for AiParallelSolve {
 
     async fn execute(&self, _skill: &SkillDefinition, ctx: &ExecutionContext) -> Result<Value> {
         let cfg = OrchestratorConfig::from_env();
-        
+
         // P2-A: Try to load custom workflow config
-        let _workflow_config = if let Some(config_path) = ctx.context.get("workflow_config")
-            .and_then(|v| v.as_str()) {
+        let _workflow_config = if let Some(config_path) = ctx.context.get("workflow_config").and_then(|v| v.as_str()) {
             match WorkflowConfig::load_from_yaml(config_path) {
                 Ok(cfg) => Some(cfg),
                 Err(e) => {
@@ -2618,19 +2633,21 @@ impl BuiltinSkill for AiParallelSolve {
         } else {
             None
         };
-        
+
         let task = ctx.context["problem"]
             .as_str()
             .or_else(|| ctx.context["task"].as_str())
             .unwrap_or(&ctx.task)
             .to_string();
-        
+
         // Support mode parameter for different collaboration strategies
-        let mode = ctx.context.get("mode")
+        let mode = ctx
+            .context
+            .get("mode")
             .and_then(|v| v.as_str())
             .map(CollaborateMode::from_str)
             .unwrap_or_default();
-        
+
         let workflow = mode.workflow_name();
         info!("ai_parallel_solve (mode={}): '{}'", workflow, safe_truncate(&task, 50));
 
@@ -2644,9 +2661,7 @@ impl BuiltinSkill for AiParallelSolve {
         }
 
         // Support engine_count parameter (default 3 for triangle review)
-        let engine_count = ctx.context.get("engine_count")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(3) as usize;
+        let engine_count = ctx.context.get("engine_count").and_then(|v| v.as_u64()).unwrap_or(3) as usize;
         let engines: Vec<String> = parse_engines(ctx)
             .iter()
             .take(engine_count)
@@ -2683,7 +2698,6 @@ impl BuiltinSkill for AiParallelSolve {
 
 pub struct AiTripleVote;
 
-
 /// Weighted vote reviewer for AiTripleVote
 #[derive(Debug, Clone)]
 pub struct VoteWeight {
@@ -2707,9 +2721,18 @@ impl Default for ReviewMerger {
     fn default() -> Self {
         Self {
             weights: vec![
-                VoteWeight { engine: "claude".to_string(), weight: 1.0 },
-                VoteWeight { engine: "openai".to_string(), weight: 0.9 },
-                VoteWeight { engine: "gemini".to_string(), weight: 0.8 },
+                VoteWeight {
+                    engine: "claude".to_string(),
+                    weight: 1.0,
+                },
+                VoteWeight {
+                    engine: "openai".to_string(),
+                    weight: 0.9,
+                },
+                VoteWeight {
+                    engine: "gemini".to_string(),
+                    weight: 0.8,
+                },
             ],
             conflict_threshold: 0.3,
         }
@@ -2726,26 +2749,35 @@ impl ReviewMerger {
         let mut total_score = 0.0;
         let mut confidence = 0.0;
         let mut sentiments: Vec<f64> = Vec::new();
-        
+
         // Positive/negative indicators for scoring
-        let positive_words = ["good", "excellent", "correct", "great", "solid", "well", "proper", "optimal"];
-        let negative_words = ["bad", "wrong", "poor", "error", "fail", "broken", "bug", "issue", "risk"];
-        
+        let positive_words = [
+            "good",
+            "excellent",
+            "correct",
+            "great",
+            "solid",
+            "well",
+            "proper",
+            "optimal",
+        ];
+        let negative_words = [
+            "bad", "wrong", "poor", "error", "fail", "broken", "bug", "issue", "risk",
+        ];
+
         for (engine, review) in reviews {
-            let weight = self.weights.iter()
+            let weight = self
+                .weights
+                .iter()
                 .find(|w| &w.engine == engine)
                 .map(|w| w.weight)
                 .unwrap_or(0.5);
-            
+
             // Improved scoring based on word frequency analysis
             let review_lower = review.to_lowercase();
-            let pos_count = positive_words.iter()
-                .filter(|w| review_lower.contains(**w))
-                .count() as f64;
-            let neg_count = negative_words.iter()
-                .filter(|w| review_lower.contains(**w))
-                .count() as f64;
-            
+            let pos_count = positive_words.iter().filter(|w| review_lower.contains(**w)).count() as f64;
+            let neg_count = negative_words.iter().filter(|w| review_lower.contains(**w)).count() as f64;
+
             // Calculate sentiment score (0.0 to 1.0)
             let total_mentions = pos_count + neg_count;
             let score = if total_mentions > 0.0 {
@@ -2756,28 +2788,26 @@ impl ReviewMerger {
                 let word_count = review.split_whitespace().count() as f64;
                 0.5 + 0.1 * (word_count.min(50.0) / 50.0)
             };
-            
+
             sentiments.push(score);
             total_score += score * weight;
             confidence += weight;
         }
-        
+
         if confidence > 0.0 {
             total_score /= confidence;
         }
-        
+
         // Calculate consensus based on variance
         let consensus = if sentiments.len() >= 2 {
             let mean = sentiments.iter().sum::<f64>() / sentiments.len() as f64;
-            let variance: f64 = sentiments.iter()
-                .map(|s| (s - mean).powi(2))
-                .sum::<f64>() / sentiments.len() as f64;
+            let variance: f64 = sentiments.iter().map(|s| (s - mean).powi(2)).sum::<f64>() / sentiments.len() as f64;
             // Low variance = high consensus
             (1.0 - variance.min(1.0)).round()
         } else {
             1.0
         };
-        
+
         json!({
             "merged_score": (total_score * 100.0).round() / 100.0,
             "confidence": (confidence * 100.0).round() / 100.0,
@@ -2787,7 +2817,6 @@ impl ReviewMerger {
         })
     }
 }
-
 
 #[async_trait::async_trait]
 impl BuiltinSkill for AiTripleVote {
@@ -2802,11 +2831,9 @@ impl BuiltinSkill for AiTripleVote {
             .or_else(|| ctx.context["task"].as_str())
             .unwrap_or(&ctx.task)
             .to_string();
-        
+
         // Support trust_weight parameter for weighted voting
-        let _trust_weight: f64 = ctx.context["trust_weight"]
-            .as_f64()
-            .unwrap_or(1.0);
+        let _trust_weight: f64 = ctx.context["trust_weight"].as_f64().unwrap_or(1.0);
         info!("ai_triple_vote: '{}'", safe_truncate(&problem, 50));
 
         if cfg.passthrough {
@@ -3111,8 +3138,24 @@ impl BuiltinSkill for AiResearch {
             );
         }
 
-        let risk = if depth == "deep" { "high" } else { "medium" };
-        let engines = Engine::default_enabled().iter().map(|e| e.label()).collect::<Vec<_>>();
+        // P2-B: Depth-based configuration - quick=1engine, comprehensive=2engines, deep=3engines
+        let (engine_count, risk) = match depth.as_str() {
+            "quick" => (1, "low"),
+            "comprehensive" => (2, "medium"),
+            "deep" => (3, "high"),
+            _ => (2, "medium"),
+        };
+
+        info!(
+            "Research depth='{}': using {} engines with risk={}",
+            depth, engine_count, risk
+        );
+
+        let engines: Vec<String> = Engine::default_enabled()
+            .iter()
+            .take(engine_count)
+            .map(|e| e.label().to_string())
+            .collect();
         Ok(spawn_orchestration_with_wait("research", json!({"task": format!("研究主题：{}\n深度：{}", topic, depth), "engines": engines, "risk_level": risk, "force_triple_execute": depth == "deep"}), None, |input| Box::pin(async move {
             let task = input["task"].as_str().unwrap_or("").to_string();
             let risk = input["risk_level"].as_str().unwrap_or("medium");

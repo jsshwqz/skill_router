@@ -116,8 +116,13 @@ impl Engine {
         info!("Phase 3/3: Synthesis...");
         let prompt = format!(
             "Task: {}\n\n--- THESIS ---\n{}\nStrengths: {:?}\nWeaknesses: {:?}\n\n--- ANTITHESIS ---\n{}\nStrengths: {:?}\nWeaknesses: {:?}",
-            task, thesis.content, thesis.strengths, thesis.weaknesses,
-            antithesis.content, antithesis.strengths, antithesis.weaknesses,
+            task,
+            thesis.content,
+            thesis.strengths,
+            thesis.weaknesses,
+            antithesis.content,
+            antithesis.strengths,
+            antithesis.weaknesses,
         );
         let s = ai::chat_json_deterministic(
             &self.http,

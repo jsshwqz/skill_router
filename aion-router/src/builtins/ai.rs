@@ -1,4 +1,4 @@
-﻿//! AI task builtin skill: ai_task
+//! AI task builtin skill: ai_task
 //! Supports fallback chain: host Anthropic proxy -> configured AI providers -> Ollama local
 //! 褰?AI_TOON_ENABLED=true 鏃讹紝鑷姩灏嗚緭鍏ヤ腑鐨?JSON 鏁版嵁杞负 TOON 鏍煎紡锛岃妭鐪?token銆?
 
@@ -44,7 +44,6 @@ fn project_rules_suffix() -> String {
 
     String::new()
 }
-
 
 /// 8-step PromptBuilder for structured AI task execution
 /// Steps: role -> context -> rules -> examples -> format -> task -> constraints -> output
@@ -210,9 +209,9 @@ impl BuiltinSkill for AiTask {
             .with_format("Provide clear, structured output")
             .with_constraint("Do not hallucinate information")
             .with_output("Return only the requested output");
-        
+
         let instruction = prompt_builder.build(base_instruction);
-        
+
         // 追加项目规约（来自 CLAUDE.md 或 FORGE_PROJECT_RULES 环境变量）
         let instruction = format!("{}{}", instruction, project_rules_suffix());
 
@@ -564,4 +563,3 @@ mod tests {
         assert_eq!(usage.total_tokens, 5);
     }
 }
-

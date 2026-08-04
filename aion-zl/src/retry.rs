@@ -131,12 +131,7 @@ impl Engine {
 ///   `Err(error)` on failure (the error is recorded and analyzed).
 /// - `analyze(task, strategy, error)` returns `(root_cause, lesson, next_strategy)`;
 ///   the returned `next_strategy` is used for the following attempt.
-async fn retry_loop<F, Fut, G, GFut>(
-    task: &str,
-    max: u32,
-    mut execute: F,
-    mut analyze: G,
-) -> RetryResult
+async fn retry_loop<F, Fut, G, GFut>(task: &str, max: u32, mut execute: F, mut analyze: G) -> RetryResult
 where
     F: FnMut(&str) -> Fut,
     Fut: std::future::Future<Output = std::result::Result<serde_json::Value, String>>,
@@ -190,13 +185,16 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU32, Ordering};
 
     fn failing_execute(
         failures: u32,
-    ) -> impl FnMut(&str) -> std::pin::Pin<Box<dyn std::future::Future<Output = std::result::Result<serde_json::Value, String>> + Send>>
-    {
+    ) -> impl FnMut(
+        &str,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = std::result::Result<serde_json::Value, String>> + Send>,
+    > {
         let counter = Arc::new(AtomicU32::new(0));
         move |strategy: &str| {
             let counter = counter.clone();
@@ -211,8 +209,8 @@ mod tests {
         }
     }
 
-    fn next_analyzer(
-    ) -> impl FnMut(&str, &str, &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = (String, String, String)> + Send>>
+    fn next_analyzer()
+    -> impl FnMut(&str, &str, &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = (String, String, String)> + Send>>
     {
         let counter = Arc::new(AtomicU32::new(0));
         move |_task: &str, _strategy: &str, err: &str| {

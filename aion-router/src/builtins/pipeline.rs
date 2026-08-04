@@ -15,7 +15,6 @@ use super::{uuid_simple, BuiltinSkill};
 
 // ── task_pipeline ───────────────────────────────────────────────────────────
 
-
 /// DAG step for TaskPipeline (P4-B #33)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DagStep {
@@ -33,15 +32,15 @@ pub struct TaskPipelineDAG {
 
 impl TaskPipelineDAG {
     /// Topological sort of DAG steps
-        /// P4-B: Execute tasks using DAG topological sort
+    /// P4-B: Execute tasks using DAG topological sort
     /// Usage: pass "dag" JSON parameter with "steps" array
     /// Example: {"dag": {"steps": [{"id": "step1", "name": "Analyze", "depends_on": []}]}}
-    
-pub fn topological_sort(&self) -> Result<Vec<String>> {
+
+    pub fn topological_sort(&self) -> Result<Vec<String>> {
         let mut sorted = Vec::new();
         let mut visited = HashSet::new();
         let mut temp = HashSet::new();
-        
+
         fn visit(
             step_id: &str,
             steps: &Vec<DagStep>,
@@ -66,7 +65,7 @@ pub fn topological_sort(&self) -> Result<Vec<String>> {
             sorted.push(step_id.to_string());
             Ok(())
         }
-        
+
         for step in &self.steps {
             visit(&step.id, &self.steps, &mut visited, &mut temp, &mut sorted)?;
         }

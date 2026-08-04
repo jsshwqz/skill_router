@@ -180,16 +180,13 @@ impl McpClientManager {
             cmd.env(k, resolved);
         }
 
-        let transport = TokioChildProcess::new(cmd).map_err(|e| {
-            anyhow!("failed to start MCP server '{}' ({}): {}", name, command, e)
-        })?;
+        let transport = TokioChildProcess::new(cmd)
+            .map_err(|e| anyhow!("failed to start MCP server '{}' ({}): {}", name, command, e))?;
 
         // serve_client 自动完成 initialize 握手与协议版本协商
         let service = serve_client(AionMcpClientHandler, transport)
             .await
-            .map_err(|e| {
-                anyhow!("failed to initialize MCP server '{}' ({}): {}", name, command, e)
-            })?;
+            .map_err(|e| anyhow!("failed to initialize MCP server '{}' ({}): {}", name, command, e))?;
 
         // 记录协商出的协议版本（rmcp 内部已完成握手）
         if let Some(info) = service.peer().peer_info() {
@@ -201,9 +198,11 @@ impl McpClientManager {
         }
 
         // 发现工具（tools/list，rmcp 自动处理分页）
-        let list = service.peer().list_tools(None).await.map_err(|e| {
-            anyhow!("failed to list tools on MCP server '{}': {}", name, e)
-        })?;
+        let list = service
+            .peer()
+            .list_tools(None)
+            .await
+            .map_err(|e| anyhow!("failed to list tools on MCP server '{}': {}", name, e))?;
         let tools: Vec<McpTool> = list
             .tools
             .into_iter()
@@ -211,7 +210,8 @@ impl McpClientManager {
             .collect();
         let tool_count = tools.len();
 
-        self.servers.insert(name.to_string(), McpServerHandle { service, tools });
+        self.servers
+            .insert(name.to_string(), McpServerHandle { service, tools });
         Ok(tool_count)
     }
 
@@ -230,9 +230,11 @@ impl McpClientManager {
             );
         }
 
-        let list = service.peer().list_tools(None).await.map_err(|e| {
-            anyhow!("failed to list tools on MCP server '{}': {}", name, e)
-        })?;
+        let list = service
+            .peer()
+            .list_tools(None)
+            .await
+            .map_err(|e| anyhow!("failed to list tools on MCP server '{}': {}", name, e))?;
         let tools: Vec<McpTool> = list
             .tools
             .into_iter()
@@ -240,7 +242,8 @@ impl McpClientManager {
             .collect();
         let tool_count = tools.len();
 
-        self.servers.insert(name.to_string(), McpServerHandle { service, tools });
+        self.servers
+            .insert(name.to_string(), McpServerHandle { service, tools });
         Ok(tool_count)
     }
 
@@ -266,9 +269,11 @@ impl McpClientManager {
         };
         let params = CallToolRequestParams::new(tool_name.to_string()).with_arguments(args);
 
-        let result = handle.service.call_tool(params).await.map_err(|e| {
-            anyhow!("MCP tool call '{}' on '{}' failed: {}", tool_name, server_name, e)
-        })?;
+        let result = handle
+            .service
+            .call_tool(params)
+            .await
+            .map_err(|e| anyhow!("MCP tool call '{}' on '{}' failed: {}", tool_name, server_name, e))?;
 
         // rmcp 3.1 的 CallToolResult（SEP-2322）：is_error 标记工具级错误
         if result.is_error == Some(true) {

@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// One public Aion Forge tool exposed by both direct CLI and MCP catalogs.
 pub(crate) struct ToolCatalogEntry {

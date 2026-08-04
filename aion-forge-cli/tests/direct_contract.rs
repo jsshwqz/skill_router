@@ -54,9 +54,11 @@ fn list_catalog_matches_the_77_tool_product_contract() {
         undeclared_routes.is_empty(),
         "public declarations without builtin routes: {undeclared_routes:?}"
     );
-    assert!(names
-        .iter()
-        .all(|name| capabilities.get(name).is_some() || *name == "sanitize"));
+    assert!(
+        names
+            .iter()
+            .all(|name| capabilities.get(name).is_some() || *name == "sanitize")
+    );
 
     let acp_catalog = aion_forge_acp::catalog::CapabilityCatalog::live();
     let acp_names: HashSet<&str> = acp_catalog.entries().iter().map(|entry| entry.name.as_str()).collect();

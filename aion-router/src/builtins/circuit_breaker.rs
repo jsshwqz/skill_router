@@ -14,11 +14,7 @@ impl BuiltinSkill for McpCircuitBreaker {
         "mcp_circuit_breaker"
     }
 
-    async fn execute(
-        &self,
-        _skill: &SkillDefinition,
-        context: &ExecutionContext,
-    ) -> Result<Value> {
+    async fn execute(&self, _skill: &SkillDefinition, context: &ExecutionContext) -> Result<Value> {
         let workspace_root = context
             .context
             .get("workspace")

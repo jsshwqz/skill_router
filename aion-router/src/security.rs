@@ -272,10 +272,7 @@ impl AiSecurityReviewer {
             (r"glpat-[A-Za-z0-9_\-]{20,}", "GitLab personal access token"),
         ];
         for (pattern, label) in key_patterns {
-            if regex::Regex::new(pattern)
-                .expect("valid key pattern")
-                .is_match(&output)
-            {
+            if regex::Regex::new(pattern).expect("valid key pattern").is_match(&output) {
                 return Some(format!("output blocked: possible {} detected in response", label));
             }
         }
@@ -474,13 +471,19 @@ mod tests {
     /// 回归：普通英文文本 "task-by-task" 含 sk- 子串，不得误判为 API key。
     #[test]
     fn heuristic_post_does_not_block_task_by_task() {
-        assert_eq!(super::AiSecurityReviewer::heuristic_post(&resp("task-by-task plan")), None);
+        assert_eq!(
+            super::AiSecurityReviewer::heuristic_post(&resp("task-by-task plan")),
+            None
+        );
     }
 
     /// 回归：其他含 sk- 子串的正常文本（如 risk- 评估）不得误判。
     #[test]
     fn heuristic_post_does_not_block_risk_word() {
-        assert_eq!(super::AiSecurityReviewer::heuristic_post(&resp("risk-adjusted plan")), None);
+        assert_eq!(
+            super::AiSecurityReviewer::heuristic_post(&resp("risk-adjusted plan")),
+            None
+        );
     }
 
     /// 真实 OpenAI key（sk- 后 ≥16 位）仍须拦截。

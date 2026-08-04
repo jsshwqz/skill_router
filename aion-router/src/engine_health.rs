@@ -50,15 +50,13 @@ impl HealthManager {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        let status = self.engines.entry(engine.to_string()).or_insert_with(|| {
-            EngineStatus {
-                name: engine.to_string(),
-                consecutive_failures: 0,
-                last_failure_time: None,
-                last_success_time: Some(now),
-                total_failures: 0,
-                total_successes: 0,
-            }
+        let status = self.engines.entry(engine.to_string()).or_insert_with(|| EngineStatus {
+            name: engine.to_string(),
+            consecutive_failures: 0,
+            last_failure_time: None,
+            last_success_time: Some(now),
+            total_failures: 0,
+            total_successes: 0,
         });
         status.consecutive_failures = 0;
         status.total_successes += 1;
@@ -66,27 +64,19 @@ impl HealthManager {
         let _ = self.save();
     }
 
-    pub fn record_failure(
-        &mut self,
-        engine: &str,
-        _error: &str,
-        _latency_ms: f64,
-    ) {
+    pub fn record_failure(&mut self, engine: &str, _error: &str, _latency_ms: f64) {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        let status = self
-            .engines
-            .entry(engine.to_string())
-            .or_insert_with(|| EngineStatus {
-                name: engine.to_string(),
-                consecutive_failures: 0,
-                last_failure_time: None,
-                last_success_time: None,
-                total_failures: 0,
-                total_successes: 0,
-            });
+        let status = self.engines.entry(engine.to_string()).or_insert_with(|| EngineStatus {
+            name: engine.to_string(),
+            consecutive_failures: 0,
+            last_failure_time: None,
+            last_success_time: None,
+            total_failures: 0,
+            total_successes: 0,
+        });
         status.consecutive_failures += 1;
         status.total_failures += 1;
         status.last_failure_time = Some(now);
@@ -138,8 +128,7 @@ impl HealthManager {
         let file = self.data_path.join("engine_health.json");
         if file.exists() {
             let content = fs::read_to_string(&file)?;
-            let data: HashMap<String, EngineStatus> =
-                serde_json::from_str(&content)?;
+            let data: HashMap<String, EngineStatus> = serde_json::from_str(&content)?;
             self.engines = data;
         }
         Ok(())

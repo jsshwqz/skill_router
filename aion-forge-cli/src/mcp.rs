@@ -11,20 +11,19 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
+use aion_router::SkillRouter;
 use aion_router::agent_runtime::AgentRuntime;
 use aion_router::coordinator::MultiAgentCoordinator;
-use aion_router::SkillRouter;
 use aion_types::agent_message::{AgentRef, AgentRole};
 use aion_types::types::RouterPaths;
 
 use rmcp::{
     ErrorData as McpError, RoleServer, ServerHandler, ServiceExt,
     model::{
-        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
-        JsonObject, ListToolsResult, MetaObject, PaginatedRequestParams, ProtocolVersion,
-        ServerCapabilities, ServerInfo, Tool,
+        CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation, JsonObject,
+        ListToolsResult, MetaObject, PaginatedRequestParams, ProtocolVersion, ServerCapabilities, ServerInfo, Tool,
     },
     service::RequestContext,
     transport::stdio,
@@ -136,12 +135,8 @@ impl ServerHandler for ForgeMcpServer {
             .map(|entry| {
                 // Preserve the legacy `requiresApproval` flag as tool `_meta`.
                 let mut meta = MetaObject::new();
-                meta.insert(
-                    "requiresApproval".to_string(),
-                    Value::Bool(entry.requires_approval),
-                );
-                Tool::new(entry.name, entry.description, schema_to_object(entry.input_schema))
-                    .with_meta(meta)
+                meta.insert("requiresApproval".to_string(), Value::Bool(entry.requires_approval));
+                Tool::new(entry.name, entry.description, schema_to_object(entry.input_schema)).with_meta(meta)
             })
             .collect();
         Ok(ListToolsResult::with_all_items(tools))
@@ -154,10 +149,7 @@ impl ServerHandler for ForgeMcpServer {
     ) -> Result<CallToolResponse, McpError> {
         let tool_name = request.name.to_string();
         if tool_name.is_empty() {
-            return Err(McpError::invalid_params(
-                "Missing 'name' in tools/call params",
-                None,
-            ));
+            return Err(McpError::invalid_params("Missing 'name' in tools/call params", None));
         }
         let arguments = request.arguments.map(Value::Object).unwrap_or_else(|| json!({}));
         Ok(self.run_tool(&tool_name, arguments).await.into())
@@ -196,17 +188,14 @@ impl ForgeMcpServer {
         {
             Ok(result) if result.execution.status == "ok" => {
                 let final_result = await_async_result(&result.execution.result, &self.router).await;
-                let text = serde_json::to_string_pretty(&final_result)
-                    .unwrap_or_else(|_| final_result.to_string());
+                let text = serde_json::to_string_pretty(&final_result).unwrap_or_else(|_| final_result.to_string());
                 CallToolResult::success(vec![ContentBlock::text(text)])
             }
             Ok(result) => CallToolResult::error(vec![ContentBlock::text(format!(
                 "Error: {}",
                 result.execution.error.unwrap_or_default()
             ))]),
-            Err(error) => {
-                CallToolResult::error(vec![ContentBlock::text(format!("Error: {error}"))])
-            }
+            Err(error) => CallToolResult::error(vec![ContentBlock::text(format!("Error: {error}"))]),
         }
     }
 }
@@ -253,7 +242,7 @@ async fn await_async_result(result: &Value, router: &SkillRouter) -> Value {
                         .result
                         .get("result")
                         .cloned()
-                        .unwrap_or(query.execution.result)
+                        .unwrap_or(query.execution.result);
                 }
                 Some("error") => return query.execution.result,
                 _ => continue,
