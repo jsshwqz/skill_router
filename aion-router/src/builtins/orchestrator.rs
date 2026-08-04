@@ -2513,11 +2513,12 @@ impl Default for WorkflowConfig {
 
 impl WorkflowConfig {
     /// Load workflow configuration from YAML file (stub - returns default)
-    pub fn load_from_yaml(path: &str) -> Result<Self> {
-        // TODO: Implement proper YAML parsing with yaml-rust2
-        // For now, return default config
-        let _ = path; // Suppress unused variable warning
-        tracing::info!("WorkflowConfig::load_from_yaml: Using default config");
+        pub fn load_from_yaml(path: &str) -> Result<Self> {
+        let _content = std::fs::read_to_string(path)?;
+        // NOTE: Full YAML parsing requires yaml-rust2 crate integration.
+        // This is a placeholder that returns default config.
+        // To implement properly, parse phases array from YAML file.
+        tracing::info!("WorkflowConfig::load_from_yaml: Using default config (YAML parsing placeholder)");
         Ok(Self::default())
     }
     
