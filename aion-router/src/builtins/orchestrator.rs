@@ -2922,7 +2922,14 @@ impl BuiltinSkill for AiTriangleReview {
             let engines = Engine::cycle_to_fill(&Engine::default_enabled(), 3);
             let tasks: Vec<_> = engines.iter().map(|e| (e.clone(), prompt.clone())).collect();
             let reviews = call_engines_parallel(&tasks, &cfg, "review").await;
-            json!({
+                          
+              // Merge reviews using ReviewMerger
+              let review_pairs: Vec<(String, String)> = reviews.iter()
+                  .filter_map(|report| report.output.as_ref().map(|output| (report.engine.clone(), output.clone())))
+                  .collect();
+              let merger = ReviewMerger::default();
+              let merged_result = merger.merge_reviews(&review_pairs);
+json!({
                 "reviews": reviews.iter().filter_map(|report| report.output.as_ref().map(|output| (report.engine.clone(), output.clone()))).collect::<BTreeMap<_, _>>(),
                 "participants_status": reviews,
                 "degraded": reviews.iter().any(|report| !report.success),
