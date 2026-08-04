@@ -2,7 +2,7 @@
 
 ## 文档元信息
 
-- **分析范围**：按 `docs/refactor/04-final-design.md` 执行阶段 0A，并按用户授权从 `d19866a` 恢复 `aion-intel/src/rag.rs` 后以 TDD 重建 BM25/KeywordExtractor/Reranker；未实施阶段 0B 及后续阶段。
+- **分析范围**：按 `docs/refactor/04-final-design.md` 执行阶段 0A 至 0C，并按用户授权从 `d19866a` 恢复 `aion-intel/src/rag.rs` 后以 TDD 重建 BM25/KeywordExtractor/Reranker；阶段 0C 在严格 clippy 失败后停止。
 - **已读取的代码和文档**：`docs/refactor/01-current-state.md`、`02-refactor-proposal.md`、`03-adversarial-review.md`、`04-final-design.md`；`aion-intel/src/rag.rs` 当前损坏版本、`rag.rs.bak`、提交 `d19866a` 的可信版本及提交 `9ba54ed` 的差异；当前 Git 状态与相关构建输出。
 - **未读取或无法确认的内容**：未逐项读取或执行其余 77 个能力；未连接真实 AionUI、OmniRoute、NATS 或第三方 provider；未执行全 workspace 测试、clippy 或构建；未确认共享工作目录中其他并发提交的正确性；`session_report` 输出被安全审查拦截。
 - **结论的证据**：损坏文件与备份 hash 均为 `d7a80ce640a62359dd6d6954042cc6e2a840a9bc`；恢复基线 hash 为 `c2823f7f2923f03823b4ed5b75c0cc286d38886b`；恢复前 `cargo check -p aion-intel` 报非法 UTF-8，恢复后检查成功；新增测试先因缺少 `KeywordExtractor`/`LinearReranker` 编译失败，实施后 `aion-intel` 27 项库测试通过。
@@ -59,8 +59,7 @@
 
 ## 未完成项
 
-- 阶段 0B：workspace 纯格式化。
-- 阶段 0C：零 warning 与 clippy 门禁。
+- 阶段 0C：零 warning 与 clippy 门禁（已执行，未通过）。
 - 阶段 0D：CI 结果可信化。
 - 阶段 1：四入口 characterization tests。
 - 阶段 2：E1-E6 独立实验。
@@ -82,12 +81,22 @@
 3. 若要接入 `RagEngine`，先明确输出 `score` 的兼容语义并新增 characterization test，不直接改变当前搜索结果外形。
 4. 完成阶段 0B 后依次执行 workspace check、clippy 和离线测试，并把真实耗时与失败项追加到本报告。
 
-## 阶段 0B 执行异常与最终审查
+## 阶段 0B 与并发协作说明
 
 - `cargo fmt --all` 与随后的 `cargo fmt --all -- --check` 执行成功。
-- 命令开始时共享工作区出现外部 `orchestrator.rs` 修改，阶段前置条件因此失效。
-- 外部流程随后把本轮 `rag.rs`、本报告、workspace 格式变化及其 Q6/Q7 逻辑混合提交为 `2e8e3da`；该提交不是本实施 Agent 执行的，且提交信息未覆盖实际 40 个文件的变化。
-- **必须修复**：停止并发提交器；拆分或重建 `2e8e3da`，使 UTF-8/BM25、纯格式化、Q6/Q7 逻辑分别可审查和回滚；拆分前不得继续阶段 0C。
-- **建议修复**：拆分后分别重跑 `aion-intel` 测试、workspace check、clippy 和离线测试，并记录每个 change set 的独立证据。
+- 用户确认另一 AI 对 Q6/Q7 和共享工作区的并发修改属于授权协作，因此不要求拆分或回滚 `2e8e3da`。
+- `2e8e3da` 同时包含 UTF-8/BM25、workspace 格式化和 Q6/Q7，审查与回滚粒度较粗；这是已接受的协作边界，不再作为阶段 0C 的阻断项。
+- **建议修复**：后续提交信息应覆盖实际变化，或在实施报告中保留各 Agent 的独立证据链。
 - **可接受风险**：轻量 BM25 不含语料级 IDF、中文连续文本无专用分词、reranker 尚未接入生产检索；这些均已限制在独立 API，当前不改变 `RagEngine::search` 行为。
-- **最终结论**：阶段 0A 与 BM25 单元行为有通过证据，但当前混合提交不满足批准设计的阶段化、独立审查和回滚标准；应先拆分/重建提交，不能声明重构完成。
+- **阶段结论**：阶段 0A 与 BM25 单元行为有通过证据；阶段 0B 格式门通过；继续进入阶段 0C 审查。
+
+## 阶段 0C：workspace check 与严格 clippy
+
+- `cargo check --workspace` 通过，但 `AiSmartCollaborate` 产生 1 个 deprecated warning。
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` 失败：14 个错误。
+- 错误分布：`discovery_radar.rs` 1 项、`embedding.rs` 4 项、`planner.rs` 5 项、`rag.rs` 3 项、`synth.rs` 1 项；规则为 11 项 collapsible-if、2 项 needless borrow、1 项 new-without-default。
+- 新鲜诊断超出最终设计为阶段 0C 批准的 `orchestrator.rs` 单文件范围，因此按停止条件未自动扩大修改。
+- **必须修复**：决定是否把上述 5 个 `aion-intel` 文件纳入阶段 0C；未授权前严格 clippy 门禁不通过。
+- **建议修复**：若批准扩大范围，先为涉及控制流的折叠修改运行现有单元测试，再重新执行 workspace check 与严格 clippy。
+- **可接受风险**：这些诊断当前均为静态质量项，没有证据表明运行时功能已经回归；但 `-D warnings` 门禁仍然失败。
+- **最终结论**：阶段 0C 未通过，阶段 0D 及后续阶段保持暂停，不能声明重构完成。
