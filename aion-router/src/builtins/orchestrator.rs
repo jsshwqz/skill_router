@@ -2514,12 +2514,78 @@ impl Default for WorkflowConfig {
 impl WorkflowConfig {
     /// Load workflow configuration from YAML file (stub - returns default)
         pub fn load_from_yaml(path: &str) -> Result<Self> {
-        let _content = std::fs::read_to_string(path)?;
-        // NOTE: Full YAML parsing requires yaml-rust2 crate integration.
-        // This is a placeholder that returns default config.
-        // To implement properly, parse phases array from YAML file.
-        tracing::info!("WorkflowConfig::load_from_yaml: Using default config (YAML parsing placeholder)");
-        Ok(Self::default())
+        let content = std::fs::read_to_string(path)?;
+        
+        // Parse YAML-like config (simple line-by-line parser)
+        let mut phases = Vec::new();
+        let mut current_phase: Option<PhaseConfig> = None;
+        let mut global_timeout = 300u64;
+        let mut max_retries = 2usize;
+        
+        for line in content.lines() {
+            let t = line.trim();
+            if t.is_empty() || t.starts_with('#') {
+                continue;
+            }
+            
+            // Phase entry starts with "- name:"
+            if t.starts_with("- name:") {
+                // Save previous phase
+                if let Some(p) = current_phase.take() {
+                    phases.push(p);
+                }
+                // Start new phase
+                let name = t[7..].trim().trim_matches('"').to_string();
+                current_phase = Some(PhaseConfig {
+                    name,
+                    engines: Vec::new(),
+                    timeout_secs: 60,
+                    parallel: true,
+                });
+            } else if let Some(ref mut phase) = current_phase {
+                if t.starts_with("engines:") {
+                    phase.engines = t[8..].split(',')
+                        .map(|s| s.trim().trim_matches('"').to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                } else if t.starts_with("timeout_secs:") {
+                    if let Ok(v) = t[13..].trim().parse::<u64>() {
+                        phase.timeout_secs = v;
+                    }
+                } else if t.starts_with("parallel:") {
+                    phase.parallel = t[9..].trim().parse().unwrap_or(true);
+                }
+            } else if t.starts_with("timeout:") {
+                if let Ok(v) = t[8..].trim().parse::<u64>() {
+                    global_timeout = v;
+                }
+            } else if t.starts_with("max_retries:") {
+                if let Ok(v) = t[12..].trim().parse::<usize>() {
+                    max_retries = v;
+                }
+            }
+        }
+        
+        // Save last phase
+        if let Some(p) = current_phase.take() {
+            phases.push(p);
+        }
+        
+        // Default phases if none found
+        if phases.is_empty() {
+            phases = vec![
+                PhaseConfig { name: "analyze".to_string(), engines: vec!["claude".to_string(), "openai".to_string()], timeout_secs: 60, parallel: true },
+                PhaseConfig { name: "execute".to_string(), engines: vec!["claude".to_string()], timeout_secs: 120, parallel: false },
+                PhaseConfig { name: "review".to_string(), engines: vec!["openai".to_string(), "gemini".to_string()], timeout_secs: 90, parallel: true },
+            ];
+        }
+        
+        tracing::info!("Loaded WorkflowConfig: {} phases from {}", phases.len(), path);
+        Ok(Self { 
+            phases, 
+            timeout: Duration::from_secs(global_timeout), 
+            max_retries 
+        })
     }
     
     /// Get phase order as vector of strings
@@ -2540,7 +2606,7 @@ impl BuiltinSkill for AiParallelSolve {
         let cfg = OrchestratorConfig::from_env();
         
         // P2-A: Try to load custom workflow config
-        let workflow_config = if let Some(config_path) = ctx.context.get("workflow_config")
+        let _workflow_config = if let Some(config_path) = ctx.context.get("workflow_config")
             .and_then(|v| v.as_str()) {
             match WorkflowConfig::load_from_yaml(config_path) {
                 Ok(cfg) => Some(cfg),
