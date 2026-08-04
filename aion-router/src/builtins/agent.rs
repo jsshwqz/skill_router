@@ -170,6 +170,7 @@ impl BuiltinSkill for AgentGather {
             "target_agents": agent_ids,
             "messages_delivered": delivered,
             "reduce_strategy": reduce,
+            "note": "Actual aggregation would require collecting responses from message bus subscriptions",
             "reduced_result": reduced_result,
             "note": "Responses will arrive asynchronously via MessageBus subscription",
         }))

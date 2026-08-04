@@ -3165,6 +3165,10 @@ impl BuiltinSkill for AiResearch {
     }
 }
 
+/// P2-B: Supports parallel execution via "parallel": true context parameter
+/// When parallel=true, analysis and optimize phases run concurrently using tokio::join!
+/// Default is serial (sequential) for reliability.
+
 pub struct AiSerialOptimize;
 
 #[async_trait::async_trait]
