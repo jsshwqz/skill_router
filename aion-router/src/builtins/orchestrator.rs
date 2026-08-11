@@ -2941,7 +2941,7 @@ json!({
 
 /// P0-5: AST-level security validation for generated code
 /// Checks for dangerous patterns, limits output size, and requires verification
-fn validate_generated_code(code: &str, language: &str) -> Result<(), String> {
+fn validate_generated_code(code: &str, _language: &str) -> Result<(), String> {
     // Basic safety checks (production would use proper AST parsing)
     let dangerous_patterns = [
         "std::process::Command",
@@ -3212,6 +3212,12 @@ impl BuiltinSkill for AiResearch {
 /// P2-B: Supports parallel execution via "parallel": true context parameter
 /// When parallel=true, analysis and optimize phases run concurrently using tokio::join!
 /// Default is serial (sequential) for reliability.
+
+/// P2-B: Supports parallel execution via "parallel": true context parameter
+/// When enabled, analysis and optimization phases run concurrently using tokio::join!
+/// Default is serial (sequential) for reliability.
+/// 
+/// Usage: {"parallel": true} in context to enable parallel mode.
 
 pub struct AiSerialOptimize;
 
