@@ -1,5 +1,124 @@
 # Forge 可验证重构提案
 
+## 2026-08-11 最终复核元信息
+
+- **分析范围**：以当前 `HEAD=fbcf581a74af731b353bf7229e96685c12b433af` 为最终提案快照，吸收新增 5 个提交的静态效果和 fresh 门禁结果；只更新提案文档，不修改 Rust 业务代码。后续历史方案与本节冲突时，以本节为准。
+- **已读取的代码和文档**：继承 `01-current-state.md` 的 2026-08-11 读取范围，重点复核未实现能力是否共享根因、最新 ReviewMerger/trust_weight/WorkflowConfig/Agent 改动，以及 `03`—`05` 的决策和实施证据。
+- **未读取或无法确认的内容**：生产入口占比、正式威胁模型、真实 provider/NATS 行为、远端 CI、完整 workspace/doc/integration 测试、跨平台与性能基线均未确认；因此不批准全量重写或入口执行链迁移。
+- **结论的证据**：当前代码位置、`c0c7a49..fbcf581` 差异、fresh fmt/check/clippy/分层测试，以及 `01-current-state.md` 当前第 0 节。
+- **当前置信度**：定向重构必要性 **高（0.88）**；全 workspace 重写收益 **低（0.25）**；立即统一执行链收益 **低到中（0.45）**；分阶段路线可回滚性 **高（0.90）**。
+
+## 0. 当前最终决策：能力收缩 + 定向重构
+
+推荐 **先恢复可信基线和收缩虚假能力承诺，再按领域替换未完成实现**。A+V 是必须完成的阶段 0/1，不是长期终点；原“方案 B：执行链收敛”继续保留为实验后的可选项，不与功能重构绑定。
+
+### 0.1 候选方案比较
+
+| 方案 | 收益 | 风险/成本 | 当前决定 |
+|---|---|---|---|
+| A. 原地逐项修补 | 短期改动最少 | 延续“字段读取/日志输出即完成”的模式，半实现继续堆积 | **不推荐** |
+| B. 全 workspace 或描述符驱动重写 | 可重新统一结构 | 触及 77 项能力和所有入口；产品语义、测试和生产数据不足 | **否决** |
+| C. 立即统一 direct CLI/ACP 执行链 | 可能统一安全和观测副作用 | 威胁模型、兼容性、延迟和状态污染尚未验证 | **暂缓，等待 E1—E6** |
+| D. 能力收缩 + 按领域定向重构 | 直接解决已证实的未接入问题；范围清楚，可独立回滚 | 需要先定义行为契约，不能一次性宣称全部完成 | **推荐** |
+
+### 0.2 定向重构边界
+
+| 领域 | 允许重构的责任 | 必须先固定的契约 |
+|---|---|---|
+| orchestrator | WorkflowConfig 解析/校验、phase 调度、engine 数量、parallel、vote/review merge | phase 顺序、超时、重试、权重、降级、结果外形 |
+| Agent | delegate timeout/retry、broadcast ack、gather/reduce 响应收集 | ack 主体、correlation、超时语义、部分成功与重复消息 |
+| Pipeline | DAG 反序列化、依赖校验、拓扑执行与失败传播 | 环检测、并发规则、输出引用、取消和重试 |
+| Memory | semantic 索引、provider、持久化与显式 fallback | 相似度、索引生命周期、provider 失败和兼容响应 |
+
+不新增通用框架或新 crate；优先从现有文件提取只服务上述行为的模块。若某能力近期没有产品承诺，先返回明确 `unsupported`，而不是补建抽象。
+
+### 0.3 分阶段迁移路线
+
+1. **阶段 0：恢复工程基线**
+   - rustfmt、workspace check 零 warning、strict clippy 全通过。
+   - 先确定熔断器 Open/HalfOpen 契约，再修实现或测试。
+   - CI required job 移除吞失败；分层记录测试终态和耗时。
+2. **阶段 1：能力真实性门禁**
+   - 为 WorkflowConfig、trust_weight、ReviewMerger、depth、parallel、Agent、DAG、semantic 增加失败的行为刻画测试。
+   - 未准备实现的参数返回显式 unsupported/fallback 状态。
+3. **阶段 2A：orchestrator 定向重构**
+   - 先让配置字段和 engine/merge 参数真实影响执行；再按配置、runner、merge 的现有责任拆分。
+   - 不同时迁移入口，不改变公共 JSON 外形。
+4. **阶段 2B—2D：Agent、Pipeline、Memory 独立重构**
+   - 每个领域单独提交、单独测试、单独回滚；不得跨领域共享未经证明的抽象。
+5. **阶段 3：E1—E6 入口实验**
+   - 比较输入输出、延迟、权限、安全 gate、metrics、learner、日志和状态目录。
+   - 只有实验超过预先批准的收益阈值，才另行设计单能力执行链试点。
+
+### 0.4 成功标准与不可破坏行为
+
+- fmt、workspace check、strict clippy、workspace lib/doc/required integration 测试均获得完整成功终态；不得超时后推定通过。
+- 每个已声明参数都有行为证据：输入变化导致对应调度、权重、合并、超时、ack、DAG 或检索变化；否则明确 unsupported。
+- 公开能力名称、CLI 命令、MCP schema/protocol、HTTP route/status/auth/CORS、持久化格式和环境变量优先级保持兼容。
+- 现有 77 项代码契约与项目规则“70 个能力”的口径先确认；未经批准不增删公共能力。
+- 不迁移 direct CLI/ACP 执行链，不改变当前安全语义，除非 E1—E6 和新的设计评审均通过。
+- 每一领域可用单独 revert 回滚；回滚不得要求同时撤销其他领域修复。
+
+### 0.5 必须进一步确认
+
+1. WorkflowConfig、DAG、semantic、Agent gather 是否属于稳定承诺；若不是，是否接受立即返回 unsupported？
+2. `trust_weight` 是全局权重、单引擎权重还是最低信任阈值？
+3. Agent ack 的确认主体、消息格式、最小确认数和超时后的返回状态是什么？
+4. serial optimize 的 analyze 与 optimize 存在数据依赖；所谓 parallel 是否实际指多候选并行，而非两个阶段并行？
+5. 代码契约 77 项与项目规则 70 项，哪个是发布权威口径？
+
+## 2026-08-04 历史增量复核元信息（已由上节取代）
+
+- **分析范围**：以当前 `HEAD=c0c7a498ba67ba16453e2932837c00b58ed3a2d9` 为提案快照，吸收 `03-adversarial-review.md`、`04-final-design.md`、`05-implementation-report.md` 和最新代码/门禁结果；不修改业务代码。若本节与后文旧推荐冲突，以本节为准。
+- **已读取的代码和文档**：继承 `01-current-state.md` 的增量读取范围，重点复核执行入口、WorkflowConfig、semantic recall、pipeline DAG、Agent 协作能力、Q6/Q7、熔断器、CI，以及五份 refactor 文档之间的结论一致性。
+- **未读取或无法确认的内容**：生产入口占比、正式威胁模型、真实 provider/NATS 行为、远端 CI、完整 workspace/doc/integration 测试、跨平台与性能基线均未确认；因此本提案不批准生产执行链迁移。
+- **结论的证据**：`9ba54ed..c0c7a49` 代码差异、当前源码定位、对抗审查的反例、最终设计的停止条件，以及 2026-08-04 本机 fmt/check/clippy/分层测试结果；详见 `01-current-state.md` 第 0 节。
+- **当前置信度**：推荐先做 A+V **高（0.91）**；直接统一执行链的净收益 **低到中（0.45）**；各功能缺口的静态判定 **高（0.90）**；工期和生产影响 **低（0.35）**。
+
+## 2026-08-04 历史决策（已由当前最终决策取代）
+
+推荐 **A+V：最小基线修复 + 行为验证**。这是对后文基线提案经过对抗审查和最新实现复核后的收窄，不批准立即进行执行链统一、orchestrator 拆分或新抽象引入。
+
+| 候选 | 当前选择 | 原因 |
+|---|---|---|
+| **A+V：基线修复 + 刻画/实验** | **推荐** | 直接解决当前 fmt/clippy/test/CI 失败；以最小变更获得后续决策证据；每步可独立回滚 |
+| **B：执行链收敛** | 有条件保留 | 代码差异确定，但安全/兼容性/性能收益尚未由 E1—E6 证明；当前实施会混入不可信基线 |
+| **C：描述符驱动全面重构** | 不选 | 迁移面覆盖入口、schema 和全部能力，当前没有与风险相称的收益证据 |
+| **停止结构重构，仅修明确缺陷** | 可接受退路 | 若实验表明入口差异是刻意契约，或收益不足，则完成基线与产品缺陷修复后停止 |
+
+### 0.1 分阶段路线
+
+1. **阶段 0A—0D：恢复可信基线**
+   - 保留已完成的 UTF-8 恢复；修复当前 rustfmt 差异。
+   - 清理 strict clippy 的 14 个 error 与 deprecated warning，不改变业务语义。
+   - 先决定熔断器契约，再修正实现或测试；要求该失败可单独复现并消失。
+   - required CI 不得使用 `|| true`；慢测/外部集成可拆为明确的 optional job，但必须如实显示失败或未运行。
+2. **阶段 1：行为刻画**
+   - 固化当前代码契约中的 77 项公开能力名称/路由、MCP/HTTP/CLI/ACP 外形、错误映射、权限与审计副作用；同时确认项目规则“70 个能力”与契约 77 项之间的权威口径。
+   - 对 workspace 测试按 crate 分层计时，记录 passed/failed/ignored/timeout，不以总命令超时替代结论。
+3. **阶段 2：独立修复产品契约**
+   - WorkflowConfig、semantic recall、Agent timeout/ack/gather、Pipeline DAG、research depth、serial optimize parallel 各自建立 failing characterization test 和明确契约。
+   - 每项独立 PR/提交；不得仅让字段被读取或写入响应就声称功能生效。
+4. **阶段 3：执行 E1—E6 决策实验**
+   - 比较各入口的输入、输出、延迟、权限、安全 gate、metrics、learner 与 execution log。
+   - 只有差异违反明确契约且共享路径能在兼容预算内解决时，才批准方案 B；否则停止。
+5. **阶段 4：可选迁移**
+   - 若获批准，先迁移 direct CLI，再迁移 ACP；MCP/HTTP 保持现状。
+   - 每迁移一个入口后重跑同一套契约测试；任何未解释的输出或安全语义变化立即回滚该阶段。
+
+### 0.2 当前成功标准
+
+- `cargo fmt --all -- --check`、strict clippy、workspace check 全部无 warning 通过。
+- `aion-router` 当前 95 个 lib 测试全部通过；workspace lib/doc/required integration 测试获得完整终态，不超时、不吞失败。
+- 远端 required CI 与本地门禁一致，任何 optional 失败清楚标记。
+- 上述 6 类产品参数有行为级测试：输入变化必须导致声明的调度/检索/超时/ack/并发变化，或明确返回 unsupported/fallback 状态。
+- 公开能力名称、CLI 命令、MCP schema/protocol、HTTP route/status/auth/CORS、持久化格式和环境变量优先级保持兼容，除非另行批准 breaking change。
+- 在 E1—E6 完成前，生产入口执行链和安全语义保持现状。
+
+### 0.3 为什么不再直接推荐方案 B
+
+后文原方案把“代码路径不同”进一步推断为“已证明的安全/观测缺陷”。最新对抗审查指出这一推断缺少入口威胁模型、兼容性与性能实验；当前代码又新增多个未真正接入执行路径的功能声明，并重新引入 fmt 失败。继续按 B 迁移会扩大变量数量。A+V 能先修复确定问题，再用可复现实验决定是否存在值得迁移的净收益。
+
 ## 文档元信息
 
 - **分析范围**：以 [01-current-state.md](./01-current-state.md) 的 `9ba54ed6e0499c95d3f6b8c6bd1a2fc820b39b4f` 快照为依据，设计不修改业务代码的候选重构路线。

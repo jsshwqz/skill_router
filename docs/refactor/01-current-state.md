@@ -1,5 +1,111 @@
 # Forge 当前状态模型
 
+## 2026-08-11 最终复核元信息
+
+- **分析范围**：当前 `HEAD=fbcf581a74af731b353bf7229e96685c12b433af`，复核基线 `c0c7a498ba67ba16453e2932837c00b58ed3a2d9..fbcf581` 的 5 个新增提交、此前全部现状结论、五份交接文档和当前本地门禁；未修改业务代码。本文后续历史快照与本节冲突时，以本节为准。
+- **已读取的代码和文档**：新增提交及 3 个变更文件；直接 CLI/ACP/MCP/HTTP 路径；memory semantic recall；WorkflowConfig、AiParallelSolve、AiTripleVote、AiTriangleReview、AiResearch、AiSerialOptimize；Agent delegate/broadcast/gather；Pipeline DAG；熔断器与测试；CI；`docs/refactor/01` 至 `05`。
+- **未读取或无法确认的内容**：未逐项执行全部 77 项公开能力；未连接真实模型、NATS、AionUI、GitHub Actions 或生产数据；未完成 workspace lib/doc/全部 integration 测试和跨平台、性能实验；direct contract 在 249 秒内未完成。因此不能确认生产指标、外部兼容性或全部能力行为。
+- **结论的证据**：`git diff c0c7a49..fbcf581`、当前源码定位，以及 2026-08-11 fresh 执行的 rustfmt、workspace check、strict clippy、`aion-intel` lib、`aion-router` lib 和 direct contract 测试。
+- **当前置信度**：新增提交的静态效果和当前门禁 **高（0.97）**；本文列出的未接入缺口 **高（0.95）**；定向重构方向 **高（0.88）**；生产影响、性能和工期 **低（0.35）**。
+
+## 0. 2026-08-11 最终复核结论（当前有效）
+
+### 0.1 当前快照与门禁
+
+**事实**：`c0c7a49..fbcf581` 包含 5 个提交，仅变更 `agent.rs`、`orchestrator.rs` 和 `05-implementation-report.md`，合计 53 行新增、15 行删除。提交标题声称使用 ReviewMerger、trust_weight、parallel 和 Agent 改进，但代码只完成了其中一部分表面接线。
+
+| 检查项 | Fresh 结果 | 结论 |
+|---|---|---|
+| `cargo fmt --all -- --check` | **失败** | `orchestrator.rs` 存在缩进、长行和尾随空格；阶段 0B 当前不成立 |
+| `cargo check --workspace` | 通过，2 warnings | deprecated `AiSmartCollaborate`；新增 `merged_result` 未使用 |
+| strict clippy | **失败：14 errors** | 仍为 `aion-intel` 的 11 个 `collapsible_if`、2 个 `needless_borrow`、1 个 `new_without_default`；workspace 不是零 warning |
+| `aion-intel` lib | 27 passed，0 failed | 该 crate 的现有单测保持通过 |
+| `aion-router` lib | **94 passed，1 failed** | `circuit_breaker::tests::test_breaker_half_open_success` 仍稳定失败 |
+| direct contract | **249 秒超时** | 没有最终通过/失败汇总；不能据此声称 77 项运行契约已通过 |
+| CI integration | 仍可吞失败 | [.github/workflows/ci.yml:106](../../.github/workflows/ci.yml#L106) 仍有 `cargo test ... || true` |
+
+### 0.2 新提交的实际效果
+
+| 声明或参数 | 当前事实 | 判定 |
+|---|---|---|
+| WorkflowConfig 已使用 | [orchestrator.rs:2693](../../aion-router/src/builtins/orchestrator.rs#L2693) 只把 phase 名拼入 `workflow` 字符串；engines、timeout、parallel、retry 不驱动调度 | **仍未真正接入** |
+| `trust_weight` 已修复 | [orchestrator.rs:2844](../../aion-router/src/builtins/orchestrator.rs#L2844) 读取后只用于日志，未进入投票或合并输入 | **未实现行为** |
+| ReviewMerger 已接入 | [orchestrator.rs:2931](../../aion-router/src/builtins/orchestrator.rs#L2931) 计算 `merged_result`，但响应不包含它，编译器报告 unused | **结果被丢弃** |
+| serial optimize parallel | 只有声称 `tokio::join!` 的 doc comment；执行仍顺序 await analyze、optimize、verify | **未实现** |
+| research depth | 计算 `engine_count` 并写入 input，但闭包仍固定 `cycle_to_fill(..., 3)` | **未实现行为** |
+| Agent timeout/ack/gather | timeout 仅回显；ack 用 delivery count 近似；gather 返回 placeholder；新增重复 `note` key，前值会被覆盖 | **未实现真实协议** |
+| semantic recall | [memory.rs:75](../../aion-router/src/builtins/memory.rs#L75) 仍明确使用 keyword fallback | **未实现 semantic** |
+| Pipeline DAG | 只有类型和 `topological_sort`，生产执行仍未引用 | **未接入** |
+
+**事实**：这些缺口跨越 orchestrator、Agent、pipeline 和 memory，不是一个统一执行链可以同时解决的问题。
+
+### 0.3 最终重构必要性判断
+
+**结论**：Forge **需要重构**，但证据支持的是“按领域定向重构”，不支持全 workspace 重写，也不支持现在就把 direct CLI/ACP 强制迁入统一执行链。
+
+推荐顺序：
+
+1. 先恢复 fmt、零 warning、strict clippy、熔断器测试和可信 CI，建立可归因基线。
+2. 对未实现能力立即收缩契约：真实实现前返回 `unsupported` 或明确 `*_applied: false`，停止静默成功。
+3. 对 orchestrator 的配置/调度/结果合并、Agent 消息协作、Pipeline DAG、semantic recall 分别做定向重构和行为测试。
+4. direct CLI/ACP 执行链是否收敛继续由 E1—E6 决定，不与上述功能修复捆绑。
+
+这不是“在旧代码上无限打补丁”：目标是以行为契约为边界替换未完成实现；每个领域独立合并、独立回滚。完整候选比较和迁移路线见 `02-refactor-proposal.md` 当前决策。
+
+## 2026-08-04 历史增量复核元信息（已由上节取代）
+
+- **分析范围**：当前 `HEAD=c0c7a498ba67ba16453e2932837c00b58ed3a2d9`，重点复核基线 `9ba54ed6e0499c95d3f6b8c6bd1a2fc820b39b4f..c0c7a49` 的 5 个提交及其对原结论的影响；未修改业务代码。若本节与后文基线描述冲突，以本节为准。
+- **已读取的代码和文档**：上述提交列表与 diff、`docs/refactor/03-adversarial-review.md` 至 `05-implementation-report.md`、直接 CLI/ACP/MCP/HTTP 执行入口、memory semantic 分支、WorkflowConfig 与协作工作流、pipeline DAG、Agent delegate/broadcast/gather、AiResearch/AiSerialOptimize、熔断器实现和测试、CI workflow。
+- **未读取或无法确认的内容**：未逐行复核全部 builtin 和所有历史提交；未连接真实模型、NATS、AionUI、GitHub Actions 或生产数据；workspace lib 测试在 309 秒内未完成；未运行 doc test、全部集成测试、跨平台发布与性能实验；因此不能确认生产成功率、P95、外部兼容性或当前契约列出的全部 77 项公开能力行为。项目规则中的“70 个能力”与代码契约的 77 项口径不一致，权威口径仍待确认。
+- **结论的证据**：当前代码位置、`git diff 9ba54ed..c0c7a49`、文档 03—05，以及本机重新执行的 fmt/check/clippy、`aion-intel` lib 测试、`aion-router` lib 测试。命令结果和失败项记录在下节。
+- **当前置信度**：静态架构与本文列出的实现缺口 **高（0.92）**；当前本地门禁状态 **高（0.95）**；熔断器失败根因 **高（0.95）**；真实外部服务、并发性能和生产影响 **低（0.30）**。
+
+## 2026-08-04 历史增量复核结论
+
+### 0.1 快照与门禁
+
+**事实**：从基线到当前 HEAD 共 5 个提交，变更 44 个文件（约 `+1782/-500`），并新增/更新了 `03`—`05` 阶段文档。
+
+| 检查项 | 当前结果 | 证据与解释 |
+|---|---|---|
+| UTF-8 | 已恢复 | `aion-intel` 可被 rustc/clippy 读取，原非法 UTF-8 阻断不再出现 |
+| `cargo fmt --all -- --check` | **失败** | 当前差异位于 `aion-router/src/builtins/orchestrator.rs`；因此 `05-implementation-report.md` 中阶段 0B 的成功记录只代表当时快照，不能代表当前 HEAD |
+| `cargo check --workspace` | 通过但有 1 个 warning | `AiSmartCollaborate` deprecated warning，约位于 `orchestrator.rs:3112` |
+| strict clippy | **失败：14 errors** | 11 个 `collapsible_if`、2 个 `needless_borrow`、1 个 `new_without_default`，集中于 `aion-intel`；另有 deprecated warning |
+| `aion-intel` lib 测试 | 通过 | 27 passed，0 failed |
+| `aion-router` lib 测试 | **失败** | 94 passed，1 failed：`circuit_breaker::tests::test_breaker_half_open_success` |
+| workspace lib 测试 | 未完成 | `cargo test --workspace --lib --no-fail-fast` 在 309 秒超时，无最终汇总 |
+| CI integration gate | 仍可吞失败 | [.github/workflows/ci.yml:106](../../.github/workflows/ci.yml#L106) 仍使用 `cargo test ... || true` |
+
+**事实**：熔断器测试失败是确定性的状态机/测试契约矛盾，不是并行测试偶发错误。测试在 [circuit_breaker.rs:238](../../aion-router/src/circuit_breaker.rs#L238) 把状态推进到 `Open` 后直接调用 `record_success()`，随后期望 `allow_call()` 为真；实现 [circuit_breaker.rs:164](../../aion-router/src/circuit_breaker.rs#L164) 只在 `HalfOpen` 状态收到 success 时关闭熔断器，`Open` 状态保持不变。需要产品/设计选择“修测试以先等待进入 HalfOpen”或“允许 Open 被外部成功直接关闭”，本次现状分析不替代该决策。
+
+### 0.2 原问题的最新状态
+
+| 问题 | 当前判定 | 证据 |
+|---|---|---|
+| direct CLI/ACP 绕过 `SkillRouter`/`Executor` | **事实仍成立；是否为缺陷待实验** | [direct.rs:41](../../aion-forge-cli/src/direct.rs#L41)、[direct.rs:61](../../aion-forge-cli/src/direct.rs#L61)、[ACP executor.rs:42](../../aion-forge-acp/src/executor.rs#L42)、[ACP executor.rs:90](../../aion-forge-acp/src/executor.rs#L90)。对抗审查正确指出：在威胁模型、性能和兼容性证据不足前，不能直接推出必须统一执行链 |
+| semantic recall | **仍是可观测日志中的 keyword fallback** | [memory.rs:75](../../aion-router/src/builtins/memory.rs#L75)；两个分支均调用 `manager.recall`，embedding provider 未接入该路径 |
+| WorkflowConfig | **从完全 stub 变为部分解析，但仍未驱动声明的工作流** | [orchestrator.rs:2516](../../aion-router/src/builtins/orchestrator.rs#L2516) 使用手写逐行解析而非 YAML parser；[orchestrator.rs:2693](../../aion-router/src/builtins/orchestrator.rs#L2693) 仅把 phase 名拼入 workflow 字符串。phase engines/timeout/parallel 及全局 timeout/retry 未用于实际调度 |
+| Pipeline DAG | **类型存在，执行路径未接入** | [pipeline.rs:29](../../aion-router/src/builtins/pipeline.rs#L29) 定义 `TaskPipelineDAG` 和拓扑排序，但 `TaskPipeline::execute` 仍串行读取 `context["steps"]`；仓库中无生产调用或相应测试 |
+| Agent timeout/retry/ack | **retry 有限实现；timeout/ack 仍主要是报告字段** | [agent.rs:29](../../aion-router/src/builtins/agent.rs#L29) 读取 timeout 但没有超时控制；`ack_required` 使用投递数量近似 ack，`wait_timeout_ms` 未参与等待；gather/reduce 仍为占位聚合 |
+| Q7 research depth | **参数没有控制真实 engine 数量** | [orchestrator.rs:3160](../../aion-router/src/builtins/orchestrator.rs#L3160) 计算 `engine_count`，但 [orchestrator.rs:3181](../../aion-router/src/builtins/orchestrator.rs#L3181) 固定 `cycle_to_fill(..., 3)` |
+| Q6 serial optimize parallel | **未实现** | 文档注释声称读取 `parallel` 并使用 `tokio::join!`，但执行体未读取该参数，仍顺序 await analyze、optimize、verify |
+
+### 0.3 重构必要性修正
+
+**事实**：当前最紧急问题是基线不可信与多个“声明已完成、实际未接入”的功能缺口，不是 crate 边界或代码风格。
+
+**推断**：在 fmt、strict clippy、熔断器契约和 required CI 尚未稳定前开始执行链统一或 orchestrator 拆分，会把已有失败与迁移回归混在一起，降低可归因性。
+
+**当前推荐**：采用 `04-final-design.md` 的 **A+V（最小基线修复 + 行为验证）**，原文后续“直接推荐方案 B”降级为待实验候选。先恢复可重复门禁并补入口行为刻画；仅在 E1—E6 证明 direct CLI/ACP 与 MCP/HTTP 的差异确实造成安全、兼容性或维护成本后，再单独批准执行链收敛。WorkflowConfig、semantic、Agent、DAG、Q6/Q7 属于产品正确性修复，应拆成独立决策与测试，不包装成结构重构。
+
+### 0.4 当前停止条件
+
+- fmt、strict clippy 或 required 测试仍失败时，不进入生产执行路径迁移。
+- 无法定义 direct CLI/ACP 的威胁模型和必须一致的 gate 时，不统一执行链。
+- WorkflowConfig、semantic、ack、depth/parallel 的产品契约未确定时，不根据提交标题补写实现。
+- workspace 测试继续超时，应先分层计时、隔离慢测或外部依赖，而不是把“未完成”记为通过。
+
 ## 文档元信息
 
 - **分析范围**：`9ba54ed6e0499c95d3f6b8c6bd1a2fc820b39b4f`（2026-08-04 07:52:40 +08:00）所指向的 Forge workspace；覆盖 crate 结构、正式与兼容入口、核心路由/执行链、配置、依赖、测试、CI、发布脚本和主要项目文档。分析期间仓库曾从 `7776c46` 前进到 `9ba54ed`，因此本文只对上述快照负责。
