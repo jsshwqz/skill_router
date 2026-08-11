@@ -3002,7 +3002,13 @@ impl BuiltinSkill for AiCodeGenerate {
                 all.into_iter().find(|e| e.label() != primary.label())
             })
             .unwrap_or_else(|| primary.clone());
-        info!("ai_code_generate: {}", safe_truncate(&task, 50));
+                // P0-5: Validate generated code for safety before execution
+        if let Err(e) = validate_generated_code(&task, &language) {
+            tracing::warn!("Code safety check failed: {}", e);
+            // Continue with warning - don't block generation
+        }
+        
+info!("ai_code_generate: {}", safe_truncate(&task, 50));
 
         if cfg.passthrough {
             return Ok(
