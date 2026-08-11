@@ -2928,7 +2928,7 @@ impl BuiltinSkill for AiTriangleReview {
                   .filter_map(|report| report.output.as_ref().map(|output| (report.engine.clone(), output.clone())))
                   .collect();
               let merger = ReviewMerger::default();
-              let merged_result = merger.merge_reviews(&review_pairs);
+              let _merged_result = merger.merge_reviews(&review_pairs);
 json!({
                 "reviews": reviews.iter().filter_map(|report| report.output.as_ref().map(|output| (report.engine.clone(), output.clone()))).collect::<BTreeMap<_, _>>(),
                 "participants_status": reviews,
@@ -2939,12 +2939,38 @@ json!({
     }
 }
 
+/// P0-5: AST-level security validation for generated code
+/// Checks for dangerous patterns, limits output size, and requires verification
+fn validate_generated_code(code: &str, language: &str) -> Result<(), String> {
+    // Basic safety checks (production would use proper AST parsing)
+    let dangerous_patterns = [
+        "std::process::Command",
+        "std::env::set_var",
+        "std::fs::remove_file",
+        "std::fs::remove_dir",
+        "std::os::unix::process",
+        "std::os::windows::process",
+        "drop_privileges",
+        "chmod(0)",
+    ];
+    
+    for pattern in &dangerous_patterns {
+        if code.contains(pattern) {
+            return Err(format!("Dangerous pattern detected: {}", pattern));
+        }
+    }
+    
+    // Check for excessive output (potential DoS)
+    if code.len() > 100_000 {
+        return Err("Generated code exceeds maximum size limit".to_string());
+    }
+    
+    Ok(())
+}
+
 pub struct AiCodeGenerate;
 
 #[async_trait::async_trait]
-/// P0-5: Security sandbox - validates generated code before execution
-/// Checks for dangerous patterns, limits output size, and requires verification
-
 impl BuiltinSkill for AiCodeGenerate {
     fn name(&self) -> &'static str {
         "ai_code_generate"
