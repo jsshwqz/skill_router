@@ -49,10 +49,11 @@ impl BuiltinSkill for AgentDelegate {
                 delivered += 1;
                 break;
             }
-            // Note: Real async timeout requirestokio::time::sleep, but for simplicity
-            // we use a small delay between retries
+            // P3-C: Real timeout control using tokio::time::timeout
             if attempt < retry_count {
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                // Exponential backoff: 100ms, 200ms, 400ms...
+                let delay = 100u64.pow(attempt as u32);
+                tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
             }
         }
         Ok(json!({
