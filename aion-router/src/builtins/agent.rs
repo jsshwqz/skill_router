@@ -172,7 +172,7 @@ impl BuiltinSkill for AgentGather {
                 // Return aggregated min
                 json!({"result": "min_response", "count": delivered, "min_value": delivered.max(1)})
             }
-            "all" | _ => {
+            _ => {
                 // Return all responses collected
                 json!({
                     "results": format!("{} agent responses collected via MessageBus", delivered),

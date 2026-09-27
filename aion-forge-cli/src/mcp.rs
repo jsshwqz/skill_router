@@ -160,18 +160,18 @@ impl ForgeMcpServer {
     /// Route one `tools/call` through the Aion Forge skill router, reusing the
     /// original passthrough / routing / async-poll logic.
     async fn run_tool(&self, tool_name: &str, arguments: Value) -> CallToolResult {
-        if passthrough_enabled() {
-            if let Some(instruction) = aion_intel::synth::ai_instruction_for(tool_name) {
-                let text = arguments
-                    .get("text")
-                    .or_else(|| arguments.get("input"))
-                    .or_else(|| arguments.get("query"))
-                    .and_then(Value::as_str)
-                    .unwrap_or("");
-                return CallToolResult::success(vec![ContentBlock::text(format!(
-                    "[Instruction]: {instruction}\n\n[Input]:\n{text}"
-                ))]);
-            }
+        if passthrough_enabled()
+            && let Some(instruction) = aion_intel::synth::ai_instruction_for(tool_name)
+        {
+            let text = arguments
+                .get("text")
+                .or_else(|| arguments.get("input"))
+                .or_else(|| arguments.get("query"))
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            return CallToolResult::success(vec![ContentBlock::text(format!(
+                "[Instruction]: {instruction}\n\n[Input]:\n{text}"
+            ))]);
         }
 
         let task = arguments

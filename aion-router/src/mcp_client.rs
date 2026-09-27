@@ -12,6 +12,7 @@
 //! - 客户端 stdio 传输：`rmcp::transport::child_process::TokioChildProcess`
 //! - streamable HTTP 传输（原 SSE 预留位）：`rmcp::transport::StreamableHttpClientTransport::from_uri`
 //!   （feature `transport-streamable-http-client-reqwest`）
+//!
 //! 公开结构与方法签名保持不变（`McpClientManager::new / load_from_config / connect /
 //! connect_stdio / call_tool / all_tools / connected_servers / disconnect / shutdown`）。
 //! initialize 握手、协议版本协商、tools/list 分页等由 rmcp 自动处理。

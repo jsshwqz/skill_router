@@ -37,6 +37,7 @@ agents_out2.txt
 
 # Runtime data and caches
 memory_store.json
+memory_store.redb
 .env
 
 # Skill router runtime

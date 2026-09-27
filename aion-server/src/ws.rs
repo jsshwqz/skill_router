@@ -47,7 +47,7 @@ async fn handle_ws(mut socket: WebSocket, session_id: String, state: Arc<AppStat
             // 从事件总线接收事件
             event = rx.recv() => {
                 match event {
-                    Ok(evt) if evt.session_id() == &session_id => {
+                    Ok(evt) if evt.session_id() == session_id => {
                         lag_count = 0; // 重置 lag 计数
                         match serde_json::to_string(&evt) {
                             Ok(json) => {
@@ -99,14 +99,13 @@ async fn handle_ws(mut socket: WebSocket, session_id: String, state: Arc<AppStat
                     Some(Ok(Message::Text(text))) => {
                         idle_timer.reset();
                         // P1-7: 处理 reconnect 请求
-                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) {
-                            if json.get("type").and_then(|t| t.as_str()) == Some("reconnect") {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&text)
+                            && json.get("type").and_then(|t| t.as_str()) == Some("reconnect") {
                                 info!("Session {} reconnect requested", session_id);
                                 let _ = socket.send(Message::Text(
                                     r#"{"type":"reconnected"}"#.into()
                                 )).await;
                             }
-                        }
                     }
                     Some(Ok(Message::Binary(_))) => {
                         idle_timer.reset();

@@ -63,6 +63,30 @@ impl Loader {
         }
     }
 
+    /// Load a single skill definition from its directory.
+    ///
+    /// Returns `Err` for any per-skill problem (unreadable/malformed
+    /// `skill.json`, empty capabilities, invalid capability names) so the
+    /// caller can skip just this skill instead of failing the whole scan.
+    fn load_skill_dir(
+        skill_dir: &std::path::Path,
+        capability_registry: &CapabilityRegistry,
+    ) -> Result<SkillDefinition> {
+        let skill_json = skill_dir.join("skill.json");
+        let metadata: SkillMetadata = serde_json::from_slice(&fs::read(&skill_json)?)?;
+        if metadata.capabilities.is_empty() {
+            return Err(anyhow!("skill {} declares no capabilities", metadata.name));
+        }
+        for capability in &metadata.capabilities {
+            capability_registry.validate_name(capability)?;
+        }
+        Ok(SkillDefinition {
+            metadata,
+            root_dir: skill_dir.to_path_buf(),
+            source: SkillSource::Local,
+        })
+    }
+
     fn scan_skills_dir(paths: &RouterPaths, capability_registry: &CapabilityRegistry) -> Result<Vec<SkillDefinition>> {
         if !paths.skills_dir.exists() {
             return Ok(Vec::new());
@@ -74,22 +98,19 @@ impl Loader {
                 continue;
             }
             let skill_dir = entry.path();
-            let skill_json = skill_dir.join("skill.json");
-            if !skill_json.exists() {
+            if !skill_dir.join("skill.json").exists() {
                 continue;
             }
-            let metadata: SkillMetadata = serde_json::from_slice(&fs::read(&skill_json)?)?;
-            if metadata.capabilities.is_empty() {
-                return Err(anyhow!("skill {} declares no capabilities", metadata.name));
+            // 单个技能损坏只跳过该技能并告警，不中断整个扫描：
+            // 否则一个非法 skill.json 会让所有技能（含 MCP 工具）全部不可用。
+            match Self::load_skill_dir(&skill_dir, capability_registry) {
+                Ok(skill) => skills.push(skill),
+                Err(err) => tracing::warn!(
+                    skill_dir = %skill_dir.display(),
+                    error = %err,
+                    "skipping invalid skill definition"
+                ),
             }
-            for capability in &metadata.capabilities {
-                capability_registry.validate_name(capability)?;
-            }
-            skills.push(SkillDefinition {
-                metadata,
-                root_dir: skill_dir,
-                source: SkillSource::Local,
-            });
         }
         skills.sort_by(|a, b| a.metadata.name.cmp(&b.metadata.name));
         Ok(skills)

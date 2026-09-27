@@ -94,10 +94,10 @@ impl InferCache {
         if self.map.contains_key(&k) {
             return;
         }
-        if self.map.len() >= 256 {
-            if let Some(o) = self.order.pop_front() {
-                self.map.remove(&o);
-            }
+        if self.map.len() >= 256
+            && let Some(o) = self.order.pop_front()
+        {
+            self.map.remove(&o);
         }
         self.map.insert(k, v);
         self.order.push_back(k);
@@ -131,20 +131,20 @@ impl Planner {
 
     pub async fn infer_capability(task: &str, registry: &CapabilityRegistry) -> Result<Option<String>> {
         let key = hash_task(task);
-        if let Ok(c) = cache().lock() {
-            if let Some(v) = c.get(key) {
-                return Ok(Some(v.to_string()));
-            }
+        if let Ok(c) = cache().lock()
+            && let Some(v) = c.get(key)
+        {
+            return Ok(Some(v.to_string()));
         }
         let r = Self::infer_via_ai(task, registry)
             .await
             .ok()
             .flatten()
             .or_else(|| Self::infer_via_keywords(task, registry));
-        if let Some(ref cap) = r {
-            if let Ok(mut c) = cache().lock() {
-                c.insert(key, cap.clone());
-            }
+        if let Some(ref cap) = r
+            && let Ok(mut c) = cache().lock()
+        {
+            c.insert(key, cap.clone());
         }
         Ok(r)
     }
@@ -155,10 +155,10 @@ impl Planner {
         paths: &aion_types::types::RouterPaths,
     ) -> Result<Option<String>> {
         let key = hash_task(task);
-        if let Ok(c) = cache().lock() {
-            if let Some(v) = c.get(key) {
-                return Ok(Some(v.to_string()));
-            }
+        if let Ok(c) = cache().lock()
+            && let Some(v) = c.get(key)
+        {
+            return Ok(Some(v.to_string()));
         }
         let r = Self::infer_via_ai(task, registry)
             .await
@@ -170,10 +170,10 @@ impl Planner {
         } else {
             r
         };
-        if let Some(ref cap) = r {
-            if let Ok(mut c) = cache().lock() {
-                c.insert(key, cap.clone());
-            }
+        if let Some(ref cap) = r
+            && let Ok(mut c) = cache().lock()
+        {
+            c.insert(key, cap.clone());
         }
         Ok(r)
     }

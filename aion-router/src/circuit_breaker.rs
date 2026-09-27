@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -50,11 +50,11 @@ pub struct CircuitBreaker {
 }
 
 impl CircuitBreaker {
-    pub fn new(config: BreakerConfig, data_path: &PathBuf) -> Self {
+    pub fn new(config: BreakerConfig, data_path: &Path) -> Self {
         let status = Self::load_status(data_path);
         Self {
             config,
-            data_path: data_path.clone(),
+            data_path: data_path.to_path_buf(),
             state: BreakerState::Closed,
             status,
             half_open_calls: 0,
@@ -62,7 +62,7 @@ impl CircuitBreaker {
         }
     }
 
-    fn load_status(data_path: &PathBuf) -> BreakerStatus {
+    fn load_status(data_path: &Path) -> BreakerStatus {
         let file = data_path.join("circuit_breaker.json");
         if file.exists() {
             match fs::read_to_string(&file) {
@@ -167,13 +167,10 @@ impl CircuitBreaker {
         self.status.failure_count = 0;
         self.status.consecutive_failures = 0;
         self.status.last_success_time = Some(Self::now_secs());
-        match self.state {
-            BreakerState::HalfOpen => {
-                self.state = BreakerState::Closed;
-                self.last_state_change = Instant::now();
-                tracing::info!("Circuit breaker: HalfOpen -> Closed (success)");
-            }
-            _ => {}
+        if self.state == BreakerState::HalfOpen {
+            self.state = BreakerState::Closed;
+            self.last_state_change = Instant::now();
+            tracing::info!("Circuit breaker: HalfOpen -> Closed (success)");
         }
         let _ = self.save();
     }
@@ -190,11 +187,10 @@ impl CircuitBreaker {
     }
 
     pub fn status_report(&self) -> Value {
-        let next_recovery = if let Some(last_failure) = self.status.last_failure_time {
-            Some(last_failure + self.config.recovery_timeout_secs - Self::now_secs())
-        } else {
-            None
-        };
+        let next_recovery = self
+            .status
+            .last_failure_time
+            .map(|last_failure| last_failure + self.config.recovery_timeout_secs - Self::now_secs());
         json!({
             "state": format!("{:?}", self.state),
             "failure_count": self.status.failure_count,
@@ -248,8 +244,12 @@ mod tests {
         cb.record_failure();
         cb.record_failure();
         assert!(!cb.allow_call());
+        // Open 状态需等 recovery_timeout_secs 才会转入 HalfOpen。
+        // 将 last_failure_time 回拨到超时之前，模拟时间流逝。
+        cb.status.last_failure_time = Some(CircuitBreaker::now_secs() - 61);
+        assert!(cb.allow_call(), "breaker should be HalfOpen after recovery timeout");
         cb.record_success();
-        assert!(cb.allow_call());
+        assert!(cb.allow_call(), "HalfOpen should close after a successful call");
         let _ = fs::remove_dir_all(&tmp);
     }
 }

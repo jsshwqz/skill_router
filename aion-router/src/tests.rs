@@ -606,3 +606,75 @@ mod router_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod loader_robustness_tests {
+    use crate::loader::Loader;
+    use aion_types::capability_registry::CapabilityRegistry;
+    use aion_types::types::RouterPaths;
+    use std::env;
+    use std::fs;
+
+    fn write_skill(root: &std::path::Path, name: &str, json: &str) {
+        let dir = root.join("skills").join(name);
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("skill.json"), json).unwrap();
+    }
+
+    /// 单个无效技能（能力名带连字符）不得中断整个技能扫描。
+    /// 回归背景：skills/deepseek-harness 的能力名带连字符曾导致
+    /// scan_skills_dir 整体失败，所有 MCP 工具（含 session_report）不可用。
+    #[test]
+    fn test_invalid_capability_name_is_skipped_not_fatal() {
+        let tmp = env::temp_dir().join("aion_router_test_loader_invalid_cap");
+        let _ = fs::remove_dir_all(&tmp);
+        let paths = RouterPaths::for_workspace(&tmp);
+        paths.ensure_base_dirs().unwrap();
+        let reg = CapabilityRegistry::builtin();
+
+        write_skill(
+            &tmp,
+            "good_skill",
+            r#"{"name":"good_skill","version":"0.1.0","capabilities":["echo"],"entrypoint":"builtin:echo","engine_capable":false,"permissions":{"network":false,"filesystem_read":false,"filesystem_write":false,"process_exec":false,"sandboxed_exec":false},"instruction":"ok"}"#,
+        );
+        write_skill(
+            &tmp,
+            "bad_hyphen",
+            r#"{"name":"bad_hyphen","version":"0.1.0","capabilities":["bad-hyphen"],"entrypoint":"builtin:echo","engine_capable":false,"permissions":{"network":false,"filesystem_read":false,"filesystem_write":false,"process_exec":false,"sandboxed_exec":false},"instruction":"bad"}"#,
+        );
+
+        let skills = Loader::load_local_skills(&paths, &reg).expect("one invalid skill must not abort the whole scan");
+        assert_eq!(
+            skills.len(),
+            1,
+            "only the valid skill should load; got {:?}",
+            skills.iter().map(|s| s.metadata.name.clone()).collect::<Vec<_>>()
+        );
+        assert_eq!(skills[0].metadata.name, "good_skill");
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    /// 损坏的 skill.json（非法 JSON / 空能力列表）同样只跳过该技能。
+    #[test]
+    fn test_malformed_skill_json_is_skipped_not_fatal() {
+        let tmp = env::temp_dir().join("aion_router_test_loader_bad_json");
+        let _ = fs::remove_dir_all(&tmp);
+        let paths = RouterPaths::for_workspace(&tmp);
+        paths.ensure_base_dirs().unwrap();
+        let reg = CapabilityRegistry::builtin();
+
+        write_skill(&tmp, "broken_json", "{ not valid json");
+        write_skill(
+            &tmp,
+            "no_capabilities",
+            r#"{"name":"no_capabilities","version":"0.1.0","capabilities":[],"entrypoint":"builtin:echo","engine_capable":false,"permissions":{"network":false,"filesystem_read":false,"filesystem_write":false,"process_exec":false,"sandboxed_exec":false},"instruction":"empty"}"#,
+        );
+
+        let skills =
+            Loader::load_local_skills(&paths, &reg).expect("malformed skill.json must not abort the whole scan");
+        assert!(skills.is_empty(), "no valid skill should load, got {:?}", skills.len());
+
+        let _ = fs::remove_dir_all(&tmp);
+    }
+}

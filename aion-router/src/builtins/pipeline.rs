@@ -35,7 +35,6 @@ impl TaskPipelineDAG {
     /// P4-B: Execute tasks using DAG topological sort
     /// Usage: pass "dag" JSON parameter with "steps" array
     /// Example: {"dag": {"steps": [{"id": "step1", "name": "Analyze", "depends_on": []}]}}
-
     pub fn topological_sort(&self) -> Result<Vec<String>> {
         let mut sorted = Vec::new();
         let mut visited = HashSet::new();
