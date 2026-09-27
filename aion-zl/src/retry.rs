@@ -209,9 +209,9 @@ mod tests {
         }
     }
 
-    fn next_analyzer()
-    -> impl FnMut(&str, &str, &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = (String, String, String)> + Send>>
-    {
+    type AnalyzedFuture = std::pin::Pin<Box<dyn std::future::Future<Output = (String, String, String)> + Send>>;
+
+    fn next_analyzer() -> impl FnMut(&str, &str, &str) -> AnalyzedFuture {
         let counter = Arc::new(AtomicU32::new(0));
         move |_task: &str, _strategy: &str, err: &str| {
             let counter = counter.clone();

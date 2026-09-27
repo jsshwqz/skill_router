@@ -16,10 +16,10 @@ pub mod setup;
 /// Initialize and run the shared Aion Forge command-line entry point.
 pub async fn main_entry() -> Result<()> {
     dotenvy::dotenv().ok();
-    if let Ok(executable) = std::env::current_exe() {
-        if let Some(directory) = executable.parent() {
-            let _ = dotenvy::from_path(directory.join(".env"));
-        }
+    if let Ok(executable) = std::env::current_exe()
+        && let Some(directory) = executable.parent()
+    {
+        let _ = dotenvy::from_path(directory.join(".env"));
     }
     match std::env::var("AI_PROVIDERS_DISABLED") {
         Ok(value) if !value.trim().is_empty() => {}

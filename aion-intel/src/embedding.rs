@@ -40,7 +40,7 @@ impl OpenAIEmbeddingProvider {
         });
 
         let resp: Value = client
-            .post(&format!("{}/embeddings", self.base_url))
+            .post(format!("{}/embeddings", self.base_url))
             .header("Authorization", format!("Bearer {}", self.api_key))
             .header("Content-Type", "application/json")
             .json(&body)
@@ -49,10 +49,10 @@ impl OpenAIEmbeddingProvider {
             .json()
             .await?;
 
-        if let Some(data) = resp.get("data").and_then(|d| d.get(0)) {
-            if let Some(embedding) = data.get("embedding").and_then(|e| e.as_array()) {
-                return Ok(embedding.iter().filter_map(|v| v.as_f64().map(|f| f as f32)).collect());
-            }
+        if let Some(data) = resp.get("data").and_then(|d| d.get(0))
+            && let Some(embedding) = data.get("embedding").and_then(|e| e.as_array())
+        {
+            return Ok(embedding.iter().filter_map(|v| v.as_f64().map(|f| f as f32)).collect());
         }
 
         anyhow::bail!("Invalid embedding response: {:?}", resp)
@@ -98,7 +98,7 @@ impl OllamaEmbeddingProvider {
         });
 
         let resp: Value = client
-            .post(&format!("{}/api/embeddings", self.base_url))
+            .post(format!("{}/api/embeddings", self.base_url))
             .header("Content-Type", "application/json")
             .json(&body)
             .send()
@@ -132,6 +132,12 @@ impl EmbeddingProvider for OllamaEmbeddingProvider {
 /// TF-IDF fallback provider (no external API needed)
 #[derive(Debug, Clone)]
 pub struct TfIdfProvider;
+
+impl Default for TfIdfProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TfIdfProvider {
     pub fn new() -> Self {

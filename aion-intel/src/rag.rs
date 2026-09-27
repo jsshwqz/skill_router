@@ -252,27 +252,26 @@ impl RagEngine {
         }
 
         // 优先使用 usearch HNSW 索引加速（仅当查询维度与索引维度一致时）
-        if let Some(index) = &self.index {
-            if index.dimensions() == query_embedding.len() {
-                if let Ok(matches) = index.search(query_embedding, top_k) {
-                    let mut results: Vec<RetrievalResult> = matches
-                        .keys
-                        .iter()
-                        .zip(matches.distances.iter())
-                        .filter_map(|(&key, _dist)| {
-                            let pos = key as usize;
-                            self.chunks.get(pos).map(|chunk| RetrievalResult {
-                                chunk: chunk.clone(),
-                                // 分数用手写余弦计算，保证与降级路径分数语义完全一致
-                                score: Self::cosine_similarity(query_embedding, &chunk.embedding),
-                            })
-                        })
-                        .collect();
-                    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
-                    results.truncate(top_k);
-                    return results;
-                }
-            }
+        if let Some(index) = &self.index
+            && index.dimensions() == query_embedding.len()
+            && let Ok(matches) = index.search(query_embedding, top_k)
+        {
+            let mut results: Vec<RetrievalResult> = matches
+                .keys
+                .iter()
+                .zip(matches.distances.iter())
+                .filter_map(|(&key, _dist)| {
+                    let pos = key as usize;
+                    self.chunks.get(pos).map(|chunk| RetrievalResult {
+                        chunk: chunk.clone(),
+                        // 分数用手写余弦计算，保证与降级路径分数语义完全一致
+                        score: Self::cosine_similarity(query_embedding, &chunk.embedding),
+                    })
+                })
+                .collect();
+            results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+            results.truncate(top_k);
+            return results;
         }
 
         // 降级：usearch 不可用或维度不匹配时，使用手写全量余弦扫描
@@ -377,24 +376,24 @@ impl RagEngine {
     /// usearch 不可用时保持 `None`（降级手写全量余弦扫描）。
     fn restore_index(&mut self) {
         let index_file = self.store_path.join(INDEX_FILE);
-        if index_file.exists() {
-            if let Ok(index) = Self::open_index(&index_file) {
-                let dim = index.dimensions();
-                let expected = self
-                    .chunks
-                    .iter()
-                    .filter(|c| !c.embedding.is_empty() && c.embedding.len() == dim)
-                    .count();
-                if index.size() == expected {
-                    self.index = Some(index);
-                    return;
-                }
-                tracing::warn!(
-                    expected,
-                    actual = index.size(),
-                    "RAG: usearch index size mismatch, rebuilding"
-                );
+        if index_file.exists()
+            && let Ok(index) = Self::open_index(&index_file)
+        {
+            let dim = index.dimensions();
+            let expected = self
+                .chunks
+                .iter()
+                .filter(|c| !c.embedding.is_empty() && c.embedding.len() == dim)
+                .count();
+            if index.size() == expected {
+                self.index = Some(index);
+                return;
             }
+            tracing::warn!(
+                expected,
+                actual = index.size(),
+                "RAG: usearch index size mismatch, rebuilding"
+            );
         }
         self.rebuild_index();
     }

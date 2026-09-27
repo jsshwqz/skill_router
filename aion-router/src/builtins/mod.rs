@@ -154,6 +154,11 @@ impl BuiltinRegistry {
         reg.register(Box::new(orchestrator::AiTripleVote));
         reg.register(Box::new(orchestrator::AiTriangleReview));
         reg.register(Box::new(orchestrator::AiCodeGenerate));
+        // 向后兼容转发器（deprecated）：能力声明仍在 builtin() 注册表中公开暴露，
+        // 缺少路由会破坏 77 工具产品契约（direct_contract 测试）。
+        #[allow(deprecated)]
+        reg.register(Box::new(orchestrator::AiSmartCollaborate));
+        reg.register(Box::new(orchestrator::AiCrossReview));
         reg.register(Box::new(orchestrator::AiResearch));
         reg.register(Box::new(orchestrator::AiSerialOptimize));
         reg.register(Box::new(orchestrator::AiLongContext));

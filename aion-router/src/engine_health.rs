@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EngineStatus {
@@ -36,10 +36,10 @@ pub struct HealthManager {
 }
 
 impl HealthManager {
-    pub fn new(data_path: &PathBuf) -> Self {
+    pub fn new(data_path: &Path) -> Self {
         let mut mgr = HealthManager {
             engines: HashMap::new(),
-            data_path: data_path.clone(),
+            data_path: data_path.to_path_buf(),
         };
         let _ = mgr.load();
         mgr

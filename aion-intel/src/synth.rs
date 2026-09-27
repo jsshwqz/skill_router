@@ -350,10 +350,10 @@ impl Synthesizer {
             anyhow::bail!("ai_task builtin requires non-empty instruction");
         }
         // 3. instruction 不能超过 15KB
-        if let Some(instr) = &def.metadata.instruction {
-            if instr.len() > 15_000 {
-                anyhow::bail!("instruction exceeds 15KB size limit (got {} bytes)", instr.len());
-            }
+        if let Some(instr) = &def.metadata.instruction
+            && instr.len() > 15_000
+        {
+            anyhow::bail!("instruction exceeds 15KB size limit (got {} bytes)", instr.len());
         }
         // 4. entrypoint 必须是已知格式
         if !def.metadata.entrypoint.starts_with("builtin:") && def.metadata.entrypoint != "main.rs" {

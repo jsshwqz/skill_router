@@ -138,16 +138,16 @@ impl DiscoveryRadar {
         let mut hits = Vec::new();
 
         // Abstract result
-        if let Some(abstract_text) = resp["AbstractText"].as_str() {
-            if !abstract_text.is_empty() {
-                hits.push(SearchHit {
-                    title: resp["Heading"].as_str().unwrap_or("DuckDuckGo Result").to_string(),
-                    url: resp["AbstractURL"].as_str().unwrap_or("").to_string(),
-                    snippet: abstract_text.chars().take(300).collect(),
-                    source: SearchSource::HttpDirect,
-                    relevance_score: 0.8,
-                });
-            }
+        if let Some(abstract_text) = resp["AbstractText"].as_str()
+            && !abstract_text.is_empty()
+        {
+            hits.push(SearchHit {
+                title: resp["Heading"].as_str().unwrap_or("DuckDuckGo Result").to_string(),
+                url: resp["AbstractURL"].as_str().unwrap_or("").to_string(),
+                snippet: abstract_text.chars().take(300).collect(),
+                source: SearchSource::HttpDirect,
+                relevance_score: 0.8,
+            });
         }
 
         // Related topics

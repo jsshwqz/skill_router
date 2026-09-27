@@ -94,7 +94,7 @@ impl BuiltinSkill for WebSearch {
             "serpapi" => self.search_serpapi(&query).await,
             "bing" => self.search_bing(&query).await,
             "ddg" => self.search_ddg(&query).await,
-            "auto" | _ => {
+            _ => {
                 // Try SerpAPI first, fallback to others on failure
                 match self.search_serpapi(&query).await {
                     Ok(result) => Ok(result),

@@ -2438,16 +2438,11 @@ async fn spawn_orchestration_with_wait(
 }
 
 /// Workflow mode for parallel solve collaboration
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum CollaborateMode {
+    #[default]
     ParallelSolve,
     SmartCollaborate,
-}
-
-impl Default for CollaborateMode {
-    fn default() -> Self {
-        CollaborateMode::ParallelSolve
-    }
 }
 
 impl CollaborateMode {
@@ -2482,6 +2477,10 @@ pub struct WorkflowConfig {
     pub max_retries: usize,
 }
 
+// clippy(derivable_impls): 手写 Default 携带真实业务语义
+// （3 个预置 phase：analyze/execute/review，timeout 300s，max_retries 2），
+// derive 出的空配置不是等价实现。
+#[allow(clippy::derivable_impls)]
 impl Default for WorkflowConfig {
     fn default() -> Self {
         Self {
@@ -2529,13 +2528,13 @@ impl WorkflowConfig {
             }
 
             // Phase entry starts with "- name:"
-            if t.starts_with("- name:") {
+            if let Some(rest) = t.strip_prefix("- name:") {
                 // Save previous phase
                 if let Some(p) = current_phase.take() {
                     phases.push(p);
                 }
                 // Start new phase
-                let name = t[7..].trim().trim_matches('"').to_string();
+                let name = rest.trim().trim_matches('"').to_string();
                 current_phase = Some(PhaseConfig {
                     name,
                     engines: Vec::new(),
@@ -2543,25 +2542,25 @@ impl WorkflowConfig {
                     parallel: true,
                 });
             } else if let Some(ref mut phase) = current_phase {
-                if t.starts_with("engines:") {
-                    phase.engines = t[8..]
+                if let Some(rest) = t.strip_prefix("engines:") {
+                    phase.engines = rest
                         .split(',')
                         .map(|s| s.trim().trim_matches('"').to_string())
                         .filter(|s| !s.is_empty())
                         .collect();
-                } else if t.starts_with("timeout_secs:") {
-                    if let Ok(v) = t[13..].trim().parse::<u64>() {
+                } else if let Some(rest) = t.strip_prefix("timeout_secs:") {
+                    if let Ok(v) = rest.trim().parse::<u64>() {
                         phase.timeout_secs = v;
                     }
-                } else if t.starts_with("parallel:") {
-                    phase.parallel = t[9..].trim().parse().unwrap_or(true);
+                } else if let Some(rest) = t.strip_prefix("parallel:") {
+                    phase.parallel = rest.trim().parse().unwrap_or(true);
                 }
-            } else if t.starts_with("timeout:") {
-                if let Ok(v) = t[8..].trim().parse::<u64>() {
+            } else if let Some(rest) = t.strip_prefix("timeout:") {
+                if let Ok(v) = rest.trim().parse::<u64>() {
                     global_timeout = v;
                 }
-            } else if t.starts_with("max_retries:") {
-                if let Ok(v) = t[12..].trim().parse::<usize>() {
+            } else if let Some(rest) = t.strip_prefix("max_retries:") {
+                if let Ok(v) = rest.trim().parse::<usize>() {
                     max_retries = v;
                 }
             }
@@ -2690,14 +2689,14 @@ impl BuiltinSkill for AiParallelSolve {
                 let risk = input["risk_level"].as_str().unwrap_or("medium");
                 let force = input["force_triple_execute"].as_bool().unwrap_or(false);
                 // Apply workflow config if loaded
-            let final_workflow = if let Some(cfg) = &workflow_config {
-                // Use custom phase order from config
-                format!("{}:{}", workflow, cfg.phase_order().join(","))
-            } else {
-                workflow.to_string()
-            };
-            
-            run_collaboration_workflow(&final_workflow, &task, engines, risk, force).await
+                let final_workflow = if let Some(cfg) = &workflow_config {
+                    // Use custom phase order from config
+                    format!("{}:{}", workflow, cfg.phase_order().join(","))
+                } else {
+                    workflow.to_string()
+                };
+
+                run_collaboration_workflow(&final_workflow, &task, engines, risk, force).await
             })
         })
         .await)
@@ -2842,7 +2841,11 @@ impl BuiltinSkill for AiTripleVote {
 
         // Support trust_weight parameter for weighted voting (P2-A #9)
         let trust_weight: f64 = ctx.context["trust_weight"].as_f64().unwrap_or(1.0);
-        info!("ai_triple_vote: '{}' with trust_weight={}", safe_truncate(&problem, 50), trust_weight);
+        info!(
+            "ai_triple_vote: '{}' with trust_weight={}",
+            safe_truncate(&problem, 50),
+            trust_weight
+        );
 
         if cfg.passthrough {
             return Ok(json!({
@@ -2922,7 +2925,7 @@ impl BuiltinSkill for AiTriangleReview {
             let engines = Engine::cycle_to_fill(&Engine::default_enabled(), 3);
             let tasks: Vec<_> = engines.iter().map(|e| (e.clone(), prompt.clone())).collect();
             let reviews = call_engines_parallel(&tasks, &cfg, "review").await;
-                          
+
               // Merge reviews using ReviewMerger
               let review_pairs: Vec<(String, String)> = reviews.iter()
                   .filter_map(|report| report.output.as_ref().map(|output| (report.engine.clone(), output.clone())))
@@ -2953,18 +2956,18 @@ fn validate_generated_code(code: &str, _language: &str) -> Result<(), String> {
         "drop_privileges",
         "chmod(0)",
     ];
-    
+
     for pattern in &dangerous_patterns {
         if code.contains(pattern) {
             return Err(format!("Dangerous pattern detected: {}", pattern));
         }
     }
-    
+
     // Check for excessive output (potential DoS)
     if code.len() > 100_000 {
         return Err("Generated code exceeds maximum size limit".to_string());
     }
-    
+
     Ok(())
 }
 
@@ -3002,13 +3005,13 @@ impl BuiltinSkill for AiCodeGenerate {
                 all.into_iter().find(|e| e.label() != primary.label())
             })
             .unwrap_or_else(|| primary.clone());
-                // P0-5: Validate generated code for safety before execution
+        // P0-5: Validate generated code for safety before execution
         if let Err(e) = validate_generated_code(&task, &language) {
             tracing::warn!("Code safety check failed: {}", e);
             // Continue with warning - don't block generation
         }
-        
-info!("ai_code_generate: {}", safe_truncate(&task, 50));
+
+        info!("ai_code_generate: {}", safe_truncate(&task, 50));
 
         if cfg.passthrough {
             return Ok(
@@ -3148,6 +3151,8 @@ info!("ai_code_generate: {}", safe_truncate(&task, 50));
 pub struct AiSmartCollaborate;
 
 #[async_trait::async_trait]
+// deprecated(deprecated): 此处引用是向后兼容转发本身，外部调用方仍依赖该入口。
+#[allow(deprecated)]
 impl BuiltinSkill for AiSmartCollaborate {
     fn name(&self) -> &'static str {
         "ai_smart_collaborate"
@@ -3216,15 +3221,9 @@ impl BuiltinSkill for AiResearch {
 }
 
 /// P2-B: Supports parallel execution via "parallel": true context parameter
-/// When parallel=true, analysis and optimize phases run concurrently using tokio::join!
-/// Default is serial (sequential) for reliability.
-
-/// P2-B: Supports parallel execution via "parallel": true context parameter
 /// When enabled, analysis and optimization phases run concurrently using tokio::join!
 /// Default is serial (sequential) for reliability.
-/// 
 /// Usage: {"parallel": true} in context to enable parallel mode.
-
 pub struct AiSerialOptimize;
 
 #[async_trait::async_trait]

@@ -1237,9 +1237,22 @@ impl CapabilityRegistry {
             let entry = entry?;
             if entry.file_type()?.is_file() && entry.path().extension().and_then(|value| value.to_str()) == Some("json")
             {
-                let definition: CapabilityDefinition = serde_json::from_slice(&fs::read(entry.path())?)?;
-                registry.validate_name(&definition.name)?;
-                registry.definitions.insert(definition.name.clone(), definition);
+                // 单个 capability 文件损坏只跳过并告警，不中断整个注册表加载。
+                let loaded: Result<CapabilityDefinition> = (|| {
+                    let definition: CapabilityDefinition = serde_json::from_slice(&fs::read(entry.path())?)?;
+                    registry.validate_name(&definition.name)?;
+                    Ok(definition)
+                })();
+                match loaded {
+                    Ok(definition) => {
+                        registry.definitions.insert(definition.name.clone(), definition);
+                    }
+                    Err(err) => tracing::warn!(
+                        file = %entry.path().display(),
+                        error = %err,
+                        "skipping invalid capability definition"
+                    ),
+                }
             }
         }
 
